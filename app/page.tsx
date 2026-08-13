@@ -46,7 +46,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         else if(elSelecionado.classList.contains('text-justify')) tAlign = 'text-justify';
         else if(elSelecionado.classList.contains('text-left')) tAlign = 'text-left';
 
-        // Puxa a imagem de fundo de forma robusta
         let bgImgRaw = compStyle.backgroundImage;
         let bgImgUrl = '';
         if (bgImgRaw && bgImgRaw !== 'none' && bgImgRaw.includes('url(')) {
@@ -106,15 +105,19 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 if(event.data.bgColor !== undefined) el.style.setProperty('background-color', event.data.bgColor, 'important');
                 
                 if(event.data.bgImage !== undefined) {
-                    let currentBg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
-                    if(currentBg && currentBg.includes('linear-gradient')) {
-                        let gradientPart = currentBg.split(', url')[0];
-                        el.style.setProperty('background-image', \`\${gradientPart}, url('\${event.data.bgImage}')\`, 'important');
+                    if(event.data.bgImage === '') {
+                        el.style.setProperty('background-image', 'none', 'important');
                     } else {
-                        el.style.setProperty('background-image', \`url('\${event.data.bgImage}')\`, 'important');
+                        let currentBg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
+                        if(currentBg && currentBg.includes('linear-gradient')) {
+                            let gradientPart = currentBg.split(', url')[0];
+                            el.style.setProperty('background-image', \`\${gradientPart}, url('\${event.data.bgImage}')\`, 'important');
+                        } else {
+                            el.style.setProperty('background-image', \`url('\${event.data.bgImage}')\`, 'important');
+                        }
+                        el.style.setProperty('background-size', 'cover', 'important');
+                        el.style.setProperty('background-position', 'center', 'important');
                     }
-                    el.style.setProperty('background-size', 'cover', 'important');
-                    el.style.setProperty('background-position', 'center', 'important');
                 }
 
                 if(event.data.fontSize !== undefined) {
@@ -208,7 +211,7 @@ export default function Home() {
       if (elementoSelecionado && elementoSelecionado.tagName === 'img') {
         atualizarElemento('src', base64Img);
         (window as any).showNotification("Imagem substituída com sucesso!", "success");
-      } else if (elementoSelecionado && elementoSelecionado.bgImage) {
+      } else if (elementoSelecionado && elementoSelecionado.bgImage !== undefined) {
         atualizarElemento('bgImage', base64Img);
         (window as any).showNotification("Fundo substituído com sucesso!", "success");
       } else {
@@ -217,11 +220,6 @@ export default function Home() {
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  const gerarImagemAleatoria = () => {
-      setImagemCapaUrl(`https://picsum.photos/1200/1600?random=${Date.now()}`);
-      (window as any).showNotification("Nova imagem gerada!", "success");
   };
 
   const getPaletaObj = () => {
@@ -248,7 +246,7 @@ export default function Home() {
                    .replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '')
                    .replace(/outline-offset:\s*-3px;?/gi, '')
                    .replace(/data-old-outline="[^"]*"/gi, '')
-                   .replace(/<br\s*\/?>/gi, '') // Arranca as quebras de linha manuais da IA
+                   .replace(/<br\s*\/?>/gi, '') 
                    .replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
       return clean;
@@ -335,7 +333,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: 1em; }
 
-p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify; text-indent: var(--text-indent); hyphens: auto; -webkit-hyphens: auto; }
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
 blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(139, 109, 79, 0.08); padding: 15px 20px; margin: 1.5rem 0; font-size: 11.5pt; font-family: var(--font-heading); border-radius: 0 8px 8px 0; }
 .highlight-box { background: rgba(139, 109, 79, 0.15); padding: 15px 20px; border-radius: 8px; margin: 1.5rem 0; font-weight: 500; }
@@ -531,7 +529,7 @@ ${htmlTemplate.substring(0, 3000)}
 SUA TAREFA DE DESIGN:
 1. Extraia a paleta de cores principal e adote nas variáveis CSS globais da página gerada.
 2. ANALISE A ESTRUTURA: Observe como o site original constrói caixas de destaque, quadros explicativos, citações, elementos circulares ou layouts em formato de blocos/cards.
-3. REPLIQUE A ESTÉTICA: Construa as páginas do e-book utilizando as MESMAS lógicas estruturais visuais. Se o site usa caixas arredondadas com sombra suave para destacar tópicos importantes, crie elementos (divs) similares no e-book.
+3. REPLIQUE A ESTÉTICA: Construa as páginas do e-book utilizando as MESMAS lógicas estruturais visuais. Se o site uses caixas arredondadas com sombra suave para destacar tópicos importantes, crie elementos (divs) similares no e-book.
 4. IGNORE O TEXTO ORIGINAL DO SITE: Use apenas a arquitetura visual, preenchendo as tags com o conteúdo literário do E-book solicitado.`
         : "";
 
@@ -806,21 +804,21 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                               )}
 
                               <div className="pt-3 border-t border-slate-100">
-                                  <label className="input-label mb-2">Estilo da Capa Inicial</label>
-                                  <select value={tipoCapa} onChange={(e) => setTipoCapa(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                      <option value="imagem-texto">Capa Clássica (Imagem Fundo + Texto)</option>
-                                      <option value="imagem-pura">Capa Limpa (Apenas a Imagem s/ texto)</option>
-                                      <option value="texto">Folha de Rosto (Apenas Texto e Bordas)</option>
-                                  </select>
+                                  <label className="input-label mb-2">Buscar Imagem por Termo (Unsplash)</label>
+                                  <div className="flex gap-2">
+                                      <input type="text" id="termoBuscaImg" placeholder="Ex: business, nature..." className="input-standard text-xs" />
+                                      <button onClick={() => {
+                                          const termo = (document.getElementById('termoBuscaImg') as HTMLInputElement).value || 'abstract';
+                                          setImagemCapaUrl(`https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=${termo}`);
+                                          (window as any).showNotification("Nova imagem buscada!", "success");
+                                      }} className="bg-indigo-600 text-white font-bold text-xs px-3 py-2 rounded-lg"><i className="fas fa-search"></i></button>
+                                  </div>
                               </div>
 
                               {(tipoCapa === 'imagem-texto' || tipoCapa === 'imagem-pura') && (
                                   <div className="pt-3 border-t border-slate-100">
-                                      <label className="input-label mb-2">Imagem de Capa (Carregar ou Gerar)</label>
-                                      <div className="flex gap-2">
-                                          <button onClick={() => imageInputRef.current?.click()} className="flex-1 bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Carregar do PC</button>
-                                          <button onClick={gerarImagemAleatoria} className="flex-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-2 rounded-lg transition"><i className="fas fa-random mr-1"></i> Aleatória</button>
-                                      </div>
+                                      <label className="input-label mb-2">Imagem de Capa</label>
+                                      <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Carregar do PC</button>
                                   </div>
                               )}
 
@@ -949,12 +947,12 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                       {/* CONTEÚDO */}
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
                           <div className="mb-4">
-    <label className="input-label text-indigo-800">Motor de Inteligência (IA)</label>
-    <select value={textEngine} onChange={(e) => setTextEngine(e.target.value as any)} className="input-standard font-bold text-slate-700 bg-white">
-        <option value="gemini">Google Gemini (Gemini 3.6 Flash)</option>
-        <option value="groq">Groq Llama 3 (Llama 3.3)</option>
-    </select>
-</div>
+                              <label className="input-label text-indigo-800">Motor de Inteligência (IA)</label>
+                              <select value={textEngine} onChange={(e) => setTextEngine(e.target.value as any)} className="input-standard font-bold text-slate-700 bg-white">
+                                  <option value="gemini">Google Gemini (Gemini 3.6 Flash)</option>
+                                  <option value="groq">Groq Llama 3 (Llama 3.3)</option>
+                              </select>
+                          </div>
                           <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span> Geração Editorial</h3>
                           
                           <div className="mb-4">
@@ -1028,12 +1026,12 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
               <iframe id="previewFrame" className="w-full min-h-full border-none active bg-transparent" sandbox="allow-scripts allow-same-origin allow-modals" title="Leitor do Ebook"></iframe>
               
               <div id="codigoContainer" className="absolute inset-0 bg-[#0d1117] hidden">
-                  <textarea id="codigoGerado" className="..."
-    onChange={(e) => {
-        const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-        if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + SCRIPT_PREVIEW; }
-    }}
-></textarea>
+                  <textarea id="codigoGerado" className="w-full h-full font-mono text-[13px] bg-[#0d1117] text-[#56d364] border-none outline-none resize-none custom-scrollbar p-8 leading-relaxed"
+                      onChange={(e) => {
+                          const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+                          if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + SCRIPT_PREVIEW; }
+                      }}
+                  ></textarea>
               </div>
           </div>
       </main>
