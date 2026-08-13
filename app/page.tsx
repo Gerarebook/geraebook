@@ -392,16 +392,33 @@ ${ebookStyles}
               useGroq: textEngine === 'groq' 
           }) 
       });
+
       const responseText = await response.text();
+      
       let data;
-      try { data = JSON.parse(responseText); } catch (err) { throw new Error("Erro na comunicação com a IA."); }
-      if (!data.success) throw new Error(data.error === 'RATE_LIMIT_EXCEEDED' ? "Limite de acessos atingido. Aguarde." : data.error);
+      try { 
+        data = JSON.parse(responseText); 
+      } catch (err) { 
+        // Se o servidor retornou HTML (como erro de timeout da Vercel) ou texto plano, vamos expor nos logs e na tela
+        console.error("Resposta crua do servidor:", responseText);
+        throw new Error(`Erro no Servidor (${response.status}): ${responseText.substring(0, 80)}...`); 
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || "Erro desconhecido retornado pela API.");
+      }
+
       return data;
     } catch (err: any) {
       let errorMsg = err.message;
-      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Servidor ocupado. Aguarde um minuto."; }
-      (window as any).showNotification(errorMsg, 'error'); return null;
-    } finally { setStatusApis({ texto: 'Aguardando Ação', processing: false }); }
+      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { 
+        errorMsg = "Limite de requisições excedido ou servidor ocupado."; 
+      }
+      (window as any).showNotification(errorMsg, 'error'); 
+      return null;
+    } finally { 
+      setStatusApis({ texto: 'Aguardando Ação', processing: false }); 
+    }
   };
 
   // MEGA FUNÇÃO DE GERAÇÃO
