@@ -1,10 +1,9 @@
 'use client';
 
-import { nanoid } from 'nanoid';
 import { supabase } from '@/lib/supabase';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
-// SCRIPT DO IFRAME EDITORIAL
+// SCRIPT DO IFRAME EDITORIAL (Atualizado para não perder estilos ao editar texto)
 const SCRIPT_PREVIEW = `<script id="editor-magic-script">
     let modoEdicao = false;
     let elSelecionado = null;
@@ -87,41 +86,23 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
             if(el) { el.remove(); elSelecionado = null; sendCleanHtml(); }
         }
 
-        if (event.data.type === 'UPDATE_FONT') {
-            let fontName = event.data.font;
-            let linkId = 'custom-google-font';
-            let fontLink = document.getElementById(linkId);
-            if (!fontLink) {
-                fontLink = document.createElement('link');
-                fontLink.id = linkId; fontLink.rel = 'stylesheet'; document.head.appendChild(fontLink);
-            }
-            if (fontName !== 'sans-serif') {
-                fontLink.href = \`https://fonts.googleapis.com/css2?family=\${fontName.replace(/ /g, '+')}:ital,wght@0,400;0,700;1,400&display=swap\`;
-                document.body.style.fontFamily = \`'\${fontName}', serif\`;
-            } else {
-                fontLink.href = ''; document.body.style.fontFamily = '';
-            }
-            sendCleanHtml();
-        }
-
         if(event.data.type === 'UPDATE_ELEMENT') {
             let el = document.getElementById(event.data.id);
             if(el) {
-                let p = ''; let escP = '';
-                if(event.data.text !== undefined && event.data.forceTextUpdate) el.innerText = event.data.text;
+                // Atualiza APENAS o texto mantendo rigorosamente fontes, cores e classes originais
+                if(event.data.text !== undefined && event.data.forceTextUpdate) {
+                    el.innerText = event.data.text;
+                }
                 if(event.data.src !== undefined) el.src = event.data.src;
                 if(event.data.textColor !== undefined) el.style.color = event.data.textColor;
                 
                 if(event.data.fontSize !== undefined) {
-                    el.style.fontSize = ''; 
-                    el.className = el.className.replace(new RegExp('\\\\b' + escP + 'text-\\\\[\\\\d+px\\\\]\\\\b', 'g'), '').trim();
-                    el.className = el.className.replace(/\\btext-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl)\\b/g, '').trim();
-                    if(event.data.fontSize) el.classList.add(p + 'text-[' + event.data.fontSize + 'px]');
+                    el.style.fontSize = event.data.fontSize + 'px';
                 }
 
                 if(event.data.textAlign !== undefined) {
-                    el.className = el.className.replace(new RegExp('\\\\b' + escP + '(text-left|text-center|text-right|text-justify)\\\\b', 'g'), '').trim();
-                    if(event.data.textAlign) el.classList.add(p + event.data.textAlign);
+                    el.classList.remove('text-left', 'text-center', 'text-right', 'text-justify');
+                    if(event.data.textAlign) el.classList.add(event.data.textAlign);
                 }
                 sendCleanHtml();
             }
@@ -166,22 +147,70 @@ export default function Home() {
     };
     verificarAcesso();
   }, []);
+
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
-  
   const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini');
   const [modoInspetor, setModoInspetor] = useState(false);
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DO E-BOOK
+  // CONFIGURAÇÕES DE DESIGN E FORMATO
   const [formatoLivro, setFormatoLivro] = useState<'A4' | '15x21' | '14x21'>('A4');
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
+  const [estiloCapitulos, setEstiloCapitulos] = useState<'exclusiva' | 'inline'>('exclusiva');
+  const [comBorda, setComBorda] = useState(true);
   
-  // DADOS DO PROJETO PARA O PROMPT
+  // DADOS DO PROJETO E MODOS DE CONTEÚDO
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
+  const [modoConteudo, setModoConteudo] = useState<'prompt' | 'rigoroso' | 'expandido'>('expandido');
+  const [incluirIntroConclusao, setIncluirIntroConclusao] = useState(true);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Leitor de Arquivos (TXT / Markdown / PDF simulado via texto)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 35 * 1024 * 1024) {
+      (window as any).showNotification("O arquivo excede o limite de 35MB.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const conteudoLido = event.target?.result as string;
+      setProductContent(conteudoLido);
+      (window as any).showNotification(`Arquivo "${file.name}" carregado com sucesso!`, "success");
+    };
+    reader.onerror = () => {
+      (window as any).showNotification("Erro ao ler o arquivo.", "error");
+    };
+    reader.readAsText(file);
+  };
+
+  // Inserir Imagem Manualmente (Upload de Computador para Base64)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Img = event.target?.result as string;
+      if (elementoSelecionado) {
+        atualizarElemento('src', base64Img);
+        (window as any).showNotification("Imagem substituída com sucesso!", "success");
+      } else {
+        // Se nenhum elemento estiver selecionado, insere no conteúdo base
+        setProductContent(prev => prev + `\n\n<img src="${base64Img}" alt="Imagem personalizada" />\n\n`);
+        (window as any).showNotification("Imagem adicionada ao conteúdo!", "success");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const purificarHTML = (rawHtml: string) => {
       let clean = rawHtml.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
@@ -197,18 +226,19 @@ export default function Home() {
       return clean;
   };
 
+  // Dimensões exatas e refinação para impressão em PDF sem páginas brancas
   const getEstilosFormato = (formato: string) => {
       if(formato === '15x21') return { 
           width: '150mm', height: '210mm', padding: '15mm 15mm 15mm 20mm', 
-          pageCss: '@page { size: 150mm 210mm portrait; margin: 0; } \n@media print { @page :left { margin: 15mm 15mm 15mm 20mm !important; } @page :right { margin: 15mm 20mm 15mm 15mm !important; } }' 
+          pageCss: '@page { size: 150mm 210mm portrait; margin: 0; } @media print { body { background: #fff !important; } .page-container { width: 150mm !important; height: 210mm !important; max-height: 210mm !important; page-break-after: always !important; break-after: page !important; margin: 0 !important; box-shadow: none !important; } }' 
       };
       if(formato === '14x21') return { 
           width: '140mm', height: '210mm', padding: '15mm 15mm 15mm 20mm', 
-          pageCss: '@page { size: 140mm 210mm portrait; margin: 0; } \n@media print { @page :left { margin: 15mm 15mm 15mm 20mm !important; } @page :right { margin: 15mm 20mm 15mm 15mm !important; } }' 
+          pageCss: '@page { size: 140mm 210mm portrait; margin: 0; } @media print { body { background: #fff !important; } .page-container { width: 140mm !important; height: 210mm !important; max-height: 210mm !important; page-break-after: always !important; break-after: page !important; margin: 0 !important; box-shadow: none !important; } }' 
       };
       return { 
           width: '210mm', height: '297mm', padding: '22mm 20mm 28mm 20mm', 
-          pageCss: '@page { size: A4 portrait; margin: 0; }' 
+          pageCss: '@page { size: A4 portrait; margin: 0; } @media print { body { background: #fff !important; } .page-container { width: 210mm !important; height: 297mm !important; max-height: 297mm !important; page-break-after: always !important; break-after: page !important; margin: 0 !important; box-shadow: none !important; } }' 
       };
   };
 
@@ -247,38 +277,49 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     position: relative;
     overflow: hidden;
     page-break-after: always;
+    break-after: page;
     page-break-inside: avoid;
+    break-inside: avoid;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    ${comBorda ? 'border: 2px solid rgba(139, 109, 79, 0.25); border-radius: 4px;' : ''}
 }
 
-.page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 10pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
-.page-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 10pt; color: var(--color-primary); border-top: 1px solid rgba(139, 109, 79, 0.3); padding-top: 5px; z-index: 20; }
+.page-cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(135deg, #1e1914 0%, #3e3226 100%);
+    color: #ffffff;
+}
+
+.page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
+.page-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-top: 1px solid rgba(139, 109, 79, 0.3); padding-top: 5px; z-index: 20; }
 
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
-h1 { font-weight: 800; font-size: 2.5rem; margin-top: 2rem; margin-bottom: 1.5em; line-height: 1.2; text-align: center; }
-h2 { font-weight: 700; font-size: 1.8rem; margin-top: 2.5rem; margin-bottom: 1.5em; }
+h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
+h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: 1em; }
 
-p { font-size: ${tamanhoFonteBase}; line-height: 1.45; margin-bottom: 1.5em; text-align: justify; text-indent: 25px; hyphens: auto; -webkit-hyphens: auto; }
+p { font-size: ${tamanhoFonteBase}; line-height: 1.5; margin-bottom: 1.2em; text-align: justify; text-indent: 20px; hyphens: auto; -webkit-hyphens: auto; }
 
-blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(192, 135, 112, 0.15); padding: 18px 25px; margin: 2rem 0; font-size: 12.5pt; font-family: var(--font-heading); border-radius: 0 10px 10px 0; }
-img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 2rem auto; display: block; page-break-inside: avoid; break-inside: avoid; object-fit: cover; }
-ul, ol { margin-top: 0; margin-bottom: 1.5em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: 1.7; }
-li { margin-bottom: 0.5rem; page-break-inside: avoid; }
+blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(192, 135, 112, 0.15); padding: 15px 20px; margin: 1.5rem 0; font-size: 11.5pt; font-family: var(--font-heading); border-radius: 0 8px 8px 0; }
+img { max-width: 100%; height: auto; max-height: 45vh; border-radius: 0.5rem; margin: 1.5rem auto; display: block; object-fit: cover; page-break-inside: avoid; break-inside: avoid; }
+ul, ol { margin-top: 0; margin-bottom: 1.2em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: 1.6; }
+li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-.toc-list a { display: flex; justify-content: space-between; text-decoration: none; color: var(--color-text); font-size: 14pt; margin-bottom: 15px; }
+.toc-list a { display: flex; justify-content: space-between; text-decoration: none; color: var(--color-text); font-size: 13pt; margin-bottom: 12px; font-weight: 600; }
 .toc-list a:hover { color: var(--color-secondary); }
-.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; position: relative; top: -6px; opacity: 0.5; }
+.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; position: relative; top: -5px; opacity: 0.5; }
 
-/* 1. Define o tamanho global do papel e tira a margem padrão do navegador */
 ${conf.pageCss}
 
-/* 2. Regras aplicadas APENAS na hora de exportar/imprimir */
 @media print {
-    html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
+    html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; }
     #ebook-container { width: 100%; padding: 0; margin: 0; }
-    .page-container { width: ${conf.width} !important; height: ${conf.height} !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+    .page-container { box-shadow: none !important; margin: 0 !important; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 </style>`;
 
@@ -312,7 +353,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
     }
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo]); // Adicionado livroTitulo nas dependências
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, comBorda]);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -331,7 +372,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, comBorda]);
 
   const toggleInspetor = () => {
       const newMode = !modoInspetor;
@@ -394,72 +435,72 @@ ${ebookStyles}
       });
 
       const responseText = await response.text();
-      
       let data;
-      try { 
-        data = JSON.parse(responseText); 
-      } catch (err) { 
-        // Se o servidor retornou HTML (como erro de timeout da Vercel) ou texto plano, vamos expor nos logs e na tela
-        console.error("Resposta crua do servidor:", responseText);
-        throw new Error(`Erro no Servidor (${response.status}): ${responseText.substring(0, 80)}...`); 
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || "Erro desconhecido retornado pela API.");
-      }
-
+      try { data = JSON.parse(responseText); } catch (err) { throw new Error(`Erro no Servidor (${response.status}): ${responseText.substring(0, 80)}`); }
+      if (!data.success) throw new Error(data.error || "Erro desconhecido retornado pela API.");
       return data;
     } catch (err: any) {
       let errorMsg = err.message;
-      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { 
-        errorMsg = "Limite de requisições excedido ou servidor ocupado."; 
-      }
-      (window as any).showNotification(errorMsg, 'error'); 
-      return null;
-    } finally { 
-      setStatusApis({ texto: 'Aguardando Ação', processing: false }); 
-    }
+      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Limite de requisições excedido ou servidor ocupado."; }
+      (window as any).showNotification(errorMsg, 'error'); return null;
+    } finally { setStatusApis({ texto: 'Aguardando Ação', processing: false }); }
   };
 
-  // MEGA FUNÇÃO DE GERAÇÃO
+  // MEGA FUNÇÃO DE GERAÇÃO COM NOVAS REGRAS E VOLUMES ALTOS
   const executarGeracaoEbook = async () => {
     const content = productContent.trim();
-    if (!content) { (window as any).showNotification('Cole o texto base do E-book.', 'error'); return; }
+    if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira ou cole o texto/conteúdo base do E-book.', 'error'); return; }
 
     const regraCapa = formatoLivro === 'A4' 
-        ? "- 1 Capa com Título e Imagem de fundo cobrindo toda a página (apenas pessoas reais)." 
-        : "- 1 Folha de Rosto literária e clássica (Fundo totalmente branco, SEM imagem de capa. Apenas o Título em destaque máximo, nome do autor e subtítulo centralizados com elegância).";
+        ? `<div class="page-container page-cover"><h1 style="color: #fff; font-size: 3rem; margin-bottom: 1rem;">${livroTitulo || 'Meu E-book'}</h1><p style="color: #d1d5db; font-size: 1.2rem;">Por ${livroAutores || 'Autor'}</p></div>` 
+        : `<div class="page-container" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;"><h1 style="font-size: 2.8rem; margin-bottom: 1rem;">${livroTitulo || 'Meu E-book'}</h1><p style="font-size: 1.2rem; color: #64748b;">Por ${livroAutores || 'Autor'}</p></div>`;
+
+    let regraModoTexto = "";
+    if (modoConteudo === 'rigoroso') {
+        regraModoTexto = "MODO RIGOROSO: Utilize estritamente o texto fornecido pelo usuário. Corrija apenas ortografia e pontuação, sem alterar, remover ou acrescentar novos conceitos ou informações.";
+    } else if (modoConteudo === 'expandido') {
+        regraModoTexto = "MODO EXPANDIDO: Utilize o texto fornecido como base/inspiração e expanda o conteúdo de forma profunda e exaustiva, gerando múltiplos capítulos densos, ricos em detalhes, exemplos práticos e explicações completas para garantir um e-book substancial.";
+    } else {
+        regraModoTexto = "MODO PROMPT LIVRE: Crie um e-book completo, monumental e altamente detalhado baseado no comando do usuário.";
+    }
+
+    let regraEstiloCapitulos = estiloCapitulos === 'exclusiva'
+        ? "Crie uma página de capa de capítulo exclusiva para cada capítulo (com grande título centralizado e imagem alusiva)."
+        : "Adicione o título do capítulo no topo da página seguido imediatamente pela imagem e o texto, sem página dedicada apenas ao título.";
+
+    let regraIntroConclusao = incluirIntroConclusao 
+        ? "O e-book DEVE conter obrigatoriamente uma Introdução robusta no início e uma Conclusão marcante no final." 
+        : "Não inclua introdução nem conclusão.";
 
     const instrucaoSistema = `Atue como um Escritor Bestseller, Desenvolvedor Front-end Sênior e Especialista em Diagramação Editorial (Print CSS).
 
-A sua tarefa é gerar um E-book monumental e profundo num ÚNICO arquivo HTML. O design deve ser altamente profissional, requintado, com estética de "site premium", mas codificado perfeitamente para leitura em tela e conversão exata para PDF.
+Sua tarefa é gerar um E-book profundo, volumoso e impecável num ÚNICO código HTML estruturado com páginas exatas (.page-container).
 
 DADOS DO PROJETO:
 TÍTULO: ${livroTitulo || 'Meu E-book'}
 AUTORES: ${livroAutores || 'Autor Desconhecido'}
 
-### DIRETRIZES DO GHOSTWRITER (CONTEÚDO)
-* **Idioma:** Português (Brasil).
-* **Tom de Voz:** Predominantemente Informativo/Educacional, avançado, humanizado e inteligente.
-* **Volume:** O conteúdo deve ser EXAUSTIVO. Adicione exemplos, dicas práticas e reflexões para que o documento renda o máximo de páginas possível.
-* **Estrutura Biográfica:** Consolide todos os elementos narrativos biográficos e a história pessoal ESTRITAMENTE no primeiro capítulo. Os capítulos seguintes devem ser desenvolvidos exclusivamente com dicas práticas e ensinamentos.
-* **Restrições de Palavras:** É TERMINANTEMENTE PROIBIDO usar as palavras: "jornada", "Além disso", "público alvo", "explorar", "No próximo capítulo", "Portanto", "Ou seja", "Dessa forma".
+DIRETRIZES DE CONTEÚDO:
+* ${regraModoTexto}
+* ${regraEstiloCapitulos}
+* ${regraIntroConclusao}
+* Volume: Crie pelo menos 8 a 12 capítulos densos para garantir um e-book robusto e completo (mínimo de 40 a 60 páginas simuladas).
+* Índice Clicável: Crie um Índice (Sumário) onde cada item seja um link HTML funcional (<a href="#cap-1">Capítulo 1 ... <span></span> 5</a>) direcionando perfeitamente para o ID correspondente de cada capítulo (<div id="cap-1">).
+* Restrições de Palavras: É PROIBIDO usar: "jornada", "Além disso", "público alvo", "explorar", "No próximo capítulo", "Portanto", "Ou seja", "Dessa forma".
 
-### DIRETRIZES DE DESIGN E FRONT-END (HTML/CSS)
-Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das divs page-container).
+DIRETRIZES DE DESIGN E FRONT-END (HTML/CSS):
+Devolva APENAS o código HTML interno a partir das páginas (.page-container).
 
-1. **Imagens (Unsplash):** Sempre que inserir imagens, utilize a URL oficial da API do Unsplash. Formate a tag assim: <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80" alt="Ilustração">. A IA deve buscar fotos reais de pessoas e ambientes relacionados ao tema.
-2. **Estilo Visual das Imagens:** É TERMINANTEMENTE PROIBIDO utilizar, sugerir ou criar desenhos, ilustrações, gráficos animados ou elementos sci-fi/tecnologia. Use imagens reais, REAISSSSSS, de fotografia humana.
-3. **Espaçamento:** Organize o HTML para que os títulos dos tópicos (h1, h2, h3) tenham um espaço de uma linha entre parágrafos. Use o CSS apropriado para garantir essa separação exata.
-4. **Páginas e Overflow:** Cada página deve ser uma <div class="page-container">. Estime o espaço: coloque no máximo 3 a 4 parágrafos médios por .page-container. Se o capítulo for longo, feche a div e abra uma nova .page-container. O texto não pode vazar.
-5. **Citações:** Coloque as frases mais impactantes dentro de <blockquote>.
-6. **Estrutura Exigida:**
-   ${regraCapa}
-   - 1 Índice (toc-list).
-   - Capas de Capítulo e logo a seguir a .page-container com o texto do capítulo.
-   - Cabeçalhos (<div class="page-header">) e Rodapés (<div class="page-footer">) em todas as páginas de conteúdo.`;
+1. **Imagens (Unsplash):** Insira imagens usando URLs oficiais: <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80" alt="Ilustração">. Priorize fotografias reais de pessoas e ambientes humanos.
+2. **Estilo Visual:** É PROIBIDO desenhos, ilustrações vetoriais ou gráficos animados. Apenas fotografias reais humanas.
+3. **Páginas e Preenchimento (.page-container):** Cada página deve ser uma <div class="page-container">. Preencha adequadamente com 3 a 4 parágrafos médios para ocupar a página com elegância sem transbordar.
+4. **Cabeçalhos e Rodapés:** Em todas as páginas de conteúdo, inclua obrigatoriamente <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer"><span>${livroAutores}</span><span>Página X</span></div>.
+5. **Estrutura Exigida:**
+   - ${regraCapa}
+   - Página de Índice com links clicáveis ancorados.
+   - Páginas de conteúdo organizadas com títulos possuindo IDs correspondentes aos links do índice.`;
 
-    const commandText = `CONTEÚDO BASE PARA O E-BOOK:\n"""\n${content}\n"""\n\nGere o HTML completo agora.`;
+    const commandText = `CONTEÚDO BASE / PROMPT:\n"""\n${content || 'Gerar e-book completo sobre o tema solicitado'}\n"""\n\nGere o HTML completo e estruturado agora.`;
 
     const data = await chamarMotorIA(instrucaoSistema, [{ text: commandText }], false);
     
@@ -499,7 +540,6 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
       setTimeout(() => { div.style.opacity = '0'; div.style.transition = 'opacity 0.4s'; setTimeout(() => div.remove(), 4000); }, 4000);
     };
 
-    // EXPORTAÇÕES (PDF, HTML, WORD)
     (window as any).baixarPdf = () => {
         const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
         if(iframe && iframe.contentWindow) {
@@ -518,19 +558,7 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
         a.download = `${livroTitulo ? livroTitulo.replace(/\s+/g, '-').toLowerCase() : 'meu-ebook'}.html`;
         a.click();
     };
-
-    (window as any).baixarWord = () => {
-        const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-        if (!codEl || !codEl.value) { (window as any).showNotification("Nenhum código para baixar.", "error"); return; }
-        // O Word consegue ler arquivos HTML estruturados salvos como .doc
-        const blob = new Blob(['\ufeff', codEl.value], { type: 'application/msword' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${livroTitulo ? livroTitulo.replace(/\s+/g, '-').toLowerCase() : 'meu-ebook'}.doc`;
-        a.click();
-    };
-
-  }, [livroTitulo]); 
+  }, [livroTitulo]);
 
   return (
     <div className="h-screen overflow-hidden flex relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
@@ -547,17 +575,21 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
       `}} />
 
+      {/* INPUTS OCULTOS DE ARQUIVO E IMAGEM */}
+      <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".txt,.md,.html,.json" className="hidden" />
+      <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+
       {/* OVERLAY DE CARREGAMENTO */}
       {statusApis.processing && (
           <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
               <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-5"></div>
               <p className="text-slate-800 font-black text-xl tracking-tight mb-2">{statusApis.texto}</p>
-              <p className="text-slate-500 font-medium text-sm">Organizando a folha e formatando a leitura...</p>
+              <p className="text-slate-500 font-medium text-sm">Diagramando páginas e estruturando o e-book...</p>
           </div>
       )}
 
       {/* PAINEL LATERAL ESQUERDO */}
-      <aside className="w-[360px] bg-white border-r border-slate-200 flex flex-col h-full z-10 flex-shrink-0 shadow-sm">
+      <aside className="w-[380px] bg-white border-r border-slate-200 flex flex-col h-full z-10 flex-shrink-0 shadow-sm">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <h1 className="text-xl font-black tracking-tight text-slate-800 flex items-center">
                   <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center mr-2.5 text-white shadow-md shadow-indigo-200"><i className="fas fa-book-open text-xs"></i></div>
@@ -583,21 +615,36 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
                                   <i className="fas fa-text-height text-2xl text-indigo-300"></i>
                               </div>
                               <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                              <p className="text-xs font-medium text-slate-400">Clique em qualquer parágrafo, título ou citação no e-book ao lado.</p>
+                              <p className="text-xs font-medium text-slate-400">Clique em qualquer parágrafo, título, citação ou imagem no e-book ao lado.</p>
                           </div>
                       ) : (
                           <div className="pb-10 bg-white">
                               <div className="panel-section bg-slate-50/50">
                                   <div className="flex justify-between items-center mb-3">
                                       <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
-                                      <button onClick={() => {
-                                          let el = document.getElementById('previewFrame') as HTMLIFrameElement;
-                                          el.contentWindow?.postMessage({ type: 'DELETE_ELEMENT', id: elementoSelecionado.id }, '*');
-                                      }} className="text-[9px] font-bold text-red-500 hover:text-red-700 transition flex items-center bg-red-50 border border-red-200 hover:border-red-400 px-2 py-1 rounded shadow-sm"><i className="fas fa-trash-alt mr-1"></i> Apagar</button>
+                                      <div className="flex gap-2">
+                                          {elementoSelecionado.tagName === 'img' && (
+                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-image mr-1"></i> Trocar Imagem</button>
+                                          )}
+                                          <button onClick={() => {
+                                              let el = document.getElementById('previewFrame') as HTMLIFrameElement;
+                                              el.contentWindow?.postMessage({ type: 'DELETE_ELEMENT', id: elementoSelecionado.id }, '*');
+                                          }} className="text-[9px] font-bold text-red-500 hover:text-red-700 transition flex items-center bg-red-50 border border-red-200 hover:border-red-400 px-2 py-1 rounded shadow-sm"><i className="fas fa-trash-alt mr-1"></i> Apagar</button>
+                                      </div>
                                   </div>
 
-                                  <label className="input-label mb-2">Edição Manual</label>
-                                  <textarea rows={6} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
+                                  {elementoSelecionado.tagName === 'img' ? (
+                                      <div>
+                                          <label className="input-label mb-2">URL da Imagem</label>
+                                          <input type="text" value={elementoSelecionado.src} onChange={(e) => atualizarElemento('src', e.target.value)} className="input-standard mb-3 text-xs" />
+                                          <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Subir Imagem do Computador</button>
+                                      </div>
+                                  ) : (
+                                      <div>
+                                          <label className="input-label mb-2">Edição Manual (Preserva Estilos)</label>
+                                          <textarea rows={6} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
+                                      </div>
+                                  )}
                               </div>
 
                               <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100">
@@ -611,22 +658,20 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
                                   </div>
                                   <div>
                                       <label className="input-label mb-2 text-[9px]">Tamanho da Fonte</label>
-                                      <input type="range" min="12" max="60" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
+                                      <input type="range" min="12" max="48" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
                                   </div>
                               </div>
 
-                              {/* PAINEL DO GHOSTWRITER IA */}
+                              {/* GHOSTWRITER IA */}
                               <div className="m-5 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 shadow-xl text-white">
                                   <label className="text-[11px] font-black uppercase tracking-widest text-indigo-300 mb-4 flex items-center"><i className="fas fa-robot text-xl mr-2 text-white"></i> Ghostwriter (IA)</label>
-                                  
                                   <div className="grid grid-cols-2 gap-2.5 mb-4">
-                                      <button onClick={() => otimizarComIA("Reescreva este trecho de forma mais envolvente e rica em detalhes, melhorando a narrativa e a fluidez da leitura.")} className="bg-slate-700 hover:bg-slate-600 text-[10px] font-bold py-2.5 rounded-lg text-white transition shadow-sm border border-slate-600">Mais Envolvente</button>
-                                      <button onClick={() => otimizarComIA("Faça um resumo executivo deste trecho, sendo muito direto, profissional e focado nos pontos principais.")} className="bg-slate-700 hover:bg-slate-600 text-[10px] font-bold py-2.5 rounded-lg text-white transition shadow-sm border border-slate-600">Resumir Direto</button>
-                                      <button onClick={() => otimizarComIA("Corrija todos os erros gramaticais, de pontuação e de concordância sem alterar o sentido do texto original.")} className="col-span-2 bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold py-2.5 rounded-lg text-white transition shadow-sm border border-indigo-500 flex items-center justify-center gap-1.5"><i className="fas fa-check-double"></i> Correção Gramatical</button>
+                                      <button onClick={() => otimizarComIA("Reescreva este trecho de forma mais envolvente e rica em detalhes.")} className="bg-slate-700 hover:bg-slate-600 text-[10px] font-bold py-2.5 rounded-lg text-white transition shadow-sm border border-slate-600">Mais Envolvente</button>
+                                      <button onClick={() => otimizarComIA("Faça um resumo executivo direto e profissional.")} className="bg-slate-700 hover:bg-slate-600 text-[10px] font-bold py-2.5 rounded-lg text-white transition shadow-sm border border-slate-600">Resumir Direto</button>
+                                      <button onClick={() => otimizarComIA("Corrija todos os erros gramaticais e de pontuação sem alterar o sentido.")} className="col-span-2 bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold py-2.5 rounded-lg text-white transition shadow-sm border border-indigo-500 flex items-center justify-center gap-1.5"><i className="fas fa-check-double"></i> Correção Gramatical</button>
                                   </div>
-                                  
                                   <div className="flex gap-2 relative">
-                                      <input type="text" id="ai_prompt_element" placeholder="Escreva o que a IA deve fazer..." className="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-4 py-3 outline-none focus:border-indigo-400 placeholder-slate-400" />
+                                      <input type="text" id="ai_prompt_element" placeholder="Comando para a IA..." className="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-4 py-3 outline-none focus:border-indigo-400 placeholder-slate-400" />
                                       <button onClick={() => otimizarComIA()} className="absolute right-1.5 top-1.5 bottom-1.5 w-10 bg-indigo-500 hover:bg-indigo-400 rounded-md flex items-center justify-center transition shadow-sm"><i className="fas fa-paper-plane"></i></button>
                                   </div>
                               </div>
@@ -635,8 +680,9 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
                   </div>
               ) : (
                   <div className="p-5 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+                      {/* CONFIGURAÇÕES DE DESIGN */}
                       <div>
-                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Diagramação</h3>
+                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Design & Formato</h3>
                           <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
                               <div>
                                   <label className="input-label mb-2">Formato da Página</label>
@@ -645,6 +691,19 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
                                       <option value="15x21">15x21cm (Padrão Impresso Comercial)</option>
                                       <option value="14x21">14x21cm (Livro de Bolso / Romance)</option>
                                   </select>
+                              </div>
+
+                              <div className="pt-3 border-t border-slate-100">
+                                  <label className="input-label mb-2">Estilo dos Capítulos</label>
+                                  <select value={estiloCapitulos} onChange={(e) => setEstiloCapitulos(e.target.value as any)} className="input-standard font-medium text-slate-800">
+                                      <option value="exclusiva">Página de Título Exclusiva (Com Imagem)</option>
+                                      <option value="inline">Compacto (Título e Imagem na mesma página)</option>
+                                  </select>
+                              </div>
+
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                  <label className="input-label mb-0 cursor-pointer">Borda Decorativa nas Páginas</label>
+                                  <input type="checkbox" checked={comBorda} onChange={(e) => setComBorda(e.target.checked)} className="w-4 h-4 accent-indigo-600 rounded cursor-pointer" />
                               </div>
                               
                               <div className="pt-3 border-t border-slate-100">
@@ -678,8 +737,9 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
                           </div>
                       </div>
 
+                      {/* DADOS E CONTEÚDO DO E-BOOK */}
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
-                          <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span> Dados do Livro</h3>
+                          <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span> Conteúdo & IA</h3>
                           
                           <div className="mb-4">
                               <label className="input-label text-indigo-800">Título do E-book</label>
@@ -692,12 +752,29 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
                           </div>
 
                           <div className="mb-4">
-                              <label className="input-label text-indigo-800">Conteúdo Base / Tópicos</label>
+                              <label className="input-label text-indigo-800">Modo de Processamento do Texto</label>
+                              <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard font-bold text-indigo-700 bg-white mb-2">
+                                  <option value="expandido">Expandir e Enriquecer com IA (Recomendado)</option>
+                                  <option value="rigoroso">Rigoroso (Apenas Corrigir Ortografia do Texto Base)</option>
+                                  <option value="prompt">Criar do Zero apenas via Prompt</option>
+                              </select>
+                          </div>
+
+                          <div className="mb-4 flex items-center justify-between bg-white p-3 rounded-lg border border-indigo-100">
+                              <label className="input-label mb-0 cursor-pointer text-indigo-900">Incluir Introdução e Conclusão</label>
+                              <input type="checkbox" checked={incluirIntroConclusao} onChange={(e) => setIncluirIntroConclusao(e.target.checked)} className="w-4 h-4 accent-indigo-600 rounded cursor-pointer" />
+                          </div>
+
+                          <div className="mb-4">
+                              <div className="flex justify-between items-center mb-2">
+                                  <label className="input-label text-indigo-800 mb-0">Texto Base / Prompt / Artigo</label>
+                                  <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline flex items-center gap-1"><i className="fas fa-file-upload"></i> Subir Arquivo / PDF (.txt)</button>
+                              </div>
                               <textarea 
                                   value={productContent} 
                                   onChange={(e) => setProductContent(e.target.value)} 
-                                  className="input-standard h-32 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
-                                  placeholder="Cole todo o conteúdo aqui. A IA vai diagramar, adicionar citações, imagens e gerar o e-book completo."
+                                  className="input-standard h-36 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
+                                  placeholder="Cole seu texto longo, seus tópicos ou seu prompt aqui..."
                               ></textarea>
                           </div>
 
@@ -712,7 +789,7 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
           </div>
       </aside>
 
-      {/* ÁREA PRINCIPAL - O CANVAS EDITORIAL */}
+      {/* ÁREA PRINCIPAL - CANVAS EDITORIAL */}
       <main className="flex-grow flex flex-col bg-slate-200 relative min-w-0 z-0">
           <div className="bg-white border-b border-slate-200 flex justify-between items-center px-4 md:px-6 h-[60px] shadow-sm z-10">
               <div className="flex items-center gap-3">
@@ -727,9 +804,6 @@ Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das
               <div className="flex items-center gap-2 md:gap-3">
                   <button onClick={() => (window as any).baixarHtml()} className="px-4 py-2 border-2 border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-lg transition flex items-center" title="Baixar como arquivo HTML">
                       <i className="fab fa-html5 mr-1.5 text-orange-500"></i> HTML
-                  </button>
-                  <button onClick={() => (window as any).baixarWord()} className="px-4 py-2 border-2 border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-lg transition flex items-center" title="Baixar formato Word (.doc)">
-                      <i className="fas fa-file-word mr-1.5 text-blue-600"></i> Word
                   </button>
                   <button onClick={() => (window as any).baixarPdf()} className="px-6 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-xs uppercase tracking-wide rounded-lg transition flex items-center shadow-sm">
                       <i className="fas fa-file-pdf mr-1.5"></i> Salvar PDF
