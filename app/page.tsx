@@ -108,16 +108,16 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     if(event.data.bgImage === '') {
                         el.style.setProperty('background-image', 'none', 'important');
                     } else {
-                        let currentBg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
-                        if(currentBg && currentBg.includes('linear-gradient')) {
-                            let gradientPart = currentBg.split(', url')[0];
-                            el.style.setProperty('background-image', \`\${gradientPart}, url('\${event.data.bgImage}')\`, 'important');
-                        } else {
-                            el.style.setProperty('background-image', \`url('\${event.data.bgImage}')\`, 'important');
-                        }
+                        el.style.setProperty('background-image', \`url('\${event.data.bgImage}')\`, 'important');
                         el.style.setProperty('background-size', 'cover', 'important');
                         el.style.setProperty('background-position', 'center', 'important');
                     }
+                }
+
+                if(event.data.rawBgImage !== undefined) {
+                    el.style.setProperty('background-image', event.data.rawBgImage, 'important');
+                    el.style.setProperty('background-size', 'cover', 'important');
+                    el.style.setProperty('background-position', 'center', 'important');
                 }
 
                 if(event.data.fontSize !== undefined) {
@@ -179,7 +179,7 @@ export default function Home() {
   
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'double'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
-  const [imagemCapaUrl, setImagemCapaUrl] = useState('https://picsum.photos/1200/1600?random=1');
+  const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
   const [htmlTemplate, setHtmlTemplate] = useState('');
 
   // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
@@ -303,18 +303,18 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
 }
 
 /* CAPAS INICIAIS */
-.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.9)), url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
+.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--color-bg); color: var(--color-primary); padding: 20mm; box-sizing: border-box; border: 4px double var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
 /* CAPAS DE CAPÍTULO */
-.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)); background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
-.cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; }
-.cap-icon { font-size: 40px; color: var(--color-secondary); font-family: "Font Awesome 6 Free"; font-weight: 900; margin-bottom: 10px; }
+.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
+.cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+.cap-icon { font-size: 40px; color: var(--color-secondary); font-family: "Font Awesome 6 Free"; font-weight: 900; margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 
-.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; padding: 20mm; box-sizing: border-box; background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; padding: 20mm; box-sizing: border-box; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
 .cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
 
@@ -331,7 +331,7 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
 /* CONTEÚDO BASE (BLINDADO COM !IMPORTANT) */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
-h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: 1em; }
+h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: var(--line-spacing); }
 
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
@@ -529,7 +529,7 @@ ${htmlTemplate.substring(0, 3000)}
 SUA TAREFA DE DESIGN:
 1. Extraia a paleta de cores principal e adote nas variáveis CSS globais da página gerada.
 2. ANALISE A ESTRUTURA: Observe como o site original constrói caixas de destaque, quadros explicativos, citações, elementos circulares ou layouts em formato de blocos/cards.
-3. REPLIQUE A ESTÉTICA: Construa as páginas do e-book utilizando as MESMAS lógicas estruturais visuais. Se o site uses caixas arredondadas com sombra suave para destacar tópicos importantes, crie elementos (divs) similares no e-book.
+3. REPLIQUE A ESTÉTICA: Construa as páginas do e-book utilizando as MESMAS lógicas estruturais visuais. Se o site usa caixas arredondadas com sombra suave para destacar tópicos importantes, crie elementos (divs) similares no e-book.
 4. IGNORE O TEXTO ORIGINAL DO SITE: Use apenas a arquitetura visual, preenchendo as tags com o conteúdo literário do E-book solicitado.`
         : "";
 
@@ -544,7 +544,7 @@ SUA TAREFA DE DESIGN:
 
     let regraEstiloCapitulos = "";
     if (estiloCapitulos === 'padrao') {
-        regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-img-overlay" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon">&#xf02d;</div><h1>Título do Capítulo</h1></div>`;
+        regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon">&#xf02d;</div><h1>Título do Capítulo</h1></div>`;
     } else if (estiloCapitulos === 'box-arredondado') {
         regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-box-rounded" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-box-inner"><h1 style="margin:0; font-size: 2.2rem;">Título do Capítulo</h1></div></div>`;
     } else if (estiloCapitulos === 'imagem-pura') {
@@ -562,18 +562,17 @@ DADOS DO PROJETO: ${livroTitulo} por ${livroAutores} ${regraDesignInspirado}
 
 DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SISTEMA FALHARÁ):
 1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto de forma exaustiva.' : modoConteudo === 'rigoroso' ? 'Corrija ortografia rigorosamente, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
-2. DENSIDADE OBRIGATÓRIA E TAMANHO DE CAPÍTULO: Para CADA capítulo, você DEVE gerar texto abundante e preencher MÚLTIPLAS divs .page-container separadas. É PROIBIDO criar capítulos de apenas 1 página. Preencha todo o espaço da folha de forma orgânica.
-3. ÍNDICE (TOC) OBRIGAÇÕES EXATAS: 
-   - A estrutura HTML do índice DEVE SER EXATAMENTE esta: <div class="toc-list"><a href="#cap-1"><span>Nome do Capítulo</span><span class="toc-dots"></span><span>Número</span></a></div>
-   - O Índice DEVE ficar em UMA ÚNICA página (.page-container) se tiver menos de 20 itens. NÃO divida o índice sem necessidade.
-   - É ESTRITAMENTE PROIBIDO usar títulos como "Continuação" ou "Parte 2" no índice. Se precisar quebrar página, apenas feche a <div class="page-container"> e abra uma nova para continuar a lista.
+2. DENSIDADE OBRIGATÓRIA E TAMANHO DE CAPÍTULO: Para CADA capítulo gerado, você OBRIGATORIAMENTE deve criar conteúdo denso e extenso suficiente para preencher NO MÍNIMO 2 a 3 páginas (.page-container) separadas por capítulo. É proibido resumir ou fazer capítulos de uma página só. Concentre a narrativa biográfica estritamente no primeiro capítulo, deixando os demais focados em dicas práticas.
+3. ÍNDICE (TOC) CLICÁVEL E PERFEITO: A estrutura HTML do índice DEVE conter links de ancoragem exatos para cada capítulo usando este formato:
+   <div class="toc-list"><a href="#cap-1"><span>Nome do Capítulo</span><span class="toc-dots"></span><span>Número</span></a></div>
+   O índice deve caber limpo em uma única página, sem títulos de "Continuação".
 4. ESTILO DOS CAPÍTULOS: ${regraEstiloCapitulos}
 5. CITAÇÕES (QUOTES): NUNCA escreva o nome do autor dentro das tags <blockquote> ou ao final delas. Apenas a citação pura.
-6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro UMA UNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div></div>.
-7. IMAGENS REAIS: Use URLs Unsplash reais. Exclusivamente fotografias reais de humanos.
-8. CABEÇALHOS/RODAPÉS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (NUNCA escreva a palavra "página" perto do número).
-9. PROIBIÇÃO DE ESTILOS INLINE: É ESTRITAMENTE PROIBIDO adicionar 'style="margin:..."' , '<br>' ou espaçamentos diretamente nas tags <p> ou <h2>. O CSS global do sistema cuidará dos parágrafos automaticamente! Se você quebrar essa regra, o e-book ficará deformado.
-10. INICIO DA ESTRUTURA HTML EXIGIDA:
+6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div></div>.
+7. IMAGENS CONTEXTUAIS E REAIS (REGRA RÍGIDA): Para cada capítulo, você DEVE buscar e injetar URLs reais do Unsplash que combinem com o tema do capítulo. É ABSOLUTAMENTE PROIBIDO usar desenhos, ilustrações, animações ou elementos sci-fi/tecnológicos. Use EXCLUSIVAMENTE fotografias humanas reais e realistas. Nunca repita imagens.
+8. CABEÇALHOS/RODAPÉS E BORDAS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (NUNCA escreva a palavra "página" perto do número). Respeite as tags de container para que as bordas selecionadas no painel apareçam corretamente em volta das folhas.
+9. PROIBIÇÃO DE ESTILOS INLINE: É ESTRITAMENTE PROIBIDO adicionar 'style="margin:..."' , '<br>' ou espaçamentos diretamente nas tags <p> ou <h2>. O CSS global cuidará disso. Se quebrar essa regra, o e-book ficará deformado. Garanta que haja exato uma linha de espaço (margin-bottom padrão) entre tópicos e parágrafos.
+10. INÍCIO DA ESTRUTURA HTML EXIGIDA:
    - ${regraCapaHtml}
    - Índice ancorado perfeitamente.
    - Páginas de capítulos longos e detalhados.`;
@@ -670,7 +669,7 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                           <i className="fas fa-magic text-indigo-300"></i>
                       </div>
 
-                      {/* COMANDO GLOBAL (EX: EXCLUIR PÁGINA) */}
+                      {/* COMANDO GLOBAL */}
                       <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
                           <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
                           <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Remova o capítulo 2 e reajuste a numeração inteira e o índice."></textarea>
@@ -719,6 +718,28 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                                                   </div>
                                               </div>
                                           )}
+                                          {elementoSelecionado.bgImage && (
+                                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                                  <label className="input-label mb-1">Escurecimento do Fundo (Opacidade)</label>
+                                                  <div className="flex items-center gap-2">
+                                                      <span className="text-[10px] text-slate-500 font-bold">0%</span>
+                                                      <input 
+                                                          type="range" min="0" max="0.9" step="0.1" defaultValue="0" 
+                                                          onChange={(e) => {
+                                                              const val = e.target.value;
+                                                              const newBg = val === "0" 
+                                                                  ? `url('${elementoSelecionado.bgImage}')` 
+                                                                  : `linear-gradient(rgba(0,0,0,${val}), rgba(0,0,0,${val})), url('${elementoSelecionado.bgImage}')`;
+                                                              const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+                                                              iframe.contentWindow?.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, rawBgImage: newBg }, '*');
+                                                          }} 
+                                                          className="flex-1 accent-indigo-600 cursor-pointer" 
+                                                      />
+                                                      <span className="text-[10px] text-slate-500 font-bold">90%</span>
+                                                  </div>
+                                                  <button onClick={() => atualizarElemento('bgImage', '')} className="w-full mt-3 bg-orange-50 border border-orange-200 text-orange-700 font-bold text-[9px] uppercase py-2 rounded transition hover:bg-orange-100"><i className="fas fa-times-circle mr-1"></i> Remover Imagem de Fundo</button>
+                                              </div>
+                                          )}
                                       </div>
                                   ) : (
                                       <div>
@@ -736,6 +757,10 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
 
                               {elementoSelecionado.tagName !== 'img' && (
                                   <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100">
+                                      <div>
+                                          <label className="input-label mb-2 text-[9px]">Cor do Texto</label>
+                                          <input type="color" value={elementoSelecionado.textColor || '#1e1914'} onChange={(e) => atualizarElemento('textColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                      </div>
                                       <div>
                                           <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
                                           <input type="color" value={elementoSelecionado.bgColor || '#ffffff'} onChange={(e) => atualizarElemento('bgColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
