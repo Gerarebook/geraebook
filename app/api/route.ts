@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
     const textoUsuario = promptParts[0].text;
 
-    // === SE O USUÁRIO ESCOLHEU O GROQ ===
+    // === SE O USUÁRIO ESCOLHEU O GROQ (LLAMA 3.3) ===
     if (useGroq) {
       const groqApiKey = process.env.GROQ_API_KEY;
       
@@ -45,14 +45,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, html: htmlGerado });
     }
 
-    // === SE O USUÁRIO ESCOLHEU O GEMINI (Padrão) ===
+    // === SE O USUÁRIO ESCOLHEU O GEMINI (GEMINI 3.6 FLASH) ===
     const geminiApiKey = process.env.GEMINI_API_KEY;
     
     if (!geminiApiKey) {
       return NextResponse.json({ success: false, error: "Chave da API do Gemini não configurada na Vercel." }, { status: 500 });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
@@ -86,4 +86,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-} 
+}
