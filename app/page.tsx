@@ -10,7 +10,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
     if (!document.getElementById('builder-core-styles')) {
         const style = document.createElement('style');
         style.id = 'builder-core-styles';
-        style.innerHTML = \`body.builder-editing * { cursor: text !important; }\`;
+        style.innerHTML = \`body.builder-editing * { cursor: pointer !important; }\`;
         document.head.appendChild(style);
     }
 
@@ -34,8 +34,8 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
 
         if(elSelecionado) { elSelecionado.style.outline = ''; elSelecionado.style.outlineOffset = ''; }
         elSelecionado = targetEl;
-        elSelecionado.style.outline = '2px dashed #4f46e5'; 
-        elSelecionado.style.outlineOffset = '2px';
+        elSelecionado.style.outline = '3px dashed #4f46e5'; 
+        elSelecionado.style.outlineOffset = '-3px';
 
         if(!elSelecionado.id) elSelecionado.id = 'node_' + Math.random().toString(36).substr(2,9);
 
@@ -46,12 +46,22 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         else if(elSelecionado.classList.contains('text-justify')) tAlign = 'text-justify';
         else if(elSelecionado.classList.contains('text-left')) tAlign = 'text-left';
 
+        // Detecta se o elemento tem imagem de fundo
+        let bgImgRaw = compStyle.backgroundImage;
+        let bgImgUrl = '';
+        if (bgImgRaw && bgImgRaw !== 'none' && bgImgRaw.includes('url(')) {
+            // Extrai a URL de dentro do "url('...')" ignorando gradientes
+            let matches = bgImgRaw.match(/url\\(["']?(.*?)["']?\\)/);
+            if(matches && matches[1]) bgImgUrl = matches[1];
+        }
+
         window.parent.postMessage({
             type: 'ELEMENT_SELECTED',
             id: elSelecionado.id,
             tagName: elSelecionado.tagName.toLowerCase(),
             text: elSelecionado.innerText || '',
             src: elSelecionado.src || '',
+            bgImage: bgImgUrl,
             width: elSelecionado.style.width || elSelecionado.width || '',
             height: elSelecionado.style.height || elSelecionado.height || '',
             className: elSelecionado.className,
@@ -95,6 +105,19 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 if(event.data.height !== undefined) el.style.height = event.data.height;
                 if(event.data.textColor !== undefined) el.style.color = event.data.textColor;
                 if(event.data.bgColor !== undefined) el.style.backgroundColor = event.data.bgColor;
+                
+                // Substitui a imagem de fundo mantendo gradientes se existirem
+                if(event.data.bgImage !== undefined) {
+                    let currentBg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
+                    if(currentBg && currentBg.includes('linear-gradient')) {
+                        let gradientPart = currentBg.split(', url')[0];
+                        el.style.setProperty('background-image', \`\${gradientPart}, url('\${event.data.bgImage}')\`, 'important');
+                    } else {
+                        el.style.setProperty('background-image', \`url('\${event.data.bgImage}')\`, 'important');
+                    }
+                    el.style.setProperty('background-size', 'cover', 'important');
+                    el.style.setProperty('background-position', 'center', 'important');
+                }
                 
                 if(event.data.fontSize !== undefined) {
                     el.style.fontSize = event.data.fontSize + 'px';
@@ -149,15 +172,13 @@ export default function Home() {
   const [formatoLivro, setFormatoLivro] = useState<'A4' | '15x21' | '14x21'>('A4');
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
-  const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.6');
+  const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
   const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('1.5em');
   const [recuoParagrafo, setRecuoParagrafo] = useState('20px');
   
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'double'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://picsum.photos/1200/1600?random=1');
-
-  // NOVO: TEMPLATE HTML PARA CLONAGEM DE DESIGN
   const [htmlTemplate, setHtmlTemplate] = useState('');
 
   // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
@@ -186,12 +207,21 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64Img = event.target?.result as string;
+      
+      // Se clicou em uma tag <img> (imagem normal)
       if (elementoSelecionado && elementoSelecionado.tagName === 'img') {
         atualizarElemento('src', base64Img);
         (window as any).showNotification("Imagem substituída com sucesso!", "success");
-      } else {
+      } 
+      // Se clicou em algo com imagem de fundo (Capa, Página de Capítulo, Box)
+      else if (elementoSelecionado && elementoSelecionado.bgImage) {
+        atualizarElemento('bgImage', base64Img);
+        (window as any).showNotification("Imagem de fundo atualizada!", "success");
+      }
+      // Se não tem nada selecionado, atualiza a Capa Inicial
+      else {
         setImagemCapaUrl(base64Img);
-        (window as any).showNotification("Capa atualizada com sucesso!", "success");
+        (window as any).showNotification("Capa inicial atualizada!", "success");
       }
     };
     reader.readAsDataURL(file);
@@ -203,17 +233,15 @@ export default function Home() {
   };
 
   const getPaletaObj = () => {
-      // Se tiver HTML Template, usamos cores neutras na base porque a IA vai injetar as variáveis CSS clonadas no HTML gerado
       if (htmlTemplate.trim() && paletaCores === 'personalizado') {
           return { bg: 'var(--template-bg, #ffffff)', text: 'var(--template-text, #111827)', pri: 'var(--template-pri, #3b82f6)', sec: 'var(--template-sec, #60a5fa)', borda: 'var(--template-border, #e5e7eb)' };
       }
-      
       switch(paletaCores) {
           case 'moderno': return { bg: '#ffffff', text: '#111827', pri: '#2563eb', sec: '#3b82f6', borda: '#e5e7eb' };
           case 'sepia': return { bg: '#fdf6e3', text: '#4a4036', pri: '#8b6d4f', sec: '#c08770', borda: '#e8dccc' };
           case 'dark': return { bg: '#1f2937', text: '#f3f4f6', pri: '#a78bfa', sec: '#8b5cf6', borda: '#374151' };
-          case 'personalizado': return { bg: '#ffffff', text: '#111827', pri: '#10b981', sec: '#34d399', borda: '#e5e7eb' }; // Fallback verde
-          default: return { bg: '#ffffff', text: '#1e1914', pri: '#8b6d4f', sec: '#c08770', borda: '#e2e8f0' }; // classico
+          case 'personalizado': return { bg: '#ffffff', text: '#111827', pri: '#10b981', sec: '#34d399', borda: '#e5e7eb' };
+          default: return { bg: '#ffffff', text: '#1e1914', pri: '#8b6d4f', sec: '#c08770', borda: '#e2e8f0' };
       }
   };
 
@@ -222,10 +250,11 @@ export default function Home() {
       clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
       clean = clean.replace(/<style id="builder-core-styles">[\s\S]*?<\/style>/gi, '');
       clean = clean.replace(/\bbuilder-editing\b/gi, '');
-      clean = clean.replace(/cursor:\s*text;?/gi, '')
-                   .replace(/outline:\s*2px dashed rgb\(79, 70, 229\);?/gi, '')
+      clean = clean.replace(/cursor:\s*pointer;?/gi, '')
+                   .replace(/cursor:\s*text;?/gi, '')
+                   .replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '')
                    .replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '')
-                   .replace(/outline-offset:\s*2px;?/gi, '')
+                   .replace(/outline-offset:\s*-3px;?/gi, '')
                    .replace(/data-old-outline="[^"]*"/gi, '')
                    .replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
@@ -290,15 +319,15 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
 /* CAPAS DE CAPÍTULO */
-.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)); color: #ffffff; padding: 20mm; box-sizing: border-box; }
+.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)); background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
 .cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; }
 .cap-icon { font-size: 40px; color: var(--color-secondary); font-family: "Font Awesome 6 Free"; font-weight: 900; margin-bottom: 10px; }
 
-.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; padding: 20mm; box-sizing: border-box; }
+.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; padding: 20mm; box-sizing: border-box; background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
 .cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
 
-.cap-img-pura { /* Imagem pura injetada pela IA */ }
+.cap-img-pura { background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
 /* CABEÇALHOS E RODAPÉS */
 .page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
@@ -313,7 +342,8 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: 1em; }
 
-p { font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); margin-bottom: var(--p-spacing); text-align: justify; text-indent: var(--text-indent); hyphens: auto; -webkit-hyphens: auto; }
+/* Força os parágrafos a usarem as variáveis CSS para que a IA não sobreponha */
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-bottom: var(--p-spacing) !important; text-align: justify; text-indent: var(--text-indent); hyphens: auto; -webkit-hyphens: auto; }
 
 blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(139, 109, 79, 0.08); padding: 15px 20px; margin: 1.5rem 0; font-size: 11.5pt; font-family: var(--font-heading); border-radius: 0 8px 8px 0; }
 .highlight-box { background: rgba(139, 109, 79, 0.15); padding: 15px 20px; border-radius: 8px; margin: 1.5rem 0; font-weight: 500; }
@@ -335,14 +365,35 @@ li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 .author-photo.retangulo { border-radius: 8px; width: 160px; height: 210px; }
 .author-bio { flex: 1; }
 
+/* REGRAS EXATAS DE PDF SOLICITADAS PELO USUÁRIO */
 @page { size: ${formatoLivro === 'A4' ? 'A4' : formatoLivro === '15x21' ? '150mm 210mm' : '140mm 210mm'} portrait; margin: 0; }
 @media print {
-    html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; }
-    #ebook-container { width: 100%; padding: 0; margin: 0; }
-    .page-container { width: ${conf.width} !important; height: ${conf.height} !important; max-height: ${conf.height} !important; box-shadow: none !important; margin: 0 !important; page-break-after: always !important; break-after: page !important; 
-        border: ${tipoBorda === 'single' ? '2px solid var(--color-primary) !important' : tipoBorda === 'double' ? '6px double var(--color-primary) !important' : 'none !important'};
+    html, body { 
+        background: #ffffff !important; 
+        padding: 0 !important; 
+        margin: 0 !important; 
+        display: block !important; 
+        width: ${conf.width} !important; 
+        height: auto !important; 
     }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    #ebook-container { width: 100%; padding: 0; margin: 0; }
+    .page-container { 
+        width: ${conf.width} !important; 
+        height: ${conf.height} !important; 
+        box-sizing: border-box !important;
+        margin: 0 !important; 
+        padding: ${conf.padding} !important; 
+        page-break-after: always !important; 
+        border: ${tipoBorda === 'single' ? '2px solid var(--color-primary) !important' : tipoBorda === 'double' ? '6px double var(--color-primary) !important' : 'none !important'};
+        box-shadow: none !important; 
+        overflow: hidden !important; 
+        position: relative !important;
+    }
+    * { 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important; 
+        color-adjust: exact !important; 
+    }
 }
 </style>`;
 
@@ -529,13 +580,16 @@ DADOS DO PROJETO: ${livroTitulo} por ${livroAutores} ${regraDesignInspirado}
 DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ):
 1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto de forma exaustiva.' : modoConteudo === 'rigoroso' ? 'Corrija ortografia rigorosamente, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
 2. DENSIDADE OBRIGATÓRIA: Cada página (.page-container) de texto DEVE OBRIGATORIAMENTE ter no mínimo 4 a 6 parágrafos densos (se não houver imagem). Preencha todo o espaço da folha.
-3. ÍNDICE (TOC): É ESTRITAMENTE PROIBIDO usar títulos como "Continuação" ou "Parte 2" no índice. Se a lista de capítulos não couber em uma página, apenas feche a div <div class="page-container"> e abra uma nova para continuar a lista HTML naturalmente.
+3. ÍNDICE (TOC) OBRIGAÇÕES: 
+   - O Índice DEVE ficar em UMA ÚNICA página (.page-container) se tiver menos de 20 itens. NÃO divida o índice sem necessidade.
+   - É ESTRITAMENTE PROIBIDO usar títulos como "Continuação" ou "Parte 2" no índice. Se precisar quebrar página, apenas feche a <div class="page-container"> e abra uma nova para continuar a lista.
 4. ESTILO DOS CAPÍTULOS: ${regraEstiloCapitulos}
-5. CITAÇÕES (QUOTES): NUNCA escreva o nome do autor dentro das tags <blockquote> ou ao final delas. Deixe a frase limpa.
+5. CITAÇÕES (QUOTES): NUNCA escreva o nome do autor dentro das tags <blockquote> ou ao final delas. Apenas a citação pura.
 6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro UMA UNICA <div class="page-container"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div>.
 7. IMAGENS REAIS: Use URLs Unsplash reais. Exclusivamente fotografias reais de humanos.
 8. CABEÇALHOS/RODAPÉS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (NUNCA escreva a palavra "página" perto do número).
-9. INICIO DA ESTRUTURA:
+9. ESTILOS CSS INLINE: É ESTRITAMENTE PROIBIDO adicionar 'style="margin:..."' ou espaçamentos diretamente na tag <p>. O CSS global do sistema cuidará dos parágrafos automaticamente!
+10. INICIO DA ESTRUTURA HTML EXIGIDA:
    - ${regraCapaHtml}
    - Índice ancorado (sem título de continuação).
    - Páginas de capítulos e textos.`;
@@ -645,7 +699,7 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                   <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
                               </div>
                               <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                              <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens na página ao lado para ajustar detalhes específicos.</p>
+                              <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
                           </div>
                       ) : (
                           <div className="pb-10 bg-white">
@@ -653,8 +707,8 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                   <div className="flex justify-between items-center mb-3">
                                       <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
                                       <div className="flex gap-2">
-                                          {elementoSelecionado.tagName === 'img' && (
-                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i></button>
+                                          {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage) && (
+                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Trocar Imagem</button>
                                           )}
                                           <button onClick={() => {
                                               let el = document.getElementById('previewFrame') as HTMLIFrameElement;
@@ -663,22 +717,24 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                       </div>
                                   </div>
 
-                                  {elementoSelecionado.tagName === 'img' ? (
+                                  {elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage ? (
                                       <div className="space-y-3">
                                           <div>
                                               <label className="input-label mb-1">Buscar URL (Unsplash)</label>
-                                              <input type="text" value={elementoSelecionado.src} onChange={(e) => atualizarElemento('src', e.target.value)} className="input-standard text-xs" />
+                                              <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-xs" />
                                           </div>
-                                          <div className="grid grid-cols-2 gap-2">
-                                              <div>
-                                                  <label className="input-label mb-1">Largura</label>
-                                                  <input type="text" value={elementoSelecionado.width || ''} placeholder="Ex: 100%" onChange={(e) => atualizarElemento('width', e.target.value)} className="input-standard text-xs" />
+                                          {elementoSelecionado.tagName === 'img' && (
+                                              <div className="grid grid-cols-2 gap-2">
+                                                  <div>
+                                                      <label className="input-label mb-1">Largura</label>
+                                                      <input type="text" value={elementoSelecionado.width || ''} placeholder="Ex: 100%" onChange={(e) => atualizarElemento('width', e.target.value)} className="input-standard text-xs" />
+                                                  </div>
+                                                  <div>
+                                                      <label className="input-label mb-1">Altura</label>
+                                                      <input type="text" value={elementoSelecionado.height || ''} placeholder="Ex: auto" onChange={(e) => atualizarElemento('height', e.target.value)} className="input-standard text-xs" />
+                                                  </div>
                                               </div>
-                                              <div>
-                                                  <label className="input-label mb-1">Altura</label>
-                                                  <input type="text" value={elementoSelecionado.height || ''} placeholder="Ex: auto" onChange={(e) => atualizarElemento('height', e.target.value)} className="input-standard text-xs" />
-                                              </div>
-                                          </div>
+                                          )}
                                       </div>
                                   ) : (
                                       <div>
@@ -863,7 +919,10 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                   <div>
                                       <label className="input-label mb-2 text-[9px]">Entrelinhas</label>
                                       <select value={espacamentoLinhas} onChange={(e) => setEspacamentoLinhas(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="1.3">Justo (1.3)</option><option value="1.6">Padrão (1.6)</option><option value="1.9">Largo (1.9)</option>
+                                          <option value="1.0">Simples (1.0)</option>
+                                          <option value="1.15">Justo (1.15)</option>
+                                          <option value="1.5">Padrão (1.5)</option>
+                                          <option value="2.0">Duplo (2.0)</option>
                                       </select>
                                   </div>
                               </div>
