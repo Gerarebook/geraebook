@@ -32,6 +32,7 @@ export async function POST(req: Request) {
             { role: 'user', content: textoUsuario }
           ],
           temperature: 0.7,
+          max_tokens: 8000, // Aumentado para suportar e-books longos
         }),
       });
 
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
         ],
         generationConfig: {
           temperature: 0.7,
+          maxOutputTokens: 8192, // Garante resposta longa sem cortar no meio
         }
       }),
     });

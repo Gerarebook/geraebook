@@ -1021,12 +1021,12 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
               <iframe id="previewFrame" className="w-full min-h-full border-none active bg-transparent" sandbox="allow-scripts allow-same-origin allow-modals" title="Leitor do Ebook"></iframe>
               
               <div id="codigoContainer" className="absolute inset-0 bg-[#0d1117] hidden">
-                  <textarea id="codigoGerado" className="w-full h-full font-mono text-[13px] bg-[#0d1117] text-[#56d364] border-none outline-none resize-none custom-scrollbar p-8 leading-relaxed"
-                      onBlur={(e) => {
-                          const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-                          if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + SCRIPT_PREVIEW; }
-                      }}
-                  ></textarea>
+                  <textarea id="codigoGerado" className="..."
+    onChange={(e) => {
+        const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+        if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + SCRIPT_PREVIEW; }
+    }}
+></textarea>
               </div>
           </div>
       </main>
