@@ -3,7 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 
-// SCRIPT DO IFRAME EDITORIAL
+// SCRIPT DO IFRAME EDITORIAL ATUALIZADO (Cores de Fundo e Transformação)
 const SCRIPT_PREVIEW = `<script id="editor-magic-script">
     let modoEdicao = false;
     let elSelecionado = null;
@@ -57,6 +57,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
             height: elSelecionado.style.height || elSelecionado.height || '',
             className: elSelecionado.className,
             textColor: rgbToHex(compStyle.color),
+            bgColor: rgbToHex(compStyle.backgroundColor),
             fontSize: parseInt(compStyle.fontSize) || 16,
             textAlign: tAlign,
             outerHTML: elSelecionado.outerHTML
@@ -94,6 +95,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 if(event.data.width !== undefined) el.style.width = event.data.width;
                 if(event.data.height !== undefined) el.style.height = event.data.height;
                 if(event.data.textColor !== undefined) el.style.color = event.data.textColor;
+                if(event.data.bgColor !== undefined) el.style.backgroundColor = event.data.bgColor;
                 
                 if(event.data.fontSize !== undefined) {
                     el.style.fontSize = event.data.fontSize + 'px';
@@ -112,7 +114,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         }
     });
 
-    // Intercepta cliques para não quebrar links de índice quando fora do modo edição
     document.addEventListener('click', (e) => {
         if (modoEdicao) {
             e.preventDefault(); 
@@ -145,19 +146,28 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN E FORMATO
+  // CONFIGURAÇÕES DE DESIGN GERAL
   const [formatoLivro, setFormatoLivro] = useState<'A4' | '15x21' | '14x21'>('A4');
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
-  const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
+  const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.6');
+  const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('1.5em');
   const [recuoParagrafo, setRecuoParagrafo] = useState('20px');
   
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'double'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
+  const [imagemCapaUrl, setImagemCapaUrl] = useState('https://picsum.photos/1200/1600?random=1');
+
+  // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline'>('padrao');
+  const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
+  const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
+  
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'linha-superior' | 'centralizado'>('simples');
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark'>('classico');
-  const [imagemCapaUrl, setImagemCapaUrl] = useState('[https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=80](https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=80)');
+  
+  const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
+  const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
   // DADOS DO PROJETO
   const [livroTitulo, setLivroTitulo] = useState('');
@@ -185,16 +195,20 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
+  const gerarImagemAleatoria = () => {
+      setImagemCapaUrl(`https://picsum.photos/1200/1600?random=${Date.now()}`);
+      (window as any).showNotification("Nova imagem gerada!", "success");
+  };
+
   const getPaletaObj = () => {
       switch(paletaCores) {
-          case 'moderno': return { bg: '#ffffff', text: '#111827', pri: '#2563eb', sec: '#3b82f6' };
-          case 'sepia': return { bg: '#fdf6e3', text: '#4a4036', pri: '#8b6d4f', sec: '#c08770' };
-          case 'dark': return { bg: '#1f2937', text: '#f3f4f6', pri: '#a78bfa', sec: '#8b5cf6' };
-          default: return { bg: '#ffffff', text: '#1e1914', pri: '#8b6d4f', sec: '#c08770' }; // classico
+          case 'moderno': return { bg: '#ffffff', text: '#111827', pri: '#2563eb', sec: '#3b82f6', borda: '#e5e7eb' };
+          case 'sepia': return { bg: '#fdf6e3', text: '#4a4036', pri: '#8b6d4f', sec: '#c08770', borda: '#e8dccc' };
+          case 'dark': return { bg: '#1f2937', text: '#f3f4f6', pri: '#a78bfa', sec: '#8b5cf6', borda: '#374151' };
+          default: return { bg: '#ffffff', text: '#1e1914', pri: '#8b6d4f', sec: '#c08770', borda: '#e2e8f0' }; // classico
       }
   };
 
-  // ARRANCADOR DE BUGS DO MARKDOWN E SUJEIRAS
   const purificarHTML = (rawHtml: string) => {
       let clean = rawHtml.replace(/```html/gi, '').replace(/```/gi, '').trim();
       clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
@@ -222,16 +236,18 @@ export default function Home() {
       const paleta = getPaletaObj();
       
       const ebookStyles = `<style>
-@import url('[https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap](https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap)');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
 :root {
     --color-bg: ${paleta.bg};
     --color-text: ${paleta.text};
     --color-primary: ${paleta.pri};
     --color-secondary: ${paleta.sec};
-    --font-heading: ${fontFamily === 'Poppins' ? "'Poppins', sans-serif" : "'Playfair Display', serif"};
-    --font-body: ${['Arial', 'Verdana', 'Poppins'].includes(fontFamily) ? `'${fontFamily}', sans-serif` : `'${fontFamily}', serif`};
+    --color-border: ${paleta.borda};
+    --font-heading: ${fontFamily === 'Poppins' ? "'Poppins', sans-serif" : fontFamily === 'Arial' || fontFamily === 'Verdana' ? `'${fontFamily}', sans-serif` : "'Playfair Display', serif"};
+    --font-body: ${['Arial', 'Verdana', 'Poppins', 'Lato'].includes(fontFamily) ? `'${fontFamily}', sans-serif` : `'${fontFamily}', serif`};
     --line-spacing: ${espacamentoLinhas};
+    --p-spacing: ${espacamentoParagrafo};
     --text-indent: ${recuoParagrafo};
 }
 
@@ -259,21 +275,22 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
 }
 
 /* CAPAS INICIAIS */
-.page-cover-img { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.9)), url('${imagemCapaUrl}') center/cover no-repeat; color: #ffffff; padding: 20mm; box-sizing: border-box; }
-.page-cover-img h1 { color: #fff; font-size: 3rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat; }
+.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.9)), url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
+.page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--color-bg); color: var(--color-primary); padding: 20mm; box-sizing: border-box; border: 4px double var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
 /* CAPAS DE CAPÍTULO */
-.cap-img-overlay { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)); color: #ffffff; padding: 20mm; box-sizing: border-box; }
+.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)); color: #ffffff; padding: 20mm; box-sizing: border-box; }
 .cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; }
 .cap-icon { font-size: 40px; color: var(--color-secondary); font-family: "Font Awesome 6 Free"; font-weight: 900; margin-bottom: 10px; }
 
-.cap-box-rounded { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20mm; box-sizing: border-box; }
-.cap-box-inner { background: rgba(255, 255, 255, 0.95); padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
+.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; padding: 20mm; box-sizing: border-box; }
+.cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
+.cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
 
-.cap-img-pura { /* Imagem pura tratada inline no html da IA */ }
+.cap-img-pura { /* Imagem pura injetada pela IA */ }
 
 /* CABEÇALHOS E RODAPÉS */
 .page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
@@ -283,13 +300,16 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     ${estiloRodape === 'centralizado' ? 'text-align: center; display: block;' : ''}
 }
 
+/* CONTEÚDO BASE */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: 1em; }
 
-p { font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); margin-bottom: 1em; text-align: justify; text-indent: var(--text-indent); hyphens: auto; -webkit-hyphens: auto; }
+p { font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); margin-bottom: var(--p-spacing); text-align: justify; text-indent: var(--text-indent); hyphens: auto; -webkit-hyphens: auto; }
 
 blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(139, 109, 79, 0.08); padding: 15px 20px; margin: 1.5rem 0; font-size: 11.5pt; font-family: var(--font-heading); border-radius: 0 8px 8px 0; }
+.highlight-box { background: rgba(139, 109, 79, 0.15); padding: 15px 20px; border-radius: 8px; margin: 1.5rem 0; font-weight: 500; }
+
 img { max-width: 100%; height: auto; max-height: 40vh; border-radius: 0.5rem; margin: 1.5rem auto; display: block; object-fit: cover; page-break-inside: avoid; break-inside: avoid; }
 ul, ol { margin-top: 0; margin-bottom: 1.2em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.5rem; page-break-inside: avoid; }
@@ -298,11 +318,22 @@ li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 .toc-list a:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; position: relative; top: -5px; opacity: 0.3; }
 
+/* SEÇÃO DO AUTOR */
+.author-section { display: flex; align-items: center; gap: 20px; margin-top: 2rem; }
+.author-section.layout-topo { flex-direction: column; text-align: center; }
+.author-section.layout-esquerda { flex-direction: row; text-align: justify; }
+.author-photo { object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+.author-photo.circulo { border-radius: 50%; width: 180px; height: 180px; }
+.author-photo.retangulo { border-radius: 8px; width: 160px; height: 210px; }
+.author-bio { flex: 1; }
+
 @page { size: ${formatoLivro === 'A4' ? 'A4' : formatoLivro === '15x21' ? '150mm 210mm' : '140mm 210mm'} portrait; margin: 0; }
 @media print {
     html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; }
     #ebook-container { width: 100%; padding: 0; margin: 0; }
-    .page-container { width: ${conf.width} !important; height: ${conf.height} !important; max-height: ${conf.height} !important; box-shadow: none !important; margin: 0 !important; page-break-after: always !important; break-after: page !important; }
+    .page-container { width: ${conf.width} !important; height: ${conf.height} !important; max-height: ${conf.height} !important; box-shadow: none !important; margin: 0 !important; page-break-after: always !important; break-after: page !important; 
+        border: ${tipoBorda === 'single' ? '2px solid var(--color-primary) !important' : tipoBorda === 'double' ? '6px double var(--color-primary) !important' : 'none !important'};
+    }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 </style>`;
@@ -317,9 +348,9 @@ li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
-    <link href="[https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap](https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap)" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <title>${livroTitulo || 'Meu E-book Profissional'}</title>
 ${ebookStyles}
 </head>
@@ -337,7 +368,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
     }
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, recuoParagrafo, paletaCores, estiloRodape]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -356,7 +387,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, recuoParagrafo, paletaCores, estiloRodape]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
 
   const toggleInspetor = () => {
       const newMode = !modoInspetor;
@@ -373,6 +404,15 @@ ${ebookStyles}
       setElementoSelecionado((prev: any) => ({...prev, [field]: value}));
   };
 
+  const transformarEmNode = (novoTag: string, classExtra: string = '') => {
+      if(!elementoSelecionado) return;
+      const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+      const newHtml = `<${novoTag} id="${elementoSelecionado.id}" class="${classExtra}">${elementoSelecionado.text}</${novoTag}>`;
+      iframe.contentWindow?.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml }, '*');
+      setElementoSelecionado(null);
+      (window as any).showNotification("Elemento transformado!", "success");
+  };
+
   const desfazerCodigo = () => {
     if (historicoCodigo.length === 0) { (window as any).showNotification("Nenhuma alteração para desfazer.", "error"); return; }
     const novoHistorico = [...historicoCodigo];
@@ -387,7 +427,7 @@ ${ebookStyles}
   };
 
   const chamarMotorIA = async (systemInstructionText: string, promptParts: any[], isElementRefinement = false) => {
-    setStatusApis({ texto: isElementRefinement ? 'A IA está reescrevendo...' : 'A IA está diagramando o E-book...', processing: true });
+    setStatusApis({ texto: isElementRefinement ? 'A IA está processando...' : 'A IA está diagramando o E-book...', processing: true });
     try {
       const response = await fetch('/api/gerar', { 
           method: 'POST', 
@@ -403,7 +443,7 @@ ${ebookStyles}
       const responseText = await response.text();
       let data;
       try { data = JSON.parse(responseText); } catch (err) { throw new Error(`Erro no Servidor (${response.status}): ${responseText.substring(0, 80)}`); }
-      if (!data.success) throw new Error(data.error || "Erro desconhecido retornado pela API.");
+      if (!data.success) throw new Error(data.error || "Erro retornado pela API.");
       return data;
     } catch (err: any) {
       let errorMsg = err.message;
@@ -412,7 +452,6 @@ ${ebookStyles}
     } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
   };
 
-  // ⚡ NOVA FUNÇÃO: MODIFICAÇÃO GLOBAL INTELIGENTE (REESCREVE O E-BOOK E CORRIGE TUDO)
   const aplicarModificacaoGlobal = async () => {
       const input = document.getElementById('ai_prompt_global') as HTMLInputElement;
       const comando = input?.value.trim();
@@ -422,18 +461,17 @@ ${ebookStyles}
       if(!codEl || !codEl.value) { (window as any).showNotification("Nenhum E-book gerado para modificar.", "error"); return; }
 
       const instrucao = `Você é um Revisor Editorial Sênior. 
-      Vou fornecer o HTML COMPLETO do E-book atual. O usuário ordenou a seguinte alteração global: "${comando}".
+      Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global rigorosamente: "${comando}".
       
-      REGRA MÁXIMA: 
-      1. Se a ordem remover ou adicionar páginas, você DEVE corrigir e reajustar a numeração nos rodapés (.page-footer) de TODAS as páginas subsequentes para manter a sequência exata.
-      2. Se páginas/capítulos forem removidos ou alterados, você DEVE reescrever a seção do Índice (TOC) para que os links, textos e números de páginas reflitam a nova realidade.
-      3. Devolva TODO O HTML validado, atualizado e limpo, começando a partir das divs .page-container. Não devolva markdown.`;
+      REGRAS MÁXIMAS: 
+      1. Se remover/adicionar páginas, VOCÊ DEVE reajustar a numeração nos rodapés (.page-footer) de todas as páginas subsequentes automaticamente.
+      2. Se remover/adicionar capítulos, VOCÊ DEVE reescrever o Índice (TOC) para que links e números de páginas fiquem exatos.
+      3. Devolva TODO O HTML validado, a partir das divs .page-container.`;
 
       const resData = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
 
       if(resData && resData.html) {
-          let cleanNewHtml = purificarHTML(resData.html);
-          let htmlFinal = moldarApresentacaoHtml(cleanNewHtml);
+          let htmlFinal = moldarApresentacaoHtml(purificarHTML(resData.html));
           const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
           
           setHistoricoCodigo((prev) => [...prev, codEl.value]); 
@@ -441,11 +479,10 @@ ${ebookStyles}
           if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
           
           if(input) input.value = '';
-          (window as any).showNotification("E-book modificado e reorganizado com sucesso!", "success");
+          (window as any).showNotification("E-book modificado globalmente com sucesso!", "success");
       }
   };
 
-  // MEGA FUNÇÃO DE GERAÇÃO COM REGRAS REFINADAS E DENSIDADE OBRIGATÓRIA
   const executarGeracaoEbook = async () => {
     const content = productContent.trim();
     if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira ou cole o texto base.', 'error'); return; }
@@ -465,31 +502,31 @@ ${ebookStyles}
     } else if (estiloCapitulos === 'box-arredondado') {
         regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-box-rounded" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-box-inner"><h1 style="margin:0; font-size: 2.2rem;">Título do Capítulo</h1></div></div>`;
     } else if (estiloCapitulos === 'imagem-pura') {
-        regraEstiloCapitulos = `Crie uma página EXCLUSIVA contendo APENAS a imagem de abertura do capítulo cobrindo tudo, sem textos, usando: <div class="page-container cap-img-pura" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"></div>`;
+        regraEstiloCapitulos = `Crie uma página EXCLUSIVA contendo APENAS a imagem pura de abertura do capítulo, usando: <div class="page-container cap-img-pura" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"></div>`;
     } else {
-        regraEstiloCapitulos = `Estilo Inline: Adicione o título do capítulo no topo da página de conteúdo (.page-container) seguido imediatamente pela imagem e os parágrafos, sem criar página dedicada.`;
+        regraEstiloCapitulos = `Estilo Inline: Adicione o título do capítulo no topo da página de conteúdo (.page-container) seguido pela imagem e parágrafos, sem página exclusiva.`;
     }
 
     let regraRodape = "";
-    if (estiloRodape === 'simples') regraRodape = `<span>${livroAutores}</span><span>5</span>`;
-    else if (estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>5</span>`;
-    else regraRodape = `<span>Página 5</span>`;
+    if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>5</span>`;
+    else regraRodape = `<span>5</span>`;
 
     const instrucaoSistema = `Atue como um Escritor Bestseller e Especialista Editorial. Gere um E-book monumental e perfeito num ÚNICO HTML.
 DADOS DO PROJETO: ${livroTitulo} por ${livroAutores}
 
 DIRETRIZES FUNDAMENTAIS:
-1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto fornecido de forma exaustiva e profunda.' : modoConteudo === 'rigoroso' ? 'Apenas corrija ortografia, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
-2. DENSIDADE OBRIGATÓRIA (MUITO IMPORTANTE): Cada página (.page-container) de conteúdo DEVE ter RIGOROSAMENTE entre 4 a 6 parágrafos densos (se não houver imagem). Preencha todo o espaço da folha de forma profissional. O espaçamento padrão de margens será aplicado pelo CSS.
-3. ÍNDICE (TOC): Crie um Índice com links HTML (<a href="#cap-1">). IMPORTANTE: Se o índice tiver mais de 12 itens, QUEBRE ele criando uma nova <div class="page-container"> para continuar a lista.
+1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto de forma exaustiva e profunda.' : modoConteudo === 'rigoroso' ? 'Corrija ortografia rigorosamente, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
+2. DENSIDADE OBRIGATÓRIA: Cada página (.page-container) de texto DEVE ter no mínimo 4 a 6 parágrafos densos (se não houver imagem). Preencha todo o espaço da folha.
+3. ÍNDICE (TOC): Crie o Índice. IMPORTANTE: NÃO adicione títulos como "Continuação do Índice". Se precisar de mais páginas, apenas quebre a <div class="page-container"> e siga a lista de links.
 4. ESTILO DOS CAPÍTULOS: ${regraEstiloCapitulos}
-5. PÁGINA DO AUTOR OBRIGATÓRIA: Crie UMA <div class="page-container"> no final do livro dedicada ao Autor, contendo uma foto retrato (Unsplash), o título "Sobre o Autor" e uma biografia robusta.
-6. IMAGENS REAIS: Use URLs Unsplash <img src="[https://images.unsplash.com/photo-X](https://images.unsplash.com/photo-X)">. Apenas fotografias reais humanas, sem desenhos.
-7. CABEÇALHOS E RODAPÉS: Todas as páginas de conteúdo devem ter <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (sem escrever a palavra "página" se for rodapé dividido).
-8. INICIO DA ESTRUTURA:
+5. CITAÇÕES (QUOTES): NUNCA adicione o nome do autor automaticamente dentro das tags <blockquote>. Apenas a frase.
+6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro uma <div class="page-container"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div>.
+7. IMAGENS REAIS: Use URLs Unsplash reais. Exclusivamente fotografias reais.
+8. CABEÇALHOS/RODAPÉS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (sem a palavra "página" no número do rodapé).
+9. INICIO DA ESTRUTURA:
    - ${regraCapaHtml}
-   - Índice(s) ancorados.
-   - Páginas de capítulos e conteúdos.`;
+   - Índice ancorado.
+   - Páginas de capítulos e textos.`;
 
     const data = await chamarMotorIA(instrucaoSistema, [{ text: `TEXTO BASE:\n"""\n${content || 'Gerar E-book'}\n"""` }], false);
     
@@ -540,7 +577,7 @@ DIRETRIZES FUNDAMENTAIS:
 
   return (
     <div className="h-screen overflow-hidden flex relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
-      <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)" />
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       <style dangerouslySetInnerHTML={{__html: `
         .input-standard { width: 100%; padding: 0.6rem 0.8rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; background-color: #f8fafc; font-size: 0.75rem; outline: none; color: #334155; transition: all 0.2s; font-weight: 500;}
         .input-standard:focus { border-color: #6366f1; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
@@ -570,7 +607,6 @@ DIRETRIZES FUNDAMENTAIS:
                   <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center mr-2.5 text-white shadow-md shadow-indigo-200"><i className="fas fa-book-open text-xs"></i></div>
                   E-book<span className="text-indigo-600">Pro</span>
               </h1>
-              
               <button onClick={toggleInspetor} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${modoInspetor ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
                   <i className={`fas fa-pen-nib ${modoInspetor ? 'animate-pulse text-yellow-300' : ''}`}></i> {modoInspetor ? 'Editor Inteligente' : 'Modo Editor'}
               </button>
@@ -587,7 +623,7 @@ DIRETRIZES FUNDAMENTAIS:
                       {/* COMANDO GLOBAL (EX: EXCLUIR PÁGINA) */}
                       <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
                           <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
-                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Remova a página 4, tire o capítulo 2 e reajuste toda a numeração do e-book e do índice."></textarea>
+                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Remova o capítulo 2 e reajuste a numeração inteira e o índice."></textarea>
                           <button onClick={aplicarModificacaoGlobal} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wide py-2.5 rounded-lg transition shadow-sm">Aplicar no Livro Inteiro</button>
                       </div>
 
@@ -603,10 +639,10 @@ DIRETRIZES FUNDAMENTAIS:
                           <div className="pb-10 bg-white">
                               <div className="panel-section bg-slate-50/50">
                                   <div className="flex justify-between items-center mb-3">
-                                      <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Seleção: {elementoSelecionado.tagName}</span>
+                                      <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
                                       <div className="flex gap-2">
                                           {elementoSelecionado.tagName === 'img' && (
-                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Trocar</button>
+                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i></button>
                                           )}
                                           <button onClick={() => {
                                               let el = document.getElementById('previewFrame') as HTMLIFrameElement;
@@ -634,8 +670,14 @@ DIRETRIZES FUNDAMENTAIS:
                                       </div>
                                   ) : (
                                       <div>
-                                          <label className="input-label mb-2">Edição de Texto (Preserva Estilo Original)</label>
-                                          <textarea rows={6} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
+                                          <label className="input-label mb-2">Edição de Texto</label>
+                                          <textarea rows={5} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
+                                          
+                                          {/* FERRAMENTAS DE HIGHLIGHT E QUOTE */}
+                                          <div className="mt-3 flex gap-2">
+                                              <button onClick={() => transformarEmNode('blockquote')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition"><i className="fas fa-quote-right mr-1"></i> Virar Citação</button>
+                                              <button onClick={() => transformarEmNode('div', 'highlight-box')} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-bold text-[9px] uppercase py-2 rounded border border-yellow-200 transition"><i className="fas fa-highlighter mr-1"></i> Destacar Fundo</button>
+                                          </div>
                                       </div>
                                   )}
                               </div>
@@ -643,12 +685,8 @@ DIRETRIZES FUNDAMENTAIS:
                               {elementoSelecionado.tagName !== 'img' && (
                                   <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100">
                                       <div>
-                                          <label className="input-label mb-2 text-[9px]">Alinhamento</label>
-                                          <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1">
-                                              <button onClick={() => atualizarElemento('textAlign', 'text-left')} className={`flex-1 h-7 flex items-center justify-center rounded text-[10px] transition ${elementoSelecionado.textAlign === 'text-left' ? 'bg-white shadow-sm text-indigo-600 font-bold' : 'text-slate-500'}`}><i className="fas fa-align-left"></i></button>
-                                              <button onClick={() => atualizarElemento('textAlign', 'text-center')} className={`flex-1 h-7 flex items-center justify-center rounded text-[10px] transition ${elementoSelecionado.textAlign === 'text-center' ? 'bg-white shadow-sm text-indigo-600 font-bold' : 'text-slate-500'}`}><i className="fas fa-align-center"></i></button>
-                                              <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className={`flex-1 h-7 flex items-center justify-center rounded text-[10px] transition ${elementoSelecionado.textAlign === 'text-justify' ? 'bg-white shadow-sm text-indigo-600 font-bold' : 'text-slate-500'}`}><i className="fas fa-align-justify"></i></button>
-                                          </div>
+                                          <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
+                                          <input type="color" value={elementoSelecionado.bgColor || '#ffffff'} onChange={(e) => atualizarElemento('backgroundColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
                                       </div>
                                       <div>
                                           <div className="flex justify-between items-center mb-2">
@@ -666,7 +704,7 @@ DIRETRIZES FUNDAMENTAIS:
                   <div className="p-5 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
                       {/* CONFIGURAÇÕES DE DESIGN GERAL */}
                       <div>
-                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Design Geral</h3>
+                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Capa & Design Geral</h3>
                           <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
                               <div>
                                   <label className="input-label mb-2">Tamanho do Livro</label>
@@ -690,29 +728,21 @@ DIRETRIZES FUNDAMENTAIS:
                               <div className="pt-3 border-t border-slate-100">
                                   <label className="input-label mb-2">Estilo da Capa Inicial</label>
                                   <select value={tipoCapa} onChange={(e) => setTipoCapa(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                      <option value="imagem-texto">Capa Clássica (Imagem de Fundo + Texto)</option>
-                                      <option value="imagem-pura">Capa Limpa (Somente a Imagem, sem textos)</option>
+                                      <option value="imagem-texto">Capa Clássica (Imagem Fundo + Texto)</option>
+                                      <option value="imagem-pura">Capa Limpa (Apenas a Imagem s/ texto)</option>
                                       <option value="texto">Folha de Rosto (Apenas Texto e Bordas)</option>
                                   </select>
                               </div>
 
                               {(tipoCapa === 'imagem-texto' || tipoCapa === 'imagem-pura') && (
                                   <div className="pt-3 border-t border-slate-100">
-                                      <label className="input-label mb-2">Imagem da Capa (Unsplash URL ou Upload)</label>
-                                      <input type="text" value={imagemCapaUrl} onChange={(e) => setImagemCapaUrl(e.target.value)} className="input-standard mb-2 text-xs" placeholder="Cole URL aqui" />
-                                      <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Carregar do PC</button>
+                                      <label className="input-label mb-2">Imagem de Capa (Carregar ou Gerar)</label>
+                                      <div className="flex gap-2">
+                                          <button onClick={() => imageInputRef.current?.click()} className="flex-1 bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Carregar do PC</button>
+                                          <button onClick={gerarImagemAleatoria} className="flex-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-2 rounded-lg transition"><i className="fas fa-random mr-1"></i> Aleatória</button>
+                                      </div>
                                   </div>
                               )}
-
-                              <div className="pt-3 border-t border-slate-100">
-                                  <label className="input-label mb-2">Estilo dos Títulos de Capítulo</label>
-                                  <select value={estiloCapitulos} onChange={(e) => setEstiloCapitulos(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                      <option value="padrao">Página Exclusiva (Imagem Fundo + Texto + Ícone)</option>
-                                      <option value="box-arredondado">Página Exclusiva (Imagem + Box Branco Arredondado)</option>
-                                      <option value="imagem-pura">Página Exclusiva (Somente Imagem Pura)</option>
-                                      <option value="inline">Texto Contínuo (Título sem página exclusiva)</option>
-                                  </select>
-                              </div>
 
                               <div className="pt-3 border-t border-slate-100">
                                   <label className="input-label mb-2">Bordas das Páginas</label>
@@ -734,51 +764,108 @@ DIRETRIZES FUNDAMENTAIS:
                           </div>
                       </div>
 
+                      {/* LAYOUT DE CAPITULOS E AUTOR */}
+                      <div>
+                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">2</span> Capítulos & Autor</h3>
+                          <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                              <div>
+                                  <label className="input-label mb-2">Títulos de Capítulo</label>
+                                  <select value={estiloCapitulos} onChange={(e) => setEstiloCapitulos(e.target.value as any)} className="input-standard font-medium text-slate-800">
+                                      <option value="padrao">Página Exclusiva (Imagem Fundo + Texto + Ícone)</option>
+                                      <option value="box-arredondado">Página Exclusiva (Imagem + Box Branco Arredondado)</option>
+                                      <option value="imagem-pura">Página Exclusiva (Apenas a Imagem s/ texto)</option>
+                                      <option value="inline">Texto Contínuo (Sem página exclusiva)</option>
+                                  </select>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                  <div>
+                                      <label className="input-label mb-2 text-[9px]">Alinhamento do Título</label>
+                                      <select value={alinhamentoCapitulo} onChange={(e) => setAlinhamentoCapitulo(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
+                                          <option value="flex-start">Topo</option>
+                                          <option value="center">Centro</option>
+                                          <option value="flex-end">Base</option>
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label className="input-label mb-2 text-[9px]">Cor Fundo (Box Arredondado)</label>
+                                      <input type="color" value={corBoxCapitulo === 'rgba(255, 255, 255, 0.95)' ? '#ffffff' : corBoxCapitulo} onChange={(e) => setCorBoxCapitulo(e.target.value)} className="w-full h-8 rounded border-none cursor-pointer" />
+                                  </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                  <div>
+                                      <label className="input-label mb-2 text-[9px]">Posição (Foto do Autor)</label>
+                                      <select value={autorPosicao} onChange={(e) => setAutorPosicao(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
+                                          <option value="esquerda">Lateral Esquerda</option>
+                                          <option value="topo">No Topo (Centro)</option>
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label className="input-label mb-2 text-[9px]">Formato (Foto Autor)</label>
+                                      <select value={autorFormato} onChange={(e) => setAutorFormato(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
+                                          <option value="circulo">Círculo</option>
+                                          <option value="retangulo">Retângulo</option>
+                                      </select>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
                       {/* TIPOGRAFIA E ESPAÇAMENTOS */}
                       <div>
-                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">2</span> Tipografia</h3>
+                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">3</span> Tipografia</h3>
                           <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
                               <div>
                                   <label className="input-label mb-2">Fonte do Livro</label>
                                   <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard font-medium text-slate-800">
                                       <option value="Lato">Lato (Moderna/Versátil)</option>
-                                      <option value="Merriweather">Merriweather (Leitura Longa)</option>
-                                      <option value="Lora">Lora (Romances e Contos)</option>
-                                      <option value="EB Garamond">EB Garamond (Clássico)</option>
-                                      <option value="Poppins">Poppins (Moderna e Arredondada)</option>
                                       <option value="Arial">Arial (Padrão e Limpa)</option>
                                       <option value="Verdana">Verdana (Muito Legível)</option>
+                                      <option value="Poppins">Poppins (Moderna e Arredondada)</option>
+                                      <option value="Merriweather">Merriweather (Leitura Longa)</option>
+                                      <option value="EB Garamond">EB Garamond (Clássico)</option>
                                   </select>
                               </div>
 
                               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
                                   <div>
-                                      <label className="input-label mb-2 text-[9px]">Tamanho Fonte</label>
-                                      <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[11px] font-medium text-slate-800">
+                                      <label className="input-label mb-2 text-[9px]">Tamanho Fonte Base</label>
+                                      <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
                                           <option value="11pt">11pt</option><option value="12pt">12pt</option><option value="14pt">14pt</option><option value="16pt">16pt</option>
                                       </select>
                                   </div>
                                   <div>
                                       <label className="input-label mb-2 text-[9px]">Entrelinhas</label>
-                                      <select value={espacamentoLinhas} onChange={(e) => setEspacamentoLinhas(e.target.value)} className="input-standard text-[11px] font-medium text-slate-800">
-                                          <option value="1.2">Justo (1.2)</option><option value="1.5">Padrão (1.5)</option><option value="1.8">Largo (1.8)</option>
+                                      <select value={espacamentoLinhas} onChange={(e) => setEspacamentoLinhas(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
+                                          <option value="1.3">Justo (1.3)</option><option value="1.6">Padrão (1.6)</option><option value="1.9">Largo (1.9)</option>
                                       </select>
                                   </div>
                               </div>
-                              <div className="pt-3 border-t border-slate-100">
-                                  <label className="input-label mb-2 text-[10px]">Recuo de Parágrafo (Primeira Linha)</label>
-                                  <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard font-medium text-slate-800">
-                                      <option value="20px">Recuo Clássico (20px)</option>
-                                      <option value="0px">Sem Recuo (Moderno/Site)</option>
-                                      <option value="40px">Recuo Grande (40px)</option>
-                                  </select>
+                              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                  <div>
+                                      <label className="input-label mb-2 text-[9px]">Espaço (Fim Parágrafo)</label>
+                                      <select value={espacamentoParagrafo} onChange={(e) => setEspacamentoParagrafo(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
+                                          <option value="1em">Colado (1em)</option>
+                                          <option value="1.5em">Normal (1.5em)</option>
+                                          <option value="2.2em">Afastado (2.2em)</option>
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label className="input-label mb-2 text-[9px]">Recuo 1ª Linha</label>
+                                      <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
+                                          <option value="20px">Clássico (20px)</option>
+                                          <option value="0px">Sem Recuo</option>
+                                          <option value="40px">Largo (40px)</option>
+                                      </select>
+                                  </div>
                               </div>
                           </div>
                       </div>
 
                       {/* CONTEÚDO */}
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
-                          <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span> Geração Editorial</h3>
+                          <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span> Geração Editorial</h3>
                           
                           <div className="mb-4">
                               <label className="input-label text-indigo-800">Título do E-book</label>
@@ -791,17 +878,12 @@ DIRETRIZES FUNDAMENTAIS:
                           </div>
 
                           <div className="mb-4">
-                              <label className="input-label text-indigo-800">Modo de Processamento do Texto</label>
+                              <label className="input-label text-indigo-800">Modo de Geração</label>
                               <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard font-bold text-indigo-700 bg-white mb-2">
                                   <option value="expandido">Expandir e Enriquecer Textos com IA</option>
-                                  <option value="rigoroso">Rigoroso (Apenas corrigir texto e organizar)</option>
+                                  <option value="rigoroso">Rigoroso (Apenas corrigir ortografia)</option>
                                   <option value="prompt">Criar 100% do Zero via Prompt</option>
                               </select>
-                          </div>
-
-                          <div className="mb-4 flex items-center justify-between bg-white p-3 rounded-lg border border-indigo-100">
-                              <label className="input-label mb-0 cursor-pointer text-indigo-900">Incluir Introdução e Conclusão</label>
-                              <input type="checkbox" checked={incluirIntroConclusao} onChange={(e) => setIncluirIntroConclusao(e.target.checked)} className="w-4 h-4 accent-indigo-600 rounded cursor-pointer" />
                           </div>
 
                           <div className="mb-4">
@@ -810,7 +892,7 @@ DIRETRIZES FUNDAMENTAIS:
                                   value={productContent} 
                                   onChange={(e) => setProductContent(e.target.value)} 
                                   className="input-standard h-36 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
-                                  placeholder="Cole seu texto dezenas de páginas aqui, ou digite o tema se for criar do zero..."
+                                  placeholder="Cole as dezenas de páginas aqui, ou digite o tema que a IA criará sozinha..."
                               ></textarea>
                           </div>
 
