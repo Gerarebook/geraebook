@@ -3,7 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 
-// SCRIPT DO IFRAME EDITORIAL (Atualizado para não perder estilos ao editar texto)
+// SCRIPT DO IFRAME EDITORIAL ATUALIZADO (Tratamento de âncoras e limpeza de outline)
 const SCRIPT_PREVIEW = `<script id="editor-magic-script">
     let modoEdicao = false;
     let elSelecionado = null;
@@ -41,7 +41,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         if(!elSelecionado.id) elSelecionado.id = 'node_' + Math.random().toString(36).substr(2,9);
 
         let compStyle = window.getComputedStyle(elSelecionado);
-        
         let tAlign = '';
         if(elSelecionado.classList.contains('text-center')) tAlign = 'text-center';
         else if(elSelecionado.classList.contains('text-right')) tAlign = 'text-right';
@@ -54,6 +53,8 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
             tagName: elSelecionado.tagName.toLowerCase(),
             text: elSelecionado.innerText || '',
             src: elSelecionado.src || '',
+            width: elSelecionado.style.width || elSelecionado.width || '',
+            height: elSelecionado.style.height || elSelecionado.height || '',
             className: elSelecionado.className,
             textColor: rgbToHex(compStyle.color),
             fontSize: parseInt(compStyle.fontSize) || 16,
@@ -75,9 +76,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     el.style.outlineOffset = '';
                     delete el.dataset.oldOutline;
                 });
-                document.querySelectorAll('*').forEach(el => {
-                    if (el.style.cursor === 'text') el.style.cursor = '';
-                });
             }
         }
 
@@ -89,11 +87,12 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         if(event.data.type === 'UPDATE_ELEMENT') {
             let el = document.getElementById(event.data.id);
             if(el) {
-                // Atualiza APENAS o texto mantendo rigorosamente fontes, cores e classes originais
                 if(event.data.text !== undefined && event.data.forceTextUpdate) {
                     el.innerText = event.data.text;
                 }
                 if(event.data.src !== undefined) el.src = event.data.src;
+                if(event.data.width !== undefined) el.style.width = event.data.width;
+                if(event.data.height !== undefined) el.style.height = event.data.height;
                 if(event.data.textColor !== undefined) el.style.color = event.data.textColor;
                 
                 if(event.data.fontSize !== undefined) {
@@ -113,26 +112,20 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         }
     });
 
-    document.addEventListener('mouseover', (e) => {
-        if(!modoEdicao || e.target === document.body || e.target === document.documentElement || e.target.id === 'ebook-container') return;
-        e.target.dataset.oldOutline = e.target.style.outline;
-        e.target.style.outline = '1px solid #cbd5e1'; 
-        e.target.style.outlineOffset = '2px';
-    });
-    
-    document.addEventListener('mouseout', (e) => {
-        if(!modoEdicao || e.target === document.body || e.target === document.documentElement) return;
-        if(e.target !== elSelecionado) { 
-            e.target.style.outline = e.target.dataset.oldOutline || ''; 
-            e.target.style.outlineOffset = '';
-        }
-    });
-
+    // Intercepta cliques para não quebrar links de índice quando fora do modo edição
     document.addEventListener('click', (e) => {
         if (modoEdicao) {
             e.preventDefault(); 
             e.stopPropagation();
             selectElement(e.target);
+        } else {
+            let targetLink = e.target.closest('a');
+            if (targetLink && targetLink.getAttribute('href')?.startsWith('#')) {
+                e.preventDefault();
+                let targetId = targetLink.getAttribute('href').substring(1);
+                let targetEl = document.getElementById(targetId);
+                if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
+            }
         }
     }, true); 
 </script>`;
@@ -141,9 +134,7 @@ export default function Home() {
   useEffect(() => {
     const verificarAcesso = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = '/login';
-      }
+      if (!session) { window.location.href = '/login'; }
     };
     verificarAcesso();
   }, []);
@@ -160,20 +151,18 @@ export default function Home() {
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [estiloCapitulos, setEstiloCapitulos] = useState<'exclusiva' | 'inline'>('exclusiva');
   const [comBorda, setComBorda] = useState(true);
-  
-  // DADOS DO PROJETO E MODOS DE CONTEÚDO
+  const [tipoCapa, setTipoCapa] = useState<'imagem' | 'texto'>('imagem');
+  const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=80');
+
+  // DADOS DO PROJETO
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   const [modoConteudo, setModoConteudo] = useState<'prompt' | 'rigoroso' | 'expandido'>('expandido');
   const [incluirIntroConclusao, setIncluirIntroConclusao] = useState(true);
 
-    const imageInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
-  // Leitor de Arquivos (TXT / Markdown / PDF simulado via texto)
-  
-
-  // Inserir Imagem Manualmente (Upload de Computador para Base64)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -184,9 +173,8 @@ export default function Home() {
         atualizarElemento('src', base64Img);
         (window as any).showNotification("Imagem substituída com sucesso!", "success");
       } else {
-        // Se nenhum elemento estiver selecionado, insere no conteúdo base
-        setProductContent(prev => prev + `\n\n<img src="${base64Img}" alt="Imagem personalizada" />\n\n`);
-        (window as any).showNotification("Imagem adicionada ao conteúdo!", "success");
+        setImagemCapaUrl(base64Img);
+        (window as any).showNotification("Capa atualizada com sucesso!", "success");
       }
     };
     reader.readAsDataURL(file);
@@ -206,7 +194,6 @@ export default function Home() {
       return clean;
   };
 
-  // Dimensões exatas e refinação para impressão em PDF sem páginas brancas
   const getEstilosFormato = (formato: string) => {
       if(formato === '15x21') return { 
           width: '150mm', height: '210mm', padding: '15mm 15mm 15mm 20mm', 
@@ -238,12 +225,7 @@ export default function Home() {
 
 body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; font-family: var(--font-body); color: var(--color-text); }
 
-#ebook-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-}
+#ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
 .page-container {
     background-color: var(--color-bg);
@@ -262,21 +244,32 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     break-inside: avoid;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    ${comBorda ? 'border: 2px solid rgba(139, 109, 79, 0.25); border-radius: 4px;' : ''}
-    border: ${comBorda ? '2px solid #8b6d4f' : 'none'};
-
+    border: ${comBorda ? '2px solid var(--color-primary)' : 'none'};
 }
 
-.page-cover {
+.page-cover-img {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.8)), url('${imagemCapaUrl}') center/cover no-repeat;
+    color: #ffffff;
+    padding: 20mm;
+    box-sizing: border-box;
+}
+
+.page-cover-text {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
-    background: linear-gradient(135deg, #1e1914 0%, #3e3226 100%);
-    color: #ffffff;
+    background: #ffffff;
+    color: var(--color-text);
     padding: 20mm;
     box-sizing: border-box;
+    border: 4px double var(--color-primary);
 }
 
 .page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
@@ -337,7 +330,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
     }
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, comBorda]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, comBorda, tipoCapa, imagemCapaUrl]);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -356,7 +349,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, comBorda]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, comBorda, tipoCapa, imagemCapaUrl]);
 
   const toggleInspetor = () => {
       const newMode = !modoInspetor;
@@ -430,22 +423,22 @@ ${ebookStyles}
     } finally { setStatusApis({ texto: 'Aguardando Ação', processing: false }); }
   };
 
-  // MEGA FUNÇÃO DE GERAÇÃO COM NOVAS REGRAS E VOLUMES ALTOS
+  // MEGA FUNÇÃO DE GERAÇÃO COM REGRAS REFINADAS
   const executarGeracaoEbook = async () => {
     const content = productContent.trim();
     if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira ou cole o texto/conteúdo base do E-book.', 'error'); return; }
 
-    const regraCapa = formatoLivro === 'A4' 
-        ? `<div class="page-container page-cover"><h1 style="color: #fff; font-size: 3rem; margin-bottom: 1rem;">${livroTitulo || 'Meu E-book'}</h1><p style="color: #d1d5db; font-size: 1.2rem;">Por ${livroAutores || 'Autor'}</p></div>` 
-        : `<div class="page-container" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;"><h1 style="font-size: 2.8rem; margin-bottom: 1rem;">${livroTitulo || 'Meu E-book'}</h1><p style="font-size: 1.2rem; color: #64748b;">Por ${livroAutores || 'Autor'}</p></div>`;
+    const regraCapaHtml = tipoCapa === 'imagem'
+        ? `<div class="page-container page-cover-img"><h1 style="color: #fff; font-size: 3rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${livroTitulo || 'Meu E-book'}</h1><p style="color: #f3f4f6; font-size: 1.3rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">Por ${livroAutores || 'Autor'}</p></div>`
+        : `<div class="page-container page-cover-text"><h1 style="font-size: 3rem; margin-bottom: 1.5rem;">${livroTitulo || 'Meu E-book'}</h1><div style="width: 80px; height: 2px; background: var(--color-primary); margin: 0 auto 1.5rem auto;"></div><p style="font-size: 1.3rem; color: #64748b; font-style: italic;">Por ${livroAutores || 'Autor'}</p></div>`;
 
     let regraModoTexto = "";
     if (modoConteudo === 'rigoroso') {
-        regraModoTexto = "MODO RIGOROSO: Utilize estritamente o texto fornecido pelo usuário. Corrija apenas ortografia e pontuação, sem alterar, remover ou acrescentar novos conceitos ou informações.";
+        regraModoTexto = "MODO RIGOROSO: Utilize estritamente o texto fornecido pelo usuário. Corrija apenas ortografia e pontuação, sem alterar, remover ou acrescentar novos conceitos.";
     } else if (modoConteudo === 'expandido') {
-        regraModoTexto = "MODO EXPANDIDO: Utilize o texto fornecido como base/inspiração e expanda o conteúdo de forma profunda e exaustiva, gerando múltiplos capítulos densos, ricos em detalhes, exemplos práticos e explicações completas para garantir um e-book substancial.";
+        regraModoTexto = "MODO EXPANDIDO: Utilize o texto fornecido como base/inspiração e expanda o conteúdo de forma profunda e exaustiva, gerando capítulos densos e completos.";
     } else {
-        regraModoTexto = "MODO PROMPT LIVRE: Crie um e-book completo, monumental e altamente detalhado baseado no comando do usuário.";
+        regraModoTexto = "MODO PROMPT LIVRE: Crie um e-book completo e altamente detalhado baseado no comando do usuário.";
     }
 
     let regraEstiloCapitulos = estiloCapitulos === 'exclusiva'
@@ -468,7 +461,7 @@ DIRETRIZES DE CONTEÚDO:
 * ${regraModoTexto}
 * ${regraEstiloCapitulos}
 * ${regraIntroConclusao}
-* Volume: Crie pelo menos 8 a 12 capítulos densos para garantir um e-book robusto e completo (mínimo de 40 a 60 páginas simuladas).
+* Volume: Cada capítulo DEVE ter no mínimo 2 páginas completas (.page-container) de conteúdo denso e estruturado.
 * Índice Clicável: Crie um Índice (Sumário) onde cada item seja um link HTML funcional (<a href="#cap-1">Capítulo 1 ... <span></span> 5</a>) direcionando perfeitamente para o ID correspondente de cada capítulo (<div id="cap-1">).
 * Restrições de Palavras: É PROIBIDO usar: "jornada", "Além disso", "público alvo", "explorar", "No próximo capítulo", "Portanto", "Ou seja", "Dessa forma".
 
@@ -476,11 +469,10 @@ DIRETRIZES DE DESIGN E FRONT-END (HTML/CSS):
 Devolva APENAS o código HTML interno a partir das páginas (.page-container).
 
 1. **Imagens (Unsplash):** Insira imagens usando URLs oficiais: <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80" alt="Ilustração">. Priorize fotografias reais de pessoas e ambientes humanos.
-2. **Estilo Visual:** É PROIBIDO desenhos, ilustrações vetoriais ou gráficos animados. Apenas fotografias reais humanas.
-3. **Páginas e Preenchimento (.page-container):** Cada página deve ser uma <div class="page-container">. Preencha adequadamente com 3 a 4 parágrafos médios para ocupar a página com elegância sem transbordar.
-4. **Cabeçalhos e Rodapés:** Em todas as páginas de conteúdo, inclua obrigatoriamente <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer"><span>${livroAutores}</span><span>Página X</span></div>.
-5. **Estrutura Exigida:**
-   - ${regraCapa}
+2. **Páginas e Preenchimento (.page-container):** Cada página deve ser uma <div class="page-container">. Preencha adequadamente com parágrafos médios para ocupar a página com elegância sem transbordar.
+3. **Cabeçalhos e Rodapés:** Em todas as páginas de conteúdo, inclua obrigatoriamente <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer"><span>${livroAutores}</span><span>5</span></div> (sem a palavra "página" no rodapé, apenas o número da página à direita).
+4. **Estrutura Exigida:**
+   - ${regraCapaHtml}
    - Página de Índice com links clicáveis ancorados.
    - Páginas de conteúdo organizadas com títulos possuindo IDs correspondentes aos links do índice.`;
 
@@ -526,11 +518,7 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
 
     (window as any).baixarPdf = () => {
         const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-        if(iframe && iframe.contentWindow) {
-            iframe.contentWindow.print();
-        } else {
-            (window as any).showNotification("Erro ao acessar a visualização para imprimir.", "error");
-        }
+        if(iframe && iframe.contentWindow) { iframe.contentWindow.print(); }
     };
 
     (window as any).baixarHtml = () => {
@@ -559,10 +547,8 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
       `}} />
 
-      {/* INPUTS OCULTOS DE ARQUIVO E IMAGEM */}
-           <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+      <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
 
-      {/* OVERLAY DE CARREGAMENTO */}
       {statusApis.processing && (
           <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
               <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-5"></div>
@@ -607,7 +593,7 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
                                       <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
                                       <div className="flex gap-2">
                                           {elementoSelecionado.tagName === 'img' && (
-                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-image mr-1"></i> Trocar Imagem</button>
+                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-image mr-1"></i> Trocar</button>
                                           )}
                                           <button onClick={() => {
                                               let el = document.getElementById('previewFrame') as HTMLIFrameElement;
@@ -617,10 +603,22 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
                                   </div>
 
                                   {elementoSelecionado.tagName === 'img' ? (
-                                      <div>
-                                          <label className="input-label mb-2">URL da Imagem</label>
-                                          <input type="text" value={elementoSelecionado.src} onChange={(e) => atualizarElemento('src', e.target.value)} className="input-standard mb-3 text-xs" />
-                                          <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Subir Imagem do Computador</button>
+                                      <div className="space-y-3">
+                                          <div>
+                                              <label className="input-label mb-1">URL da Imagem</label>
+                                              <input type="text" value={elementoSelecionado.src} onChange={(e) => atualizarElemento('src', e.target.value)} className="input-standard text-xs" />
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2">
+                                              <div>
+                                                  <label className="input-label mb-1">Largura</label>
+                                                  <input type="text" value={elementoSelecionado.width || ''} placeholder="Ex: 100%" onChange={(e) => atualizarElemento('width', e.target.value)} className="input-standard text-xs" />
+                                              </div>
+                                              <div>
+                                                  <label className="input-label mb-1">Altura</label>
+                                                  <input type="text" value={elementoSelecionado.height || ''} placeholder="Ex: auto" onChange={(e) => atualizarElemento('height', e.target.value)} className="input-standard text-xs" />
+                                              </div>
+                                          </div>
+                                          <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Subir do Computador</button>
                                       </div>
                                   ) : (
                                       <div>
@@ -640,8 +638,11 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
                                       </div>
                                   </div>
                                   <div>
-                                      <label className="input-label mb-2 text-[9px]">Tamanho da Fonte</label>
-                                      <input type="range" min="12" max="48" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
+                                      <div className="flex justify-between items-center mb-2">
+                                          <label className="input-label mb-0 text-[9px]">Tamanho Fonte</label>
+                                          <span className="text-[10px] font-bold text-indigo-600">{elementoSelecionado.fontSize || 16}px</span>
+                                      </div>
+                                      <input type="range" min="10" max="48" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
                                   </div>
                               </div>
 
@@ -675,6 +676,22 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
                                       <option value="14x21">14x21cm (Livro de Bolso / Romance)</option>
                                   </select>
                               </div>
+
+                              <div className="pt-3 border-t border-slate-100">
+                                  <label className="input-label mb-2">Estilo da Capa Inicial</label>
+                                  <select value={tipoCapa} onChange={(e) => setTipoCapa(e.target.value as any)} className="input-standard font-medium text-slate-800">
+                                      <option value="imagem">Capa com Imagem de Fundo</option>
+                                      <option value="texto">Folha de Rosto Clássica (Apenas Texto)</option>
+                                  </select>
+                              </div>
+
+                              {tipoCapa === 'imagem' && (
+                                  <div className="pt-3 border-t border-slate-100">
+                                      <label className="input-label mb-2">Imagem de Fundo da Capa</label>
+                                      <input type="text" value={imagemCapaUrl} onChange={(e) => setImagemCapaUrl(e.target.value)} className="input-standard mb-2 text-xs" placeholder="URL da imagem" />
+                                      <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Carregar Imagem de Capa</button>
+                                  </div>
+                              )}
 
                               <div className="pt-3 border-t border-slate-100">
                                   <label className="input-label mb-2">Estilo dos Capítulos</label>
@@ -749,10 +766,7 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
                           </div>
 
                           <div className="mb-4">
-                              <div className="flex justify-between items-center mb-2">
-                                  <label className="input-label text-indigo-800 mb-0">Texto Base / Prompt / Artigo</label>
-                                  
-                              </div>
+                              <label className="input-label text-indigo-800 mb-2">Texto Base / Prompt / Artigo</label>
                               <textarea 
                                   value={productContent} 
                                   onChange={(e) => setProductContent(e.target.value)} 
