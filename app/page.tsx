@@ -263,6 +263,8 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     word-wrap: break-word;
     overflow-wrap: break-word;
     ${comBorda ? 'border: 2px solid rgba(139, 109, 79, 0.25); border-radius: 4px;' : ''}
+    border: ${comBorda ? '2px solid #8b6d4f' : 'none'};
+
 }
 
 .page-cover {
@@ -273,6 +275,8 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     text-align: center;
     background: linear-gradient(135deg, #1e1914 0%, #3e3226 100%);
     color: #ffffff;
+    padding: 20mm;
+    box-sizing: border-box;
 }
 
 .page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
