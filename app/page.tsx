@@ -157,6 +157,15 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
 </script>`;
 
 export default function Home() {
+  useEffect(() => {
+    const verificarAcesso = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = '/login';
+      }
+    };
+    verificarAcesso();
+  }, []);
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   
   const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini');
