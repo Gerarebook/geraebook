@@ -46,11 +46,10 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         else if(elSelecionado.classList.contains('text-justify')) tAlign = 'text-justify';
         else if(elSelecionado.classList.contains('text-left')) tAlign = 'text-left';
 
-        // Detecta se o elemento tem imagem de fundo
+        // Puxa a imagem de fundo de forma robusta
         let bgImgRaw = compStyle.backgroundImage;
         let bgImgUrl = '';
         if (bgImgRaw && bgImgRaw !== 'none' && bgImgRaw.includes('url(')) {
-            // Extrai a URL de dentro do "url('...')" ignorando gradientes
             let matches = bgImgRaw.match(/url\\(["']?(.*?)["']?\\)/);
             if(matches && matches[1]) bgImgUrl = matches[1];
         }
@@ -103,10 +102,9 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 if(event.data.src !== undefined) el.src = event.data.src;
                 if(event.data.width !== undefined) el.style.width = event.data.width;
                 if(event.data.height !== undefined) el.style.height = event.data.height;
-                if(event.data.textColor !== undefined) el.style.color = event.data.textColor;
-                if(event.data.bgColor !== undefined) el.style.backgroundColor = event.data.bgColor;
+                if(event.data.textColor !== undefined) el.style.setProperty('color', event.data.textColor, 'important');
+                if(event.data.bgColor !== undefined) el.style.setProperty('background-color', event.data.bgColor, 'important');
                 
-                // Substitui a imagem de fundo mantendo gradientes se existirem
                 if(event.data.bgImage !== undefined) {
                     let currentBg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
                     if(currentBg && currentBg.includes('linear-gradient')) {
@@ -118,9 +116,9 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     el.style.setProperty('background-size', 'cover', 'important');
                     el.style.setProperty('background-position', 'center', 'important');
                 }
-                
+
                 if(event.data.fontSize !== undefined) {
-                    el.style.fontSize = event.data.fontSize + 'px';
+                    el.style.setProperty('font-size', event.data.fontSize + 'px', 'important');
                 }
 
                 if(event.data.textAlign !== undefined) {
@@ -207,21 +205,15 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64Img = event.target?.result as string;
-      
-      // Se clicou em uma tag <img> (imagem normal)
       if (elementoSelecionado && elementoSelecionado.tagName === 'img') {
         atualizarElemento('src', base64Img);
         (window as any).showNotification("Imagem substituída com sucesso!", "success");
-      } 
-      // Se clicou em algo com imagem de fundo (Capa, Página de Capítulo, Box)
-      else if (elementoSelecionado && elementoSelecionado.bgImage) {
+      } else if (elementoSelecionado && elementoSelecionado.bgImage) {
         atualizarElemento('bgImage', base64Img);
-        (window as any).showNotification("Imagem de fundo atualizada!", "success");
-      }
-      // Se não tem nada selecionado, atualiza a Capa Inicial
-      else {
+        (window as any).showNotification("Fundo substituído com sucesso!", "success");
+      } else {
         setImagemCapaUrl(base64Img);
-        (window as any).showNotification("Capa inicial atualizada!", "success");
+        (window as any).showNotification("Capa atualizada com sucesso!", "success");
       }
     };
     reader.readAsDataURL(file);
@@ -256,6 +248,7 @@ export default function Home() {
                    .replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '')
                    .replace(/outline-offset:\s*-3px;?/gi, '')
                    .replace(/data-old-outline="[^"]*"/gi, '')
+                   .replace(/<br\s*\/?>/gi, '') // Arranca as quebras de linha manuais da IA
                    .replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
       return clean;
@@ -337,13 +330,12 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     ${estiloRodape === 'centralizado' ? 'text-align: center; display: block;' : ''}
 }
 
-/* CONTEÚDO BASE */
+/* CONTEÚDO BASE (BLINDADO COM !IMPORTANT) */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: 1em; }
 
-/* Força os parágrafos a usarem as variáveis CSS para que a IA não sobreponha */
-p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-bottom: var(--p-spacing) !important; text-align: justify; text-indent: var(--text-indent); hyphens: auto; -webkit-hyphens: auto; }
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify; text-indent: var(--text-indent); hyphens: auto; -webkit-hyphens: auto; }
 
 blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(139, 109, 79, 0.08); padding: 15px 20px; margin: 1.5rem 0; font-size: 11.5pt; font-family: var(--font-heading); border-radius: 0 8px 8px 0; }
 .highlight-box { background: rgba(139, 109, 79, 0.15); padding: 15px 20px; border-radius: 8px; margin: 1.5rem 0; font-weight: 500; }
@@ -352,48 +344,31 @@ img { max-width: 100%; height: auto; max-height: 40vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1.2em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 
-.toc-list a { display: flex; justify-content: space-between; text-decoration: none; color: var(--color-text); font-size: 12pt; margin-bottom: 15px; font-weight: 600; line-height: var(--line-spacing); }
+/* ÍNDICE CEGO (TOC) */
+.toc-list { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 2rem; }
+.toc-list a { display: flex; justify-content: space-between; text-decoration: none; color: var(--color-text); font-size: 12pt; font-weight: 600; line-height: var(--line-spacing); }
 .toc-list a:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; position: relative; top: -5px; opacity: 0.3; }
 
-/* SEÇÃO DO AUTOR */
-.author-section { display: flex; align-items: center; gap: 20px; margin-top: 2rem; }
+/* SEÇÃO DO AUTOR CENTRALIZADA */
+.page-container.author-page { display: flex; align-items: center; justify-content: center; min-height: 100%; }
+.author-section { display: flex; align-items: center; gap: 30px; width: 100%; }
 .author-section.layout-topo { flex-direction: column; text-align: center; }
 .author-section.layout-esquerda { flex-direction: row; text-align: justify; }
-.author-photo { object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+.author-photo { object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); flex-shrink: 0; }
 .author-photo.circulo { border-radius: 50%; width: 180px; height: 180px; }
 .author-photo.retangulo { border-radius: 8px; width: 160px; height: 210px; }
 .author-bio { flex: 1; }
+.author-bio h2 { margin-top: 0; }
 
-/* REGRAS EXATAS DE PDF SOLICITADAS PELO USUÁRIO */
 @page { size: ${formatoLivro === 'A4' ? 'A4' : formatoLivro === '15x21' ? '150mm 210mm' : '140mm 210mm'} portrait; margin: 0; }
 @media print {
-    html, body { 
-        background: #ffffff !important; 
-        padding: 0 !important; 
-        margin: 0 !important; 
-        display: block !important; 
-        width: ${conf.width} !important; 
-        height: auto !important; 
-    }
+    html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
     #ebook-container { width: 100%; padding: 0; margin: 0; }
-    .page-container { 
-        width: ${conf.width} !important; 
-        height: ${conf.height} !important; 
-        box-sizing: border-box !important;
-        margin: 0 !important; 
-        padding: ${conf.padding} !important; 
-        page-break-after: always !important; 
+    .page-container { width: ${conf.width} !important; height: ${conf.height} !important; box-sizing: border-box !important; margin: 0 !important; padding: ${conf.padding} !important; page-break-after: always !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; 
         border: ${tipoBorda === 'single' ? '2px solid var(--color-primary) !important' : tipoBorda === 'double' ? '6px double var(--color-primary) !important' : 'none !important'};
-        box-shadow: none !important; 
-        overflow: hidden !important; 
-        position: relative !important;
     }
-    * { 
-        -webkit-print-color-adjust: exact !important; 
-        print-color-adjust: exact !important; 
-        color-adjust: exact !important; 
-    }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 }
 </style>`;
 
@@ -524,8 +499,9 @@ ${ebookStyles}
       
       REGRAS MÁXIMAS DE PENALIZAÇÃO SE NÃO CUMPRIDAS: 
       1. Se a ordem remover ou adicionar páginas, VOCÊ DEVE OBRIGATORIAMENTE reajustar a numeração de páginas nos rodapés (.page-footer) de todas as páginas subsequentes.
-      2. Se remover/adicionar capítulos, VOCÊ DEVE reescrever a seção do Índice (TOC) para que links e números de páginas fiquem exatos.
-      3. Mantenha as tags HTML intactas. Devolva TODO O HTML validado.`;
+      2. Se remover/adicionar capítulos, VOCÊ DEVE reescrever a seção do Índice (TOC) para que links e números fiquem exatos.
+      3. NUNCA adicione estilos inline <p style="...">.
+      4. Mantenha as tags HTML intactas. Devolva TODO O HTML validado.`;
 
       const resData = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
 
@@ -547,7 +523,16 @@ ${ebookStyles}
     if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira ou cole o texto base.', 'error'); return; }
 
     let regraDesignInspirado = htmlTemplate.trim() && paletaCores === 'personalizado'
-        ? `\nINSPIRAÇÃO DE DESIGN (EXTRAIA CORES, FONTES, ESPAÇAMENTOS E ESTILO DESTE HTML/CSS, MAS IGNORE COMPLETAMENTE O TEXTO/CONTEÚDO DELE):\n\`\`\`html\n${htmlTemplate.substring(0, 3000)}\n\`\`\`\nAdote a paleta de cores encontrada neste código injetando estilos CSS inline no .page-container ou definindo variáveis na tag style do HTML gerado.`
+        ? `\nCLONAGEM DE DESIGN AVANÇADA (INSPIRAÇÃO NO HTML/CSS FORNECIDO):
+Você recebeu o código-fonte de um site como inspiração:
+\`\`\`html
+${htmlTemplate.substring(0, 3000)}
+\`\`\`
+SUA TAREFA DE DESIGN:
+1. Extraia a paleta de cores principal e adote nas variáveis CSS globais da página gerada.
+2. ANALISE A ESTRUTURA: Observe como o site original constrói caixas de destaque, quadros explicativos, citações, elementos circulares ou layouts em formato de blocos/cards.
+3. REPLIQUE A ESTÉTICA: Construa as páginas do e-book utilizando as MESMAS lógicas estruturais visuais. Se o site usa caixas arredondadas com sombra suave para destacar tópicos importantes, crie elementos (divs) similares no e-book.
+4. IGNORE O TEXTO ORIGINAL DO SITE: Use apenas a arquitetura visual, preenchendo as tags com o conteúdo literário do E-book solicitado.`
         : "";
 
     let regraCapaHtml = "";
@@ -577,22 +562,23 @@ ${ebookStyles}
     const instrucaoSistema = `Atue como um Escritor Bestseller e Especialista Editorial Rigoroso. Gere um E-book perfeito num ÚNICO HTML.
 DADOS DO PROJETO: ${livroTitulo} por ${livroAutores} ${regraDesignInspirado}
 
-DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ):
+DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SISTEMA FALHARÁ):
 1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto de forma exaustiva.' : modoConteudo === 'rigoroso' ? 'Corrija ortografia rigorosamente, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
-2. DENSIDADE OBRIGATÓRIA: Cada página (.page-container) de texto DEVE OBRIGATORIAMENTE ter no mínimo 4 a 6 parágrafos densos (se não houver imagem). Preencha todo o espaço da folha.
-3. ÍNDICE (TOC) OBRIGAÇÕES: 
+2. DENSIDADE OBRIGATÓRIA E TAMANHO DE CAPÍTULO: Para CADA capítulo, você DEVE gerar texto abundante e preencher MÚLTIPLAS divs .page-container separadas. É PROIBIDO criar capítulos de apenas 1 página. Preencha todo o espaço da folha de forma orgânica.
+3. ÍNDICE (TOC) OBRIGAÇÕES EXATAS: 
+   - A estrutura HTML do índice DEVE SER EXATAMENTE esta: <div class="toc-list"><a href="#cap-1"><span>Nome do Capítulo</span><span class="toc-dots"></span><span>Número</span></a></div>
    - O Índice DEVE ficar em UMA ÚNICA página (.page-container) se tiver menos de 20 itens. NÃO divida o índice sem necessidade.
    - É ESTRITAMENTE PROIBIDO usar títulos como "Continuação" ou "Parte 2" no índice. Se precisar quebrar página, apenas feche a <div class="page-container"> e abra uma nova para continuar a lista.
 4. ESTILO DOS CAPÍTULOS: ${regraEstiloCapitulos}
 5. CITAÇÕES (QUOTES): NUNCA escreva o nome do autor dentro das tags <blockquote> ou ao final delas. Apenas a citação pura.
-6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro UMA UNICA <div class="page-container"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div>.
+6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro UMA UNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div></div>.
 7. IMAGENS REAIS: Use URLs Unsplash reais. Exclusivamente fotografias reais de humanos.
 8. CABEÇALHOS/RODAPÉS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (NUNCA escreva a palavra "página" perto do número).
-9. ESTILOS CSS INLINE: É ESTRITAMENTE PROIBIDO adicionar 'style="margin:..."' ou espaçamentos diretamente na tag <p>. O CSS global do sistema cuidará dos parágrafos automaticamente!
+9. PROIBIÇÃO DE ESTILOS INLINE: É ESTRITAMENTE PROIBIDO adicionar 'style="margin:..."' , '<br>' ou espaçamentos diretamente nas tags <p> ou <h2>. O CSS global do sistema cuidará dos parágrafos automaticamente! Se você quebrar essa regra, o e-book ficará deformado.
 10. INICIO DA ESTRUTURA HTML EXIGIDA:
    - ${regraCapaHtml}
-   - Índice ancorado (sem título de continuação).
-   - Páginas de capítulos e textos.`;
+   - Índice ancorado perfeitamente.
+   - Páginas de capítulos longos e detalhados.`;
 
     const data = await chamarMotorIA(instrucaoSistema, [{ text: `TEXTO BASE:\n"""\n${content || 'Gerar E-book'}\n"""` }], false);
     
@@ -708,7 +694,7 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                       <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
                                       <div className="flex gap-2">
                                           {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage) && (
-                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Trocar Imagem</button>
+                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Trocar Fundo</button>
                                           )}
                                           <button onClick={() => {
                                               let el = document.getElementById('previewFrame') as HTMLIFrameElement;
@@ -754,7 +740,7 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                   <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100">
                                       <div>
                                           <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
-                                          <input type="color" value={elementoSelecionado.bgColor || '#ffffff'} onChange={(e) => atualizarElemento('backgroundColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                          <input type="color" value={elementoSelecionado.bgColor || '#ffffff'} onChange={(e) => atualizarElemento('bgColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
                                       </div>
                                       <div>
                                           <div className="flex justify-between items-center mb-2">
@@ -764,6 +750,19 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                           <input type="range" min="10" max="60" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
                                       </div>
                                   </div>
+                              )}
+                              
+                              {/* ALINHAMENTO FIXADO COM CONTRASTE */}
+                              {elementoSelecionado.tagName !== 'img' && (
+                                <div className="panel-section border-t border-slate-100">
+                                    <label className="input-label mb-2 text-[9px]">Alinhamento</label>
+                                    <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1">
+                                        <button onClick={() => atualizarElemento('textAlign', 'text-left')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-left' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-left"></i></button>
+                                        <button onClick={() => atualizarElemento('textAlign', 'text-center')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-center' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-center"></i></button>
+                                        <button onClick={() => atualizarElemento('textAlign', 'text-right')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-right' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-right"></i></button>
+                                        <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-justify' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-justify"></i></button>
+                                    </div>
+                                </div>
                               )}
                           </div>
                       )}
@@ -801,7 +800,7 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ)
                                           value={htmlTemplate} 
                                           onChange={(e) => setHtmlTemplate(e.target.value)} 
                                           className="input-standard h-24 resize-y text-[10px] font-mono border-indigo-200 shadow-inner" 
-                                          placeholder="Cole o código-fonte de um site aqui. A IA extrairá as cores e o estilo visual ignorando o texto..."
+                                          placeholder="Cole o código-fonte de um site aqui. A IA extrairá as cores e replicará elementos como quadros e círculos (ignorando o texto original)..."
                                       ></textarea>
                                   </div>
                               )}
