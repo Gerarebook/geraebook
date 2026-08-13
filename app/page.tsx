@@ -96,7 +96,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 fontLink.id = linkId; fontLink.rel = 'stylesheet'; document.head.appendChild(fontLink);
             }
             if (fontName !== 'sans-serif') {
-                fontLink.href = \`[https://fonts.googleapis.com/css2?family=](https://fonts.googleapis.com/css2?family=)\${fontName.replace(/ /g, '+')}:ital,wght@0,400;0,700;1,400&display=swap\`;
+                fontLink.href = \`https://fonts.googleapis.com/css2?family=\${fontName.replace(/ /g, '+')}:ital,wght@0,400;0,700;1,400&display=swap\`;
                 document.body.style.fontFamily = \`'\${fontName}', serif\`;
             } else {
                 fontLink.href = ''; document.body.style.fontFamily = '';
@@ -157,11 +157,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
 </script>`;
 
 export default function Home() {
-  const [modalMeusLivrosAberto, setModalMeusLivrosAberto] = useState(false);
-  const [listaLivros, setListaLivros] = useState<any[]>([]);
-  const [carregandoLivros, setCarregandoLivros] = useState(false);
-  
-  const [livroEditando, setSiteEditando] = useState<{id: string, slug: string, titulo: string} | null>(null);
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   
   const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini');
@@ -171,9 +166,12 @@ export default function Home() {
 
   // CONFIGURAÇÕES DO E-BOOK
   const [formatoLivro, setFormatoLivro] = useState<'A4' | '15x21' | '14x21'>('A4');
-  const [fontFamily, setFontFamily] = useState('Merriweather');
-  const [tamanhoFonteBase, setTamanhoFonteBase] = useState('13pt'); // Nova opção de fonte
-  const [nichoEstilo, setNichoEstilo] = useState('nao-ficcao');
+  const [fontFamily, setFontFamily] = useState('Lato');
+  const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
+  
+  // DADOS DO PROJETO PARA O PROMPT
+  const [livroTitulo, setLivroTitulo] = useState('');
+  const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
 
   const purificarHTML = (rawHtml: string) => {
@@ -191,9 +189,18 @@ export default function Home() {
   };
 
   const getEstilosFormato = (formato: string) => {
-      if(formato === '15x21') return { width: '150mm', pageCss: '@page { size: 150mm 210mm; margin: 15mm; }' };
-      if(formato === '14x21') return { width: '140mm', pageCss: '@page { size: 140mm 210mm; margin: 15mm; }' };
-      return { width: '210mm', pageCss: '@page { size: A4; margin: 20mm; }' };
+      if(formato === '15x21') return { 
+          width: '150mm', height: '210mm', padding: '15mm 15mm 15mm 20mm', 
+          pageCss: '@page { size: 150mm 210mm portrait; margin: 0; } \n@media print { @page :left { margin: 15mm 15mm 15mm 20mm !important; } @page :right { margin: 15mm 20mm 15mm 15mm !important; } }' 
+      };
+      if(formato === '14x21') return { 
+          width: '140mm', height: '210mm', padding: '15mm 15mm 15mm 20mm', 
+          pageCss: '@page { size: 140mm 210mm portrait; margin: 0; } \n@media print { @page :left { margin: 15mm 15mm 15mm 20mm !important; } @page :right { margin: 15mm 20mm 15mm 15mm !important; } }' 
+      };
+      return { 
+          width: '210mm', height: '297mm', padding: '22mm 20mm 28mm 20mm', 
+          pageCss: '@page { size: A4 portrait; margin: 0; }' 
+      };
   };
 
   const moldarApresentacaoHtml = (rawHtml: string) => {
@@ -201,42 +208,68 @@ export default function Home() {
       const conf = getEstilosFormato(formatoLivro);
       
       const ebookStyles = `<style>
-/* Estilos para o Editor na Tela */
-body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; justify-content: center; overflow-x: hidden; }
+:root {
+    --color-bg: #ffffff;
+    --color-text: #1e1914;
+    --color-primary: #8b6d4f;
+    --color-secondary: #c08770;
+    --font-heading: 'Playfair Display', serif;
+    --font-body: '${fontFamily}', sans-serif;
+}
+
+body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; font-family: var(--font-body); color: var(--color-text); }
 
 #ebook-container {
-    background-color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.page-container {
+    background-color: var(--color-bg);
     width: ${conf.width};
-    min-height: 297mm;
+    height: ${conf.height};
+    max-height: ${conf.height};
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    padding: 20mm 15mm;
-    margin: 0 auto;
+    padding: ${conf.padding};
+    margin: 0 auto 20px auto;
     box-sizing: border-box;
-    /* BLINDAGEM CONTRA VAZAMENTO DE MARGEM PARA PDFS LONGOS */
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    page-break-inside: avoid;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
 
-/* Regras de Tipografia Premium Editorial e Espaçamentos Perfeitos */
-h1 { page-break-before: always; break-before: page; color: #111827; font-weight: 800; font-size: 2.5rem; margin-top: 2rem; margin-bottom: 1.5em; line-height: 1.2; text-align: center; }
-h2 { page-break-after: avoid; break-after: avoid; color: #1f2937; font-weight: 700; font-size: 1.8rem; margin-top: 2.5rem; margin-bottom: 1.5em; }
-h3 { page-break-after: avoid; break-after: avoid; font-weight: 600; font-size: 1.4rem; margin-top: 2rem; margin-bottom: 1.5em; }
+.page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 10pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
+.page-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 10pt; color: var(--color-primary); border-top: 1px solid rgba(139, 109, 79, 0.3); padding-top: 5px; z-index: 20; }
 
-/* Parágrafos justificados com hifenização inteligente e tamanho variável */
-p { color: #374151; font-size: ${tamanhoFonteBase}; line-height: 1.7; margin-top: 0; margin-bottom: 1.5em; text-align: justify; hyphens: auto; -webkit-hyphens: auto; }
+h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
+h1 { font-weight: 800; font-size: 2.5rem; margin-top: 2rem; margin-bottom: 1.5em; line-height: 1.2; text-align: center; }
+h2 { font-weight: 700; font-size: 1.8rem; margin-top: 2.5rem; margin-bottom: 1.5em; }
 
-/* Citações e Imagens */
-blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: #4b5563; border-left: 4px solid #6366f1; padding-left: 1.5rem; margin: 2rem 0; font-size: 1.15em; }
+p { font-size: ${tamanhoFonteBase}; line-height: 1.45; margin-bottom: 1.5em; text-align: justify; text-indent: 25px; hyphens: auto; -webkit-hyphens: auto; }
+
+blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(192, 135, 112, 0.15); padding: 18px 25px; margin: 2rem 0; font-size: 12.5pt; font-family: var(--font-heading); border-radius: 0 10px 10px 0; }
 img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 2rem auto; display: block; page-break-inside: avoid; break-inside: avoid; }
-ul, ol { margin-top: 0; margin-bottom: 1.5em; padding-left: 2rem; color: #374151; font-size: ${tamanhoFonteBase}; line-height: 1.7; }
-li { margin-bottom: 0.5rem; page-break-inside: avoid; break-inside: avoid; }
+ul, ol { margin-top: 0; margin-bottom: 1.5em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: 1.7; }
+li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 
-/* Regras de Ouro para Impressão PDF Perfeita (100+ Páginas) */
+.toc-list a { display: flex; justify-content: space-between; text-decoration: none; color: var(--color-text); font-size: 14pt; margin-bottom: 15px; }
+.toc-list a:hover { color: var(--color-secondary); }
+.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; position: relative; top: -6px; opacity: 0.5; }
+
+/* 1. Define o tamanho global do papel e tira a margem padrão do navegador */
+${conf.pageCss}
+
+/* 2. Regras aplicadas APENAS na hora de exportar/imprimir */
 @media print {
-    ${conf.pageCss}
-    body { background-color: white; padding: 0; margin: 0; }
-    #ebook-container { box-shadow: none; width: 100%; max-width: 100%; padding: 0; margin: 0; min-height: auto; }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
+    #ebook-container { width: 100%; padding: 0; margin: 0; }
+    .page-container { width: ${conf.width} !important; height: ${conf.height} !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 }
 </style>`;
 
@@ -250,13 +283,13 @@ li { margin-bottom: 0.5rem; page-break-inside: avoid; break-inside: avoid; }
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
-    <link href="[https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap](https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap)" rel="stylesheet">
-    <title>Meu E-book Profissional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <title>${livroTitulo || 'Meu E-book Profissional'}</title>
 ${ebookStyles}
 </head>
-<body class="antialiased" style="font-family: '${fontFamily}', serif;">
+<body class="antialiased">
     <div id="ebook-container">
         ${clean}
     </div>
@@ -270,7 +303,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
     }
-  }, [fontFamily, formatoLivro, tamanhoFonteBase]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo]); // Adicionado livroTitulo nas dependências
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -279,7 +312,7 @@ ${ebookStyles}
             const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
             if (codEl) {
                 const htmlLimpo = moldarApresentacaoHtml(e.data.html);
-                setHistoricoCodigo(prev => {
+                setHistoricoCodigo((prev: string[]) => {
                     if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
                     return [...prev, codEl.value]; 
                 });
@@ -289,7 +322,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, formatoLivro, tamanhoFonteBase]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo]);
 
   const toggleInspetor = () => {
       const newMode = !modoInspetor;
@@ -329,9 +362,7 @@ ${ebookStyles}
       const resData = await chamarMotorIA(systemInstruction, [{text: `TRECHO ORIGINAL:\n${elementoSelecionado.outerHTML}`}], true);
       
       if(resData && resData.html) {
-          // Correção definitiva da Expressão Regular
           const cleanHtml = resData.html.replace(/[\`]{3}html/gi, '').replace(/[\`]{3}/g, '').trim();
-          
           const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
           iframe.contentWindow?.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml: cleanHtml }, '*');
           if(promptInput) promptInput.value = '';
@@ -340,7 +371,7 @@ ${ebookStyles}
   };
 
   const chamarMotorIA = async (systemInstructionText: string, promptParts: any[], isElementRefinement = false) => {
-    setStatusApis({ texto: isElementRefinement ? 'A IA está reescrevendo o trecho...' : 'A IA está escrevendo o capítulo...', processing: true });
+    setStatusApis({ texto: isElementRefinement ? 'A IA está reescrevendo...' : 'A IA está diagramando o E-book...', processing: true });
     try {
       const response = await fetch('/api/gerar', { 
           method: 'POST', 
@@ -354,37 +385,53 @@ ${ebookStyles}
       });
       const responseText = await response.text();
       let data;
-      try { data = JSON.parse(responseText); } catch (err) { throw new Error("Houve um gargalo na comunicação com a IA."); }
-      if (!data.success) throw new Error(data.error === 'RATE_LIMIT_EXCEEDED' ? "Limite de acessos da IA atingido. Aguarde 60 segundos." : data.error);
+      try { data = JSON.parse(responseText); } catch (err) { throw new Error("Erro na comunicação com a IA."); }
+      if (!data.success) throw new Error(data.error === 'RATE_LIMIT_EXCEEDED' ? "Limite de acessos atingido. Aguarde." : data.error);
       return data;
     } catch (err: any) {
       let errorMsg = err.message;
-      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota') || errorMsg.includes('RATE_LIMIT')) { errorMsg = "Servidor ocupado. Aguarde um minuto."; }
+      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Servidor ocupado. Aguarde um minuto."; }
       (window as any).showNotification(errorMsg, 'error'); return null;
     } finally { setStatusApis({ texto: 'Aguardando Ação', processing: false }); }
   };
 
-  // Função para criação massiva
-  const executarGeracaoEbook = async (modo: 'novo' | 'adicionar' = 'novo') => {
+  // MEGA FUNÇÃO DE GERAÇÃO
+  const executarGeracaoEbook = async () => {
     const content = productContent.trim();
-    if (!content) { (window as any).showNotification('Cole um roteiro ou texto base para gerar ou adicionar ao e-book.', 'error'); return; }
-    
-    let estiloPrompt = "Linguagem técnica, direta e voltada para negócios/empreendedorismo.";
-    if (nichoEstilo === 'ficcao') estiloPrompt = "Linguagem imersiva, narrativa rica e emocionante (Ficção/Romance).";
-    if (nichoEstilo === 'didatico') estiloPrompt = "Linguagem educacional, clara, em passo a passo e didática.";
+    if (!content) { (window as any).showNotification('Cole o texto base do E-book.', 'error'); return; }
 
-    let commandText = `Escreva um E-book MUITO EXTENSO e PROFUNDO. \nESTILO E TOM DE VOZ: ${estiloPrompt}\n\n`;
-    commandText += `INSTRUÇÕES / CONTEÚDO BASE:\n"""\n${content}\n"""\n\n`;
-    commandText += `ATENÇÃO MÁXIMA: O objetivo é que o livro tenha a capacidade de atingir mais de 100 páginas no total. Portanto, DESENVOLVA EXAUSTIVAMENTE CADA TÓPICO. Crie múltiplos subcapítulos, use parágrafos longos, adicione exemplos extensos e aprofunde o conteúdo ao máximo. Aja como um escritor de fôlego monumental.`;
-    
-    const instrucaoSistema = `Você é um Ghostwriter Premium e Diagramador Editorial. Crie o conteúdo do livro formatado em HTML limpo.
-REGRA 1: Use <h1> apenas para o Título do Livro ou Capítulos Principais.
-REGRA 2: Use <h2> para subtópicos. OBRIGATÓRIO manter o espaço exato de uma linha entre o título do tópico e os parágrafos subsequentes.
-REGRA 3: Use <p> longos e exaustivamente desenvolvidos.
-REGRA 4: Use <blockquote> para destacar frases de impacto.
-REGRA 5: NUNCA sugira ou crie ilustrações, desenhos, gráficos animados ou elementos sci-fi. Use EXCLUSIVAMENTE fotografias fotorrealistas de humanos reais, se precisar de imagem.
-REGRA 6: Se a obra contiver história biográfica, toda a narrativa de vida DEVE ser consolidada apenas no primeiro capítulo. Os demais capítulos devem ter foco estrito em dicas e ensinamentos.
-REGRA 7: Devolva APENAS as tags HTML internas (sem html/body e sem classes do Tailwind).`;
+    const regraCapa = formatoLivro === 'A4' 
+        ? "- 1 Capa com Título e Imagem de fundo (fotorrealista) cobrindo toda a página." 
+        : "- 1 Folha de Rosto literária e clássica (Fundo totalmente branco, SEM imagem de capa. Apenas o Título em destaque máximo, nome do autor e subtítulo centralizados com elegância).";
+
+    const instrucaoSistema = `Atue como um Escritor Bestseller, Desenvolvedor Front-end Sênior e Especialista em Diagramação Editorial (Print CSS).
+
+A sua tarefa é gerar um E-book monumental e profundo num ÚNICO arquivo HTML. O design deve ser altamente profissional, requintado, com estética de "site premium", mas codificado perfeitamente para leitura em tela e conversão exata para PDF.
+
+DADOS DO PROJETO:
+TÍTULO: ${livroTitulo || 'Meu E-book'}
+AUTORES: ${livroAutores || 'Autor Desconhecido'}
+
+### DIRETRIZES DO GHOSTWRITER (CONTEÚDO)
+* **Idioma:** Português (Brasil).
+* **Tom de Voz:** Predominantemente Informativo/Educacional, avançado, humanizado e inteligente.
+* **Volume:** O conteúdo deve ser EXAUSTIVO. Adicione exemplos, dicas práticas e reflexões para que o documento renda o máximo de páginas possível.
+* **Restrições de Palavras:** É TERMINANTEMENTE PROIBIDO usar as palavras: "jornada", "Além disso", "público alvo", "explorar", "No próximo capítulo", "Portanto", "Ou seja", "Dessa forma".
+
+### DIRETRIZES DE DESIGN E FRONT-END (HTML/CSS)
+Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das divs page-container).
+
+1. **Imagens:** Sempre que inserir imagens, utilize EXCLUSIVAMENTE fotografias fotorrealistas de humanos. Sem desenhos ou gráficos. Use imagens do Unsplash.
+2. **Espaçamento:** Organize o HTML para que todos os títulos de tópicos (h1, h2, h3) tenham margin-bottom: 1.5em; mantendo um espaçamento claro.
+3. **Páginas e Overflow:** Cada página deve ser uma <div class="page-container">. Estime o espaço: coloque no máximo 3 a 4 parágrafos médios por .page-container. Se o capítulo for longo, feche a div e abra uma nova .page-container. O texto não pode vazar.
+4. **Citações:** Coloque as frases mais impactantes dentro de <blockquote>.
+5. **Estrutura Exigida:**
+   ${regraCapa}
+   - 1 Índice (toc-list).
+   - Capas de Capítulo e logo a seguir a .page-container com o texto do capítulo.
+   - Cabeçalhos (<div class="page-header">) e Rodapés (<div class="page-footer">) em todas as páginas de conteúdo.`;
+
+    const commandText = `CONTEÚDO BASE PARA O E-BOOK:\n"""\n${content}\n"""\n\nGere o HTML completo agora.`;
 
     const data = await chamarMotorIA(instrucaoSistema, [{ text: commandText }], false);
     
@@ -392,21 +439,16 @@ REGRA 7: Devolva APENAS as tags HTML internas (sem html/body e sem classes do Ta
         const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
         const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
         
-        let htmlFinal = "";
         let cleanNewHtml = purificarHTML(data.html);
+        let htmlFinal = moldarApresentacaoHtml(cleanNewHtml);
 
-        if (modo === 'adicionar' && codEl && codEl.value.includes('<div id="ebook-container">')) {
-            let currentFull = codEl.value;
-            htmlFinal = currentFull.replace('</div>\n</body>', `\n${cleanNewHtml}\n</div>\n</body>`);
-        } else {
-            htmlFinal = moldarApresentacaoHtml(cleanNewHtml);
+        if (codEl) { 
+            setHistoricoCodigo((prev: string[]) => [...prev, codEl.value]); 
+            codEl.value = htmlFinal; 
         }
-
-        if (codEl) { setHistoricoCodigo(prev => [...prev, codEl.value]); codEl.value = htmlFinal; }
         if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
         
-        setProductContent('');
-        (window as any).showNotification(modo === 'novo' ? "E-book Iniciado com Sucesso!" : "Capítulos Adicionados!", "success");
+        (window as any).showNotification("E-book Gerado com Sucesso!", "success");
     }
   };
 
@@ -429,6 +471,7 @@ REGRA 7: Devolva APENAS as tags HTML internas (sem html/body e sem classes do Ta
       setTimeout(() => { div.style.opacity = '0'; div.style.transition = 'opacity 0.4s'; setTimeout(() => div.remove(), 4000); }, 4000);
     };
 
+    // EXPORTAÇÕES (PDF, HTML, WORD)
     (window as any).baixarPdf = () => {
         const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
         if(iframe && iframe.contentWindow) {
@@ -437,11 +480,33 @@ REGRA 7: Devolva APENAS as tags HTML internas (sem html/body e sem classes do Ta
             (window as any).showNotification("Erro ao acessar a visualização para imprimir.", "error");
         }
     };
-  }, []); 
+
+    (window as any).baixarHtml = () => {
+        const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+        if (!codEl || !codEl.value) { (window as any).showNotification("Nenhum código para baixar.", "error"); return; }
+        const blob = new Blob([codEl.value], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${livroTitulo ? livroTitulo.replace(/\s+/g, '-').toLowerCase() : 'meu-ebook'}.html`;
+        a.click();
+    };
+
+    (window as any).baixarWord = () => {
+        const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+        if (!codEl || !codEl.value) { (window as any).showNotification("Nenhum código para baixar.", "error"); return; }
+        // O Word consegue ler arquivos HTML estruturados salvos como .doc
+        const blob = new Blob(['\ufeff', codEl.value], { type: 'application/msword' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${livroTitulo ? livroTitulo.replace(/\s+/g, '-').toLowerCase() : 'meu-ebook'}.doc`;
+        a.click();
+    };
+
+  }, [livroTitulo]); 
 
   return (
     <div className="h-screen overflow-hidden flex relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
-      <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)" />
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       <style dangerouslySetInnerHTML={{__html: `
         .input-standard { width: 100%; padding: 0.6rem 0.8rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; background-color: #f8fafc; font-size: 0.75rem; outline: none; color: #334155; transition: all 0.2s; font-weight: 500;}
         .input-standard:focus { border-color: #6366f1; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
@@ -557,10 +622,10 @@ REGRA 7: Devolva APENAS as tags HTML internas (sem html/body e sem classes do Ta
                               <div className="pt-3 border-t border-slate-100">
                                   <label className="input-label mb-2">Tipografia Literária</label>
                                   <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard font-medium text-slate-800">
+                                      <option value="Lato">Lato (Moderna/Versátil)</option>
                                       <option value="Merriweather">Merriweather (Leitura Longa)</option>
                                       <option value="Lora">Lora (Romances e Contos)</option>
-                                      <option value="EB Garamond">EB Garamond (Clássico Acadêmico)</option>
-                                      <option value="Playfair Display">Playfair Display (Títulos Elegantes)</option>
+                                      <option value="EB Garamond">EB Garamond (Clássico)</option>
                                   </select>
                               </div>
 
@@ -586,34 +651,31 @@ REGRA 7: Devolva APENAS as tags HTML internas (sem html/body e sem classes do Ta
                       </div>
 
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
-                          <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span> Escrita em Blocos</h3>
-                          <p className="text-[10px] text-indigo-700 mb-4 leading-relaxed">Para criar e-books dezenas de páginas (até 100+) usando contas gratuitas das APIs, você deve gerar o conteúdo <b>Capítulo por Capítulo</b>.</p>
+                          <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span> Dados do Livro</h3>
                           
                           <div className="mb-4">
-                              <label className="input-label text-indigo-800">Estilo de Escrita</label>
-                              <select value={nichoEstilo} onChange={(e) => setNichoEstilo(e.target.value)} className="input-standard text-sm font-bold text-indigo-900">
-                                  <option value="nao-ficcao">Negócios / Técnico (Não Ficção)</option>
-                                  <option value="ficcao">Narrativa Emocionante (Romance/Ficção)</option>
-                                  <option value="didatico">Passo a Passo (Material Didático)</option>
-                              </select>
+                              <label className="input-label text-indigo-800">Título do E-book</label>
+                              <input type="text" value={livroTitulo} onChange={e => setLivroTitulo(e.target.value)} className="input-standard text-sm" placeholder="Ex: O Poder da Mente" />
+                          </div>
+                          
+                          <div className="mb-4">
+                              <label className="input-label text-indigo-800">Autor(es)</label>
+                              <input type="text" value={livroAutores} onChange={e => setLivroAutores(e.target.value)} className="input-standard text-sm" placeholder="Ex: João Silva" />
                           </div>
 
                           <div className="mb-4">
-                              <label className="input-label text-indigo-800">Assunto deste Capítulo</label>
+                              <label className="input-label text-indigo-800">Conteúdo Base / Tópicos</label>
                               <textarea 
                                   value={productContent} 
                                   onChange={(e) => setProductContent(e.target.value)} 
                                   className="input-standard h-32 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
-                                  placeholder="Digite o título do capítulo ou as anotações sobre o que a IA deve escrever agora..."
+                                  placeholder="Cole todo o conteúdo aqui. A IA vai diagramar, adicionar citações, imagens e gerar o e-book completo."
                               ></textarea>
                           </div>
 
                           <div className="flex flex-col gap-2 mt-auto">
-                              <button onClick={() => executarGeracaoEbook('novo')} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider py-3.5 rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2">
-                                  <i className="fas fa-file-alt text-yellow-300 text-lg"></i> Iniciar Novo E-book
-                              </button>
-                              <button onClick={() => executarGeracaoEbook('adicionar')} className="w-full bg-white border-2 border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-black uppercase tracking-wider py-3.5 rounded-xl transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2" title="Adiciona este texto ao final do e-book atual">
-                                  <i className="fas fa-plus-circle text-lg"></i> Adicionar Próximo Capítulo
+                              <button onClick={() => executarGeracaoEbook()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider py-3.5 rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2">
+                                  <i className="fas fa-file-alt text-yellow-300 text-lg"></i> Gerar E-book Completo
                               </button>
                           </div>
                       </div>
@@ -634,13 +696,20 @@ REGRA 7: Devolva APENAS as tags HTML internas (sem html/body e sem classes do Ta
                   <button onClick={desfazerCodigo} className="hidden md:flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-xs font-bold transition px-2 py-1 rounded hover:bg-slate-100"><i className="fas fa-undo"></i> Desfazer</button>
               </div>
 
-              <div className="flex items-center gap-3 md:gap-4">
-                  <button onClick={() => (window as any).baixarPdf()} className="px-6 py-2 border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-bold text-xs uppercase tracking-wide rounded-lg transition flex items-center shadow-sm"><i className="fas fa-file-pdf mr-1.5"></i> Salvar PDF Pronto</button>
+              <div className="flex items-center gap-2 md:gap-3">
+                  <button onClick={() => (window as any).baixarHtml()} className="px-4 py-2 border-2 border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-lg transition flex items-center" title="Baixar como arquivo HTML">
+                      <i className="fab fa-html5 mr-1.5 text-orange-500"></i> HTML
+                  </button>
+                  <button onClick={() => (window as any).baixarWord()} className="px-4 py-2 border-2 border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-lg transition flex items-center" title="Baixar formato Word (.doc)">
+                      <i className="fas fa-file-word mr-1.5 text-blue-600"></i> Word
+                  </button>
+                  <button onClick={() => (window as any).baixarPdf()} className="px-6 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-xs uppercase tracking-wide rounded-lg transition flex items-center shadow-sm">
+                      <i className="fas fa-file-pdf mr-1.5"></i> Salvar PDF
+                  </button>
               </div>
           </div>
           
           <div className="flex-grow relative bg-slate-200 p-0 md:p-8 overflow-y-auto overflow-x-hidden flex justify-center items-start custom-scrollbar">
-              {/* O Iframe agora atua como uma "Prancheta/Mesa" livre */}
               <iframe id="previewFrame" className="w-full min-h-full border-none active bg-transparent" sandbox="allow-scripts allow-same-origin allow-modals" title="Leitor do Ebook"></iframe>
               
               <div id="codigoContainer" className="absolute inset-0 bg-[#0d1117] hidden">
