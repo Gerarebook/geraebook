@@ -3,7 +3,6 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 
-// SCRIPT DO IFRAME EDITORIAL ATUALIZADO (Cores de Fundo e Transformação)
 const SCRIPT_PREVIEW = `<script id="editor-magic-script">
     let modoEdicao = false;
     let elSelecionado = null;
@@ -158,13 +157,16 @@ export default function Home() {
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://picsum.photos/1200/1600?random=1');
 
+  // NOVO: TEMPLATE HTML PARA CLONAGEM DE DESIGN
+  const [htmlTemplate, setHtmlTemplate] = useState('');
+
   // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline'>('padrao');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
   
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'linha-superior' | 'centralizado'>('simples');
-  const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark'>('classico');
+  const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado'>('classico');
   
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
@@ -201,10 +203,16 @@ export default function Home() {
   };
 
   const getPaletaObj = () => {
+      // Se tiver HTML Template, usamos cores neutras na base porque a IA vai injetar as variáveis CSS clonadas no HTML gerado
+      if (htmlTemplate.trim() && paletaCores === 'personalizado') {
+          return { bg: 'var(--template-bg, #ffffff)', text: 'var(--template-text, #111827)', pri: 'var(--template-pri, #3b82f6)', sec: 'var(--template-sec, #60a5fa)', borda: 'var(--template-border, #e5e7eb)' };
+      }
+      
       switch(paletaCores) {
           case 'moderno': return { bg: '#ffffff', text: '#111827', pri: '#2563eb', sec: '#3b82f6', borda: '#e5e7eb' };
           case 'sepia': return { bg: '#fdf6e3', text: '#4a4036', pri: '#8b6d4f', sec: '#c08770', borda: '#e8dccc' };
           case 'dark': return { bg: '#1f2937', text: '#f3f4f6', pri: '#a78bfa', sec: '#8b5cf6', borda: '#374151' };
+          case 'personalizado': return { bg: '#ffffff', text: '#111827', pri: '#10b981', sec: '#34d399', borda: '#e5e7eb' }; // Fallback verde
           default: return { bg: '#ffffff', text: '#1e1914', pri: '#8b6d4f', sec: '#c08770', borda: '#e2e8f0' }; // classico
       }
   };
@@ -368,7 +376,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
     }
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -387,7 +395,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
 
   const toggleInspetor = () => {
       const newMode = !modoInspetor;
@@ -461,12 +469,12 @@ ${ebookStyles}
       if(!codEl || !codEl.value) { (window as any).showNotification("Nenhum E-book gerado para modificar.", "error"); return; }
 
       const instrucao = `Você é um Revisor Editorial Sênior. 
-      Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global rigorosamente: "${comando}".
+      Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global DE FORMA RIGOROSA E OBEDIENTE: "${comando}".
       
-      REGRAS MÁXIMAS: 
-      1. Se remover/adicionar páginas, VOCÊ DEVE reajustar a numeração nos rodapés (.page-footer) de todas as páginas subsequentes automaticamente.
-      2. Se remover/adicionar capítulos, VOCÊ DEVE reescrever o Índice (TOC) para que links e números de páginas fiquem exatos.
-      3. Devolva TODO O HTML validado, a partir das divs .page-container.`;
+      REGRAS MÁXIMAS DE PENALIZAÇÃO SE NÃO CUMPRIDAS: 
+      1. Se a ordem remover ou adicionar páginas, VOCÊ DEVE OBRIGATORIAMENTE reajustar a numeração de páginas nos rodapés (.page-footer) de todas as páginas subsequentes.
+      2. Se remover/adicionar capítulos, VOCÊ DEVE reescrever a seção do Índice (TOC) para que links e números de páginas fiquem exatos.
+      3. Mantenha as tags HTML intactas. Devolva TODO O HTML validado.`;
 
       const resData = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
 
@@ -486,6 +494,10 @@ ${ebookStyles}
   const executarGeracaoEbook = async () => {
     const content = productContent.trim();
     if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira ou cole o texto base.', 'error'); return; }
+
+    let regraDesignInspirado = htmlTemplate.trim() && paletaCores === 'personalizado'
+        ? `\nINSPIRAÇÃO DE DESIGN (EXTRAIA CORES, FONTES, ESPAÇAMENTOS E ESTILO DESTE HTML/CSS, MAS IGNORE COMPLETAMENTE O TEXTO/CONTEÚDO DELE):\n\`\`\`html\n${htmlTemplate.substring(0, 3000)}\n\`\`\`\nAdote a paleta de cores encontrada neste código injetando estilos CSS inline no .page-container ou definindo variáveis na tag style do HTML gerado.`
+        : "";
 
     let regraCapaHtml = "";
     if (tipoCapa === 'imagem-texto') {
@@ -511,21 +523,21 @@ ${ebookStyles}
     if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>5</span>`;
     else regraRodape = `<span>5</span>`;
 
-    const instrucaoSistema = `Atue como um Escritor Bestseller e Especialista Editorial. Gere um E-book monumental e perfeito num ÚNICO HTML.
-DADOS DO PROJETO: ${livroTitulo} por ${livroAutores}
+    const instrucaoSistema = `Atue como um Escritor Bestseller e Especialista Editorial Rigoroso. Gere um E-book perfeito num ÚNICO HTML.
+DADOS DO PROJETO: ${livroTitulo} por ${livroAutores} ${regraDesignInspirado}
 
-DIRETRIZES FUNDAMENTAIS:
-1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto de forma exaustiva e profunda.' : modoConteudo === 'rigoroso' ? 'Corrija ortografia rigorosamente, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
-2. DENSIDADE OBRIGATÓRIA: Cada página (.page-container) de texto DEVE ter no mínimo 4 a 6 parágrafos densos (se não houver imagem). Preencha todo o espaço da folha.
-3. ÍNDICE (TOC): Crie o Índice. IMPORTANTE: NÃO adicione títulos como "Continuação do Índice". Se precisar de mais páginas, apenas quebre a <div class="page-container"> e siga a lista de links.
+DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS OU O SISTEMA FALHARÁ):
+1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto de forma exaustiva.' : modoConteudo === 'rigoroso' ? 'Corrija ortografia rigorosamente, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
+2. DENSIDADE OBRIGATÓRIA: Cada página (.page-container) de texto DEVE OBRIGATORIAMENTE ter no mínimo 4 a 6 parágrafos densos (se não houver imagem). Preencha todo o espaço da folha.
+3. ÍNDICE (TOC): É ESTRITAMENTE PROIBIDO usar títulos como "Continuação" ou "Parte 2" no índice. Se a lista de capítulos não couber em uma página, apenas feche a div <div class="page-container"> e abra uma nova para continuar a lista HTML naturalmente.
 4. ESTILO DOS CAPÍTULOS: ${regraEstiloCapitulos}
-5. CITAÇÕES (QUOTES): NUNCA adicione o nome do autor automaticamente dentro das tags <blockquote>. Apenas a frase.
-6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro uma <div class="page-container"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div>.
-7. IMAGENS REAIS: Use URLs Unsplash reais. Exclusivamente fotografias reais.
-8. CABEÇALHOS/RODAPÉS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (sem a palavra "página" no número do rodapé).
+5. CITAÇÕES (QUOTES): NUNCA escreva o nome do autor dentro das tags <blockquote> ou ao final delas. Deixe a frase limpa.
+6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro UMA UNICA <div class="page-container"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div>.
+7. IMAGENS REAIS: Use URLs Unsplash reais. Exclusivamente fotografias reais de humanos.
+8. CABEÇALHOS/RODAPÉS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (NUNCA escreva a palavra "página" perto do número).
 9. INICIO DA ESTRUTURA:
    - ${regraCapaHtml}
-   - Índice ancorado.
+   - Índice ancorado (sem título de continuação).
    - Páginas de capítulos e textos.`;
 
     const data = await chamarMotorIA(instrucaoSistema, [{ text: `TEXTO BASE:\n"""\n${content || 'Gerar E-book'}\n"""` }], false);
@@ -722,8 +734,21 @@ DIRETRIZES FUNDAMENTAIS:
                                       <option value="moderno">Moderno (Branco & Azul Vivo)</option>
                                       <option value="sepia">Sépia Literário (Creme & Marrom)</option>
                                       <option value="dark">Dark Elegante (Grafite & Roxo)</option>
+                                      <option value="personalizado">Personalizado (Inspirado no HTML abaixo)</option>
                                   </select>
                               </div>
+
+                              {paletaCores === 'personalizado' && (
+                                  <div className="pt-3 border-t border-slate-100">
+                                      <label className="input-label mb-2 text-indigo-600"><i className="fas fa-magic mr-1"></i> Template de Inspiração (Cole HTML/CSS)</label>
+                                      <textarea 
+                                          value={htmlTemplate} 
+                                          onChange={(e) => setHtmlTemplate(e.target.value)} 
+                                          className="input-standard h-24 resize-y text-[10px] font-mono border-indigo-200 shadow-inner" 
+                                          placeholder="Cole o código-fonte de um site aqui. A IA extrairá as cores e o estilo visual ignorando o texto..."
+                                      ></textarea>
+                                  </div>
+                              )}
 
                               <div className="pt-3 border-t border-slate-100">
                                   <label className="input-label mb-2">Estilo da Capa Inicial</label>
@@ -884,6 +909,11 @@ DIRETRIZES FUNDAMENTAIS:
                                   <option value="rigoroso">Rigoroso (Apenas corrigir ortografia)</option>
                                   <option value="prompt">Criar 100% do Zero via Prompt</option>
                               </select>
+                          </div>
+
+                          <div className="mb-4 flex items-center justify-between bg-white p-3 rounded-lg border border-indigo-100">
+                              <label className="input-label mb-0 cursor-pointer text-indigo-900">Incluir Introdução e Conclusão</label>
+                              <input type="checkbox" checked={incluirIntroConclusao} onChange={(e) => setIncluirIntroConclusao(e.target.checked)} className="w-4 h-4 accent-indigo-600 rounded cursor-pointer" />
                           </div>
 
                           <div className="mb-4">
