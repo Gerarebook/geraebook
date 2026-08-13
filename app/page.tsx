@@ -168,30 +168,10 @@ export default function Home() {
   const [modoConteudo, setModoConteudo] = useState<'prompt' | 'rigoroso' | 'expandido'>('expandido');
   const [incluirIntroConclusao, setIncluirIntroConclusao] = useState(true);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Leitor de Arquivos (TXT / Markdown / PDF simulado via texto)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 35 * 1024 * 1024) {
-      (window as any).showNotification("O arquivo excede o limite de 35MB.", "error");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const conteudoLido = event.target?.result as string;
-      setProductContent(conteudoLido);
-      (window as any).showNotification(`Arquivo "${file.name}" carregado com sucesso!`, "success");
-    };
-    reader.onerror = () => {
-      (window as any).showNotification("Erro ao ler o arquivo.", "error");
-    };
-    reader.readAsText(file);
-  };
+  
 
   // Inserir Imagem Manualmente (Upload de Computador para Base64)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -576,8 +556,7 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
       `}} />
 
       {/* INPUTS OCULTOS DE ARQUIVO E IMAGEM */}
-      <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".txt,.md,.html,.json" className="hidden" />
-      <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+           <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
 
       {/* OVERLAY DE CARREGAMENTO */}
       {statusApis.processing && (
@@ -768,7 +747,7 @@ Devolva APENAS o código HTML interno a partir das páginas (.page-container).
                           <div className="mb-4">
                               <div className="flex justify-between items-center mb-2">
                                   <label className="input-label text-indigo-800 mb-0">Texto Base / Prompt / Artigo</label>
-                                  <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline flex items-center gap-1"><i className="fas fa-file-upload"></i> Subir Arquivo / PDF (.txt)</button>
+                                  
                               </div>
                               <textarea 
                                   value={productContent} 
