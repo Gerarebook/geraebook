@@ -262,7 +262,7 @@ h2 { font-weight: 700; font-size: 1.8rem; margin-top: 2.5rem; margin-bottom: 1.5
 p { font-size: ${tamanhoFonteBase}; line-height: 1.45; margin-bottom: 1.5em; text-align: justify; text-indent: 25px; hyphens: auto; -webkit-hyphens: auto; }
 
 blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(192, 135, 112, 0.15); padding: 18px 25px; margin: 2rem 0; font-size: 12.5pt; font-family: var(--font-heading); border-radius: 0 10px 10px 0; }
-img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 2rem auto; display: block; page-break-inside: avoid; break-inside: avoid; }
+img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 2rem auto; display: block; page-break-inside: avoid; break-inside: avoid; object-fit: cover; }
 ul, ol { margin-top: 0; margin-bottom: 1.5em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: 1.7; }
 li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 
@@ -410,7 +410,7 @@ ${ebookStyles}
     if (!content) { (window as any).showNotification('Cole o texto base do E-book.', 'error'); return; }
 
     const regraCapa = formatoLivro === 'A4' 
-        ? "- 1 Capa com Título e Imagem de fundo (fotorrealista) cobrindo toda a página." 
+        ? "- 1 Capa com Título e Imagem de fundo cobrindo toda a página (apenas pessoas reais)." 
         : "- 1 Folha de Rosto literária e clássica (Fundo totalmente branco, SEM imagem de capa. Apenas o Título em destaque máximo, nome do autor e subtítulo centralizados com elegância).";
 
     const instrucaoSistema = `Atue como um Escritor Bestseller, Desenvolvedor Front-end Sênior e Especialista em Diagramação Editorial (Print CSS).
@@ -425,16 +425,18 @@ AUTORES: ${livroAutores || 'Autor Desconhecido'}
 * **Idioma:** Português (Brasil).
 * **Tom de Voz:** Predominantemente Informativo/Educacional, avançado, humanizado e inteligente.
 * **Volume:** O conteúdo deve ser EXAUSTIVO. Adicione exemplos, dicas práticas e reflexões para que o documento renda o máximo de páginas possível.
+* **Estrutura Biográfica:** Consolide todos os elementos narrativos biográficos e a história pessoal ESTRITAMENTE no primeiro capítulo. Os capítulos seguintes devem ser desenvolvidos exclusivamente com dicas práticas e ensinamentos.
 * **Restrições de Palavras:** É TERMINANTEMENTE PROIBIDO usar as palavras: "jornada", "Além disso", "público alvo", "explorar", "No próximo capítulo", "Portanto", "Ou seja", "Dessa forma".
 
 ### DIRETRIZES DE DESIGN E FRONT-END (HTML/CSS)
 Devolva APENAS as tags internas HTML (sem <html> ou <body>, devolva a partir das divs page-container).
 
-1. **Imagens:** Sempre que inserir imagens, utilize EXCLUSIVAMENTE fotografias fotorrealistas de humanos. Sem desenhos ou gráficos. Use imagens do Unsplash.
-2. **Espaçamento:** Organize o HTML para que todos os títulos de tópicos (h1, h2, h3) tenham margin-bottom: 1.5em; mantendo um espaçamento claro.
-3. **Páginas e Overflow:** Cada página deve ser uma <div class="page-container">. Estime o espaço: coloque no máximo 3 a 4 parágrafos médios por .page-container. Se o capítulo for longo, feche a div e abra uma nova .page-container. O texto não pode vazar.
-4. **Citações:** Coloque as frases mais impactantes dentro de <blockquote>.
-5. **Estrutura Exigida:**
+1. **Imagens (Unsplash):** Sempre que inserir imagens, utilize a URL oficial da API do Unsplash. Formate a tag assim: <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80" alt="Ilustração">. A IA deve buscar fotos reais de pessoas e ambientes relacionados ao tema.
+2. **Estilo Visual das Imagens:** É TERMINANTEMENTE PROIBIDO utilizar, sugerir ou criar desenhos, ilustrações, gráficos animados ou elementos sci-fi/tecnologia. Use imagens reais, REAISSSSSS, de fotografia humana.
+3. **Espaçamento:** Organize o HTML para que os títulos dos tópicos (h1, h2, h3) tenham um espaço de uma linha entre parágrafos. Use o CSS apropriado para garantir essa separação exata.
+4. **Páginas e Overflow:** Cada página deve ser uma <div class="page-container">. Estime o espaço: coloque no máximo 3 a 4 parágrafos médios por .page-container. Se o capítulo for longo, feche a div e abra uma nova .page-container. O texto não pode vazar.
+5. **Citações:** Coloque as frases mais impactantes dentro de <blockquote>.
+6. **Estrutura Exigida:**
    ${regraCapa}
    - 1 Índice (toc-list).
    - Capas de Capítulo e logo a seguir a .page-container com o texto do capítulo.
