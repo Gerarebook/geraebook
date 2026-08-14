@@ -182,13 +182,19 @@ export default function Home() {
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
   const [htmlTemplate, setHtmlTemplate] = useState('');
 
+  // CORES MANUAIS
+  const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado' | 'manual'>('classico');
+  const [corManualPri, setCorManualPri] = useState('#2563eb');
+  const [corManualSec, setCorManualSec] = useState('#3b82f6');
+  const [corManualText, setCorManualText] = useState('#111827');
+  const [corManualBg, setCorManualBg] = useState('#ffffff');
+
   // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline'>('padrao');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
   
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'linha-superior' | 'centralizado'>('simples');
-  const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado'>('classico');
   
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
@@ -223,6 +229,9 @@ export default function Home() {
   };
 
   const getPaletaObj = () => {
+      if (paletaCores === 'manual') {
+          return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: '#e5e7eb' };
+      }
       if (htmlTemplate.trim() && paletaCores === 'personalizado') {
           return { bg: 'var(--template-bg, #ffffff)', text: 'var(--template-text, #111827)', pri: 'var(--template-pri, #3b82f6)', sec: 'var(--template-sec, #60a5fa)', borda: 'var(--template-border, #e5e7eb)' };
       }
@@ -279,7 +288,7 @@ export default function Home() {
     --text-indent: ${recuoParagrafo};
 }
 
-body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; font-family: var(--font-body); color: var(--color-text); }
+body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; font-family: var(--font-body); color: var(--color-text); }
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
 .page-container {
@@ -296,8 +305,6 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     break-after: page;
     page-break-inside: avoid;
     break-inside: avoid;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
@@ -343,7 +350,7 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
 /* CABEÇALHOS E RODAPÉS */
 .page-header { position: absolute; top: 12mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
 .page-footer { position: absolute; bottom: 12mm; left: 20mm; right: 20mm; font-size: 9pt; color: var(--color-primary); z-index: 20; 
-    ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid rgba(139, 109, 79, 0.3); padding-top: 5px; display: flex; justify-content: space-between;' : ''}
+    ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 5px; display: flex; justify-content: space-between;' : ''}
     ${estiloRodape === 'simples' ? 'display: flex; justify-content: space-between;' : ''}
     ${estiloRodape === 'centralizado' ? 'text-align: center; display: block;' : ''}
 }
@@ -355,7 +362,7 @@ h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: var(-
 
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
-blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(139, 109, 79, 0.08); padding: 15px 20px; margin: 1.5rem 0; font-size: 11.5pt; font-family: var(--font-heading); border-radius: 0 8px 8px 0; }
+blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(0,0,0, 0.03); padding: 15px 20px; margin: 1.5rem 0; font-size: 11pt; border-radius: 0 8px 8px 0; }
 .highlight-box { background: rgba(139, 109, 79, 0.15); padding: 15px 20px; border-radius: 8px; margin: 1.5rem 0; font-weight: 500; }
 
 img { max-width: 100%; height: auto; max-height: 40vh; border-radius: 0.5rem; margin: 1.5rem auto; display: block; object-fit: cover; page-break-inside: avoid; break-inside: avoid; }
@@ -363,10 +370,10 @@ ul, ol { margin-top: 0; margin-bottom: 1.2em; padding-left: 2rem; font-size: ${t
 li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 
 /* ÍNDICE CEGO (TOC) */
-.toc-list { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 2rem; }
-.toc-list a { display: flex; align-items: baseline; text-decoration: none; color: var(--color-text); font-size: 12pt; font-weight: 600; line-height: var(--line-spacing); }
+.toc-list { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 1.5rem; }
+.toc-list a { display: flex; align-items: baseline; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; line-height: 1.5; }
 .toc-list a:hover { color: var(--color-secondary); }
-.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; opacity: 0.3; }
+.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.4; }
 
 /* SEÇÃO DO AUTOR CENTRALIZADA */
 .page-container.author-page { display: flex; align-items: center; justify-content: center; min-height: 100%; }
@@ -420,7 +427,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
     }
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -439,7 +446,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
 
   const toggleInspetor = () => {
       const newMode = !modoInspetor;
@@ -832,9 +839,31 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                                       <option value="moderno">Moderno (Branco & Azul Vivo)</option>
                                       <option value="sepia">Sépia Literário (Creme & Marrom)</option>
                                       <option value="dark">Dark Elegante (Grafite & Roxo)</option>
-                                      <option value="personalizado">Personalizado (Inspirado no HTML abaixo)</option>
+                                      <option value="manual">Cores Manuais (Escolha as cores)</option>
+                                      <option value="personalizado">Extrair HTML (Template)</option>
                                   </select>
                               </div>
+
+                              {paletaCores === 'manual' && (
+                                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                      <div>
+                                          <label className="input-label mb-2 text-[9px]">Cor Primária (Títulos)</label>
+                                          <input type="color" value={corManualPri} onChange={(e) => setCorManualPri(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                      </div>
+                                      <div>
+                                          <label className="input-label mb-2 text-[9px]">Cor Secundária (Quotes)</label>
+                                          <input type="color" value={corManualSec} onChange={(e) => setCorManualSec(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                      </div>
+                                      <div>
+                                          <label className="input-label mb-2 text-[9px]">Cor do Texto</label>
+                                          <input type="color" value={corManualText} onChange={(e) => setCorManualText(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                      </div>
+                                      <div>
+                                          <label className="input-label mb-2 text-[9px]">Cor Fundo da Folha</label>
+                                          <input type="color" value={corManualBg} onChange={(e) => setCorManualBg(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                      </div>
+                                  </div>
+                              )}
 
                               {paletaCores === 'personalizado' && (
                                   <div className="pt-3 border-t border-slate-100">
@@ -991,13 +1020,14 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
 
                       {/* CONTEÚDO */}
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
-                          <div className="mb-4">
-                              <label className="input-label text-indigo-800">Motor de Inteligência (IA)</label>
-                              <select value={textEngine} onChange={(e) => setTextEngine(e.target.value as any)} className="input-standard font-bold text-slate-700 bg-white">
-                                  <option value="gemini">Google Gemini (Gemini 3.6 Flash)</option>
-                                  <option value="groq">Groq Llama 3 (Llama 3.3)</option>
-                              </select>
-                          </div>
+                          {/* 
+                             ATENÇÃO: O seletor de API foi ocultado da interface. 
+                             O sistema usará sempre o 'gemini' por padrão.
+                             Para mudar o motor globalmente, basta ir ao topo do código e
+                             alterar o valor padrão do estado: 
+                             const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini');
+                          */}
+                          
                           <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span> Geração Editorial</h3>
                           
                           <div className="mb-4">
