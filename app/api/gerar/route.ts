@@ -12,7 +12,7 @@ const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' = 'gemini';
 // Configuração caso use o Gemini (Rodízio de Modelos)
 const REQUISICOES_POR_MODELO = 9999; // Deixe alto para travar em um único modelo se tiver API paga
 const MODELOS_GEMINI = [
-  "gemini-3.6-flash",      // Padrão: Rápido e confiável
+  "gemini-3.5-flash",      // Padrão: Rápido e confiável
   // "gemini-1.5-pro"      // Alternativa pesada (descomente se quiser)
 ];
 
