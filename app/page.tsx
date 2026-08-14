@@ -253,9 +253,9 @@ export default function Home() {
   };
 
   const getEstilosFormato = (formato: string) => {
-      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '15mm 15mm 15mm 20mm' };
-      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '15mm 15mm 15mm 20mm' };
-      return { width: '210mm', height: '297mm', padding: '22mm 20mm 28mm 20mm' };
+      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '20mm' }; 
+      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '20mm' };
+      return { width: '210mm', height: '297mm', padding: '20mm' }; 
   };
 
   const moldarApresentacaoHtml = (rawHtml: string) => {
@@ -287,8 +287,7 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     width: ${conf.width};
     height: ${conf.height};
     max-height: ${conf.height};
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    padding: ${conf.padding};
+    padding: ${conf.padding}; 
     margin: 0 auto 20px auto;
     box-sizing: border-box;
     position: relative;
@@ -299,30 +298,51 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     break-inside: avoid;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* ==========================================
+   A MÁGICA DA BORDA (MOLDURA INDEPENDENTE) 
+   Desenhada a 7mm da borda da página
+========================================== */
+.page-container::after {
+    content: '';
+    position: absolute;
+    top: 7mm;
+    left: 7mm;
+    right: 7mm;
+    bottom: 7mm;
+    pointer-events: none;
+    z-index: 50;
     border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : 'none'};
 }
 
+/* Para capas com imagem de fundo, removemos a borda para não poluir */
+.page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
+    display: none;
+}
+
 /* CAPAS INICIAIS */
-.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
+.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--color-bg); color: var(--color-primary); padding: 20mm; box-sizing: border-box; border: 4px double var(--color-primary); }
+.page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--color-bg); color: var(--color-primary); box-sizing: border-box; }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
 /* CAPAS DE CAPÍTULO */
-.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; padding: 20mm; box-sizing: border-box; }
+.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; }
 .cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .cap-icon { font-size: 40px; color: var(--color-secondary); font-family: "Font Awesome 6 Free"; font-weight: 900; margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 
-.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; padding: 20mm; box-sizing: border-box; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; box-sizing: border-box; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
 .cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
 /* CABEÇALHOS E RODAPÉS */
-.page-header { position: absolute; top: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
-.page-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; font-size: 9pt; color: var(--color-primary); z-index: 20; 
+.page-header { position: absolute; top: 12mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
+.page-footer { position: absolute; bottom: 12mm; left: 20mm; right: 20mm; font-size: 9pt; color: var(--color-primary); z-index: 20; 
     ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid rgba(139, 109, 79, 0.3); padding-top: 5px; display: flex; justify-content: space-between;' : ''}
     ${estiloRodape === 'simples' ? 'display: flex; justify-content: space-between;' : ''}
     ${estiloRodape === 'centralizado' ? 'text-align: center; display: block;' : ''}
@@ -344,9 +364,9 @@ li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 
 /* ÍNDICE CEGO (TOC) */
 .toc-list { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 2rem; }
-.toc-list a { display: flex; justify-content: space-between; text-decoration: none; color: var(--color-text); font-size: 12pt; font-weight: 600; line-height: var(--line-spacing); }
+.toc-list a { display: flex; align-items: baseline; text-decoration: none; color: var(--color-text); font-size: 12pt; font-weight: 600; line-height: var(--line-spacing); }
 .toc-list a:hover { color: var(--color-secondary); }
-.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; position: relative; top: -5px; opacity: 0.3; }
+.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 10px; opacity: 0.3; }
 
 /* SEÇÃO DO AUTOR CENTRALIZADA */
 .page-container.author-page { display: flex; align-items: center; justify-content: center; min-height: 100%; }
@@ -364,7 +384,7 @@ li { margin-bottom: 0.5rem; page-break-inside: avoid; }
     html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
     #ebook-container { width: 100%; padding: 0; margin: 0; }
     .page-container { width: ${conf.width} !important; height: ${conf.height} !important; box-sizing: border-box !important; margin: 0 !important; padding: ${conf.padding} !important; page-break-after: always !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; 
-        border: ${tipoBorda === 'single' ? '2px solid var(--color-primary) !important' : tipoBorda === 'double' ? '6px double var(--color-primary) !important' : 'none !important'};
+        border: none !important;
     }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 }
