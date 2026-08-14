@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, html: htmlGerado });
     }
 
-    // === SE O USUÁRIO ESCOLHEU O GEMINI (GEMINI 3.7 FLASH) ===
+    // === SE O USUÁRIO ESCOLHEU O GEMINI (GEMINI 1.5 FLASH) ===
     const geminiApiKey = process.env.GEMINI_API_KEY;
     
     if (!geminiApiKey) {
