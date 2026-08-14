@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 // =====================================================================
 // Para escolher a IA de testes, altere o valor abaixo para: 
 // 'gemini' | 'groq' | 'together' | 'nvidia'
-const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'together';
+const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
 
 // Configuração caso use o Gemini (Rodízio de Modelos)
 const REQUISICOES_POR_MODELO = 9999; 
