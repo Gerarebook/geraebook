@@ -164,7 +164,7 @@ export default function Home() {
   }, []);
 
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
-  const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini');
+  const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini'); // Travado no Gemini nativamente
   const [modoInspetor, setModoInspetor] = useState(false);
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
@@ -193,9 +193,7 @@ export default function Home() {
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline'>('padrao');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
-  
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'linha-superior' | 'centralizado'>('simples');
-  
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
@@ -204,7 +202,6 @@ export default function Home() {
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   const [modoConteudo, setModoConteudo] = useState<'prompt' | 'rigoroso' | 'expandido'>('expandido');
-  const [incluirIntroConclusao, setIncluirIntroConclusao] = useState(true);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -245,20 +242,18 @@ export default function Home() {
   };
 
   const purificarHTML = (rawHtml: string) => {
-      let clean = rawHtml.replace(/```html/gi, '').replace(/```/gi, '').trim();
+      let clean = rawHtml;
+      // Extrai apenas o HTML se a IA tentar "conversar"
+      const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
+      if (markdownMatch) clean = markdownMatch[1];
+
+      clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
       clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
       clean = clean.replace(/<style id="builder-core-styles">[\s\S]*?<\/style>/gi, '');
       clean = clean.replace(/\bbuilder-editing\b/gi, '');
-      clean = clean.replace(/cursor:\s*pointer;?/gi, '')
-                   .replace(/cursor:\s*text;?/gi, '')
-                   .replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '')
-                   .replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '')
-                   .replace(/outline-offset:\s*-3px;?/gi, '')
-                   .replace(/data-old-outline="[^"]*"/gi, '')
-                   .replace(/<br\s*\/?>/gi, '') 
-                   .replace(/\s*style="\s*"/gi, ''); 
+      clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/<br\s*\/?>/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
-      return clean;
+      return clean.trim();
   };
 
   const getEstilosFormato = (formato: string) => {
@@ -288,7 +283,7 @@ export default function Home() {
     --text-indent: ${recuoParagrafo};
 }
 
-body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; font-family: var(--font-body); color: var(--color-text); }
+body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; font-family: var(--font-body); color: var(--color-text); }
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
 .page-container {
@@ -305,13 +300,11 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     break-after: page;
     page-break-inside: avoid;
     break-inside: avoid;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
-/* ==========================================
-   A MÁGICA DA BORDA (MOLDURA INDEPENDENTE) 
-   Desenhada a 7mm da borda da página
-========================================== */
 .page-container::after {
     content: '';
     position: absolute;
@@ -324,7 +317,6 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : 'none'};
 }
 
-/* Para capas com imagem de fundo, removemos a borda para não poluir */
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
     display: none;
 }
@@ -355,7 +347,7 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     ${estiloRodape === 'centralizado' ? 'text-align: center; display: block;' : ''}
 }
 
-/* CONTEÚDO BASE (BLINDADO COM !IMPORTANT) */
+/* CONTEÚDO BASE */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 h2 { font-weight: 700; font-size: 1.6rem; margin-top: 2rem; margin-bottom: var(--line-spacing); }
@@ -523,10 +515,8 @@ ${ebookStyles}
       Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global DE FORMA RIGOROSA E OBEDIENTE: "${comando}".
       
       REGRAS MÁXIMAS DE PENALIZAÇÃO SE NÃO CUMPRIDAS: 
-      1. Se a ordem remover ou adicionar páginas, VOCÊ DEVE OBRIGATORIAMENTE reajustar a numeração de páginas nos rodapés (.page-footer) de todas as páginas subsequentes.
-      2. Se remover/adicionar capítulos, VOCÊ DEVE reescrever a seção do Índice (TOC) para que links e números fiquem exatos.
-      3. NUNCA adicione estilos inline <p style="...">.
-      4. Mantenha as tags HTML intactas. Devolva TODO O HTML validado.`;
+      1. NUNCA adicione estilos inline <p style="...">.
+      2. Mantenha as tags HTML intactas. Devolva TODO O HTML validado.`;
 
       const resData = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
 
@@ -543,77 +533,148 @@ ${ebookStyles}
       }
   };
 
-  const executarGeracaoEbook = async () => {
+  // INJEÇÃO SEGURA NO FINAL DO HTML
+  const injetarHtmlNoFinal = (htmlBase: string, htmlNovo: string) => {
+      if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
+      return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + htmlNovo + '\n    </div>\n</body>\n</html>');
+  };
+
+  // REGRAS BASE DE ESTRUTURA PARA TODOS OS BOTÕES
+  const obterInstrucoesBase = () => {
+      let regraEstiloCapitulos = "";
+      if (estiloCapitulos === 'padrao') {
+          regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon">&#xf02d;</div><h1>Título do Capítulo</h1></div>`;
+      } else if (estiloCapitulos === 'box-arredondado') {
+          regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-box-rounded" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-box-inner"><h1 style="margin:0; font-size: 2.2rem;">Título do Capítulo</h1></div></div>`;
+      } else if (estiloCapitulos === 'imagem-pura') {
+          regraEstiloCapitulos = `Crie uma página EXCLUSIVA contendo APENAS a imagem pura de abertura do capítulo, usando: <div class="page-container cap-img-pura" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"></div>`;
+      } else {
+          regraEstiloCapitulos = `Estilo Inline: Adicione o título do capítulo no topo da página de conteúdo (.page-container) seguido pela imagem e parágrafos, sem página exclusiva.`;
+      }
+
+      let regraRodape = "";
+      if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>X</span>`;
+      else regraRodape = `<span>X</span>`;
+
+      let regraCapaHtml = "";
+      if (tipoCapa === 'imagem-texto') {
+          regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
+      } else if (tipoCapa === 'imagem-pura') {
+          regraCapaHtml = `<div class="page-container page-cover-pura"></div>`;
+      } else {
+          regraCapaHtml = `<div class="page-container page-cover-text"><h1 style="font-size: 3rem; margin-bottom: 1.5rem; text-transform: uppercase;">${livroTitulo || 'Meu E-book'}</h1><div style="width: 80px; height: 2px; background: var(--color-primary); margin: 0 auto 1.5rem auto;"></div><p style="font-size: 1.3rem; font-style: italic;">Por ${livroAutores || 'Autor'}</p></div>`;
+      }
+
+      const regrasComuns = `
+      DIRETRIZES DE PENALIZAÇÃO ESTRITA:
+      1. LIMITE DE PARÁGRAFOS: NUNCA coloque mais de 4 ou 5 parágrafos curtos dentro de uma mesma <div class="page-container">. Para não sobrepor o rodapé, você DEVE fechar a div atual e abrir uma nova page-container para continuar o texto.
+      2. CÓDIGO LIMPO: Nunca use 'style="margin..."' ou '<br>' nas tags <p> ou <h2>. O CSS global cuidará do espaçamento.
+      3. BIOGRAFIA: Concentre histórias de vida estritamente no primeiro capítulo.
+      4. IMAGENS CONTEXTUAIS: Busque URLs reais do Unsplash. PROIBIDO usar desenhos, gráficos ou sci-fi.
+      5. CABEÇALHOS/RODAPÉS: Em cada página de conteúdo use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div>.
+      6. ESTILO CAPÍTULOS: ${regraEstiloCapitulos}
+      7. MODO GERADOR: RETORNE APENAS HTML. Não escreva textos conversacionais.
+      `;
+
+      return { regrasComuns, regraCapaHtml };
+  };
+
+  // BOTÃO COMPLETO
+  const gerarLivroCompleto = async () => {
     const content = productContent.trim();
-    if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira ou cole o texto base.', 'error'); return; }
+    if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira o texto base.', 'error'); return; }
 
-    let regraDesignInspirado = htmlTemplate.trim() && paletaCores === 'personalizado'
-        ? `\nCLONAGEM DE DESIGN AVANÇADA (INSPIRAÇÃO NO HTML/CSS FORNECIDO):
-Você recebeu o código-fonte de um site como inspiração:
-\`\`\`html
-${htmlTemplate.substring(0, 3000)}
-\`\`\`
-SUA TAREFA DE DESIGN:
-1. Extraia a paleta de cores principal e adote nas variáveis CSS globais da página gerada.
-2. ANALISE A ESTRUTURA: Observe como o site original constrói caixas de destaque, quadros explicativos, citações, elementos circulares ou layouts em formato de blocos/cards.
-3. REPLIQUE A ESTÉTICA: Construa as páginas do e-book utilizando as MESMAS lógicas estruturais visuais. Se o site usa caixas arredondadas com sombra suave para destacar tópicos importantes, crie elementos (divs) similares no e-book.
-4. IGNORE O TEXTO ORIGINAL DO SITE: Use apenas a arquitetura visual, preenchendo as tags com o conteúdo literário do E-book solicitado.`
-        : "";
+    const { regrasComuns, regraCapaHtml } = obterInstrucoesBase();
 
-    let regraCapaHtml = "";
-    if (tipoCapa === 'imagem-texto') {
-        regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
-    } else if (tipoCapa === 'imagem-pura') {
-        regraCapaHtml = `<div class="page-container page-cover-pura"></div>`;
-    } else {
-        regraCapaHtml = `<div class="page-container page-cover-text"><h1 style="font-size: 3rem; margin-bottom: 1.5rem; text-transform: uppercase;">${livroTitulo || 'Meu E-book'}</h1><div style="width: 80px; height: 2px; background: var(--color-primary); margin: 0 auto 1.5rem auto;"></div><p style="font-size: 1.3rem; font-style: italic;">Por ${livroAutores || 'Autor'}</p></div>`;
-    }
+    const instrucao = `Atue como Especialista Editorial. Gere o E-book COMPLETO em HTML.
+    ${regrasComuns}
+    OBRIGAÇÕES DESTE MODO (COMPLETO):
+    - Gere a Capa: ${regraCapaHtml}
+    - Gere o Índice Clicável (<div class="toc-list">...)
+    - Gere TODOS os capítulos solicitados.
+    - Gere a Conclusão.
+    - OBRIGATÓRIO: Crie no final do livro UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia robusta.</p></div></div></div>.
+    `;
 
-    let regraEstiloCapitulos = "";
-    if (estiloCapitulos === 'padrao') {
-        regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon">&#xf02d;</div><h1>Título do Capítulo</h1></div>`;
-    } else if (estiloCapitulos === 'box-arredondado') {
-        regraEstiloCapitulos = `Crie uma página de capa de capítulo exclusiva com a div: <div class="page-container cap-box-rounded" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-box-inner"><h1 style="margin:0; font-size: 2.2rem;">Título do Capítulo</h1></div></div>`;
-    } else if (estiloCapitulos === 'imagem-pura') {
-        regraEstiloCapitulos = `Crie uma página EXCLUSIVA contendo APENAS a imagem pura de abertura do capítulo, usando: <div class="page-container cap-img-pura" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"></div>`;
-    } else {
-        regraEstiloCapitulos = `Estilo Inline: Adicione o título do capítulo no topo da página de conteúdo (.page-container) seguido pela imagem e parágrafos, sem página exclusiva.`;
-    }
+    const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE:\n"""\n${content}\n"""` }], false);
+    if (data && data.html) aplicarHtmlNovo(data.html, false);
+  };
 
-    let regraRodape = "";
-    if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>5</span>`;
-    else regraRodape = `<span>5</span>`;
+  // BOTÃO PASSO 1: INICIAR
+  const iniciarEbookEtapas = async () => {
+      const content = productContent.trim();
+      const { regrasComuns, regraCapaHtml } = obterInstrucoesBase();
 
-    const instrucaoSistema = `Atue como um Escritor Bestseller e Especialista Editorial Rigoroso. Gere um E-book perfeito num ÚNICO HTML.
-DADOS DO PROJETO: ${livroTitulo} por ${livroAutores} ${regraDesignInspirado}
+      const instrucao = `Atue como Especialista Editorial. Gere APENAS O INÍCIO do E-book em HTML.
+      ${regrasComuns}
+      OBRIGAÇÕES DESTE MODO (PASSO 1):
+      - Gere a Capa: ${regraCapaHtml}
+      - Gere o Índice Clicável (<div class="toc-list">...)
+      - Gere APENAS a Introdução e/ou Capítulo 1 detalhados.
+      - PROIBIDO: NÃO GERE Conclusão nem a página do Autor. Pare no final do Capítulo 1.
+      `;
 
-DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SISTEMA FALHARÁ):
-1. MODO DE TEXTO: ${modoConteudo === 'expandido' ? 'Expanda o texto de forma exaustiva.' : modoConteudo === 'rigoroso' ? 'Corrija ortografia rigorosamente, sem alterar sentido.' : 'Crie um e-book monumental pelo prompt.'}
-2. DENSIDADE OBRIGATÓRIA E TAMANHO DE CAPÍTULO: Para CADA capítulo gerado, você OBRIGATORIAMENTE deve criar conteúdo denso e extenso suficiente para preencher NO MÍNIMO 2 a 3 páginas (.page-container) separadas por capítulo. É proibido resumir ou fazer capítulos de uma página só. Concentre a narrativa biográfica estritamente no primeiro capítulo, deixando os demais focados em dicas práticas.
-3. ÍNDICE (TOC) CLICÁVEL E PERFEITO: A estrutura HTML do índice DEVE conter links de ancoragem exatos para cada capítulo usando este formato:
-   <div class="toc-list"><a href="#cap-1"><span>Nome do Capítulo</span><span class="toc-dots"></span><span>Número</span></a></div>
-   O índice deve caber limpo em uma única página, sem títulos de "Continuação".
-4. ESTILO DOS CAPÍTULOS: ${regraEstiloCapitulos}
-5. CITAÇÕES (QUOTES): NUNCA escreva o nome do autor dentro das tags <blockquote> ou ao final delas. Apenas a citação pura.
-6. PÁGINA DO AUTOR OBRIGATÓRIA: Crie no final do livro UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora e robusta.</p></div></div></div>.
-7. IMAGENS CONTEXTUAIS E REAIS (REGRA RÍGIDA): Para cada capítulo, você DEVE buscar e injetar URLs reais do Unsplash que combinem com o tema do capítulo. É ABSOLUTAMENTE PROIBIDO usar desenhos, ilustrações, animações ou elementos sci-fi/tecnológicos. Use EXCLUSIVAMENTE fotografias humanas reais e realistas. Nunca repita imagens.
-8. CABEÇALHOS/RODAPÉS E BORDAS: Use <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div> e <div class="page-footer">${regraRodape}</div> (NUNCA escreva a palavra "página" perto do número). Respeite as tags de container para que as bordas selecionadas no painel apareçam corretamente em volta das folhas.
-9. PROIBIÇÃO DE ESTILOS INLINE: É ESTRITAMENTE PROIBIDO adicionar 'style="margin:..."' , '<br>' ou espaçamentos diretamente nas tags <p> ou <h2>. O CSS global cuidará disso. Se quebrar essa regra, o e-book ficará deformado. Garanta que haja exato uma linha de espaço (margin-bottom padrão) entre tópicos e parágrafos.
-10. INÍCIO DA ESTRUTURA HTML EXIGIDA:
-   - ${regraCapaHtml}
-   - Índice ancorado perfeitamente.
-   - Páginas de capítulos longos e detalhados.`;
+      const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA O INÍCIO:\n"""\n${content}\n"""` }], false);
+      if (data && data.html) aplicarHtmlNovo(data.html, false);
+      (window as any).showNotification("Passo 1 Concluído! Estrutura inicial gerada.", "success");
+  };
 
-    const data = await chamarMotorIA(instrucaoSistema, [{ text: `TEXTO BASE:\n"""\n${content || 'Gerar E-book'}\n"""` }], false);
-    
-    if (data && data.html) {
-        const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-        const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-        let htmlFinal = moldarApresentacaoHtml(purificarHTML(data.html));
-        if (codEl) { setHistoricoCodigo((prev) => [...prev, codEl.value]); codEl.value = htmlFinal; }
-        if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
-        (window as any).showNotification("E-book Gerado com Sucesso!", "success");
-    }
+  // BOTÃO PASSO 2: CONTINUAR CAPÍTULOS
+  const continuarEbookEtapas = async () => {
+      const content = productContent.trim();
+      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+      if (!codEl?.value.includes('page-container')) { (window as any).showNotification('Gere o Passo 1 primeiro!', 'error'); return; }
+      if (!content) { (window as any).showNotification('Digite os próximos capítulos.', 'error'); return; }
+
+      const { regrasComuns } = obterInstrucoesBase();
+
+      const instrucao = `Atue como Especialista Editorial. Você deve CONTINUAR um livro existente.
+      ${regrasComuns}
+      OBRIGAÇÕES DESTE MODO (PASSO 2):
+      - Gere APENAS as divs <div class="page-container"> dos NOVOS capítulos solicitados.
+      - PROIBIDO: Não gere tags <html> ou <body>. Não gere capa, índice, conclusão nem página de autor. Apenas conteúdo puro.
+      `;
+
+      const data = await chamarMotorIA(instrucao, [{ text: `PRÓXIMOS CAPÍTULOS:\n"""\n${content}\n"""` }], false);
+      if (data && data.html) aplicarHtmlNovo(data.html, true);
+      (window as any).showNotification("Passo 2 Concluído! Capítulos injetados no final.", "success");
+  };
+
+  // BOTÃO PASSO 3: FINALIZAR (CONCLUSÃO E AUTOR)
+  const finalizarEbookEtapas = async () => {
+      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+      if (!codEl?.value.includes('page-container')) { (window as any).showNotification('Gere o livro antes de finalizar.', 'error'); return; }
+
+      const { regrasComuns } = obterInstrucoesBase();
+
+      const instrucao = `Atue como Especialista Editorial. Você deve FINALIZAR um livro existente.
+      ${regrasComuns}
+      OBRIGAÇÕES DESTE MODO (PASSO 3):
+      - Gere APENAS DUAS coisas:
+      1. As divs <div class="page-container"> contendo a Conclusão do tema.
+      2. OBRIGATÓRIO: Crie no final UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora para o autor ${livroAutores}.</p></div></div></div>.
+      - PROIBIDO: Não gere capítulos normais, não gere capa, não gere índice.
+      `;
+
+      const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para escrever a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
+      if (data && data.html) aplicarHtmlNovo(data.html, true);
+      (window as any).showNotification("Passo 3 Concluído! E-book finalizado com Sucesso.", "success");
+  };
+
+  const aplicarHtmlNovo = (htmlCru: string, isInjetar: boolean) => {
+      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+      const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
+      let novoConteudo = purificarHTML(htmlCru);
+      
+      let htmlFinal = "";
+      if (isInjetar) {
+          htmlFinal = injetarHtmlNoFinal(codEl.value, novoConteudo);
+      } else {
+          htmlFinal = moldarApresentacaoHtml(novoConteudo);
+      }
+
+      if (codEl) { setHistoricoCodigo((prev) => [...prev, codEl.value]); codEl.value = htmlFinal; }
+      if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
   };
 
   useEffect(() => {
@@ -699,7 +760,7 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                       {/* COMANDO GLOBAL */}
                       <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
                           <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
-                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Remova o capítulo 2 e reajuste a numeração inteira e o índice."></textarea>
+                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva o Índice para incluir os novos capítulos que eu gerei nas etapas."></textarea>
                           <button onClick={aplicarModificacaoGlobal} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wide py-2.5 rounded-lg transition shadow-sm">Aplicar no Livro Inteiro</button>
                       </div>
 
@@ -1018,16 +1079,8 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                           </div>
                       </div>
 
-                      {/* CONTEÚDO */}
+                      {/* CONTEÚDO E GERAÇÃO */}
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
-                          {/* 
-                             ATENÇÃO: O seletor de API foi ocultado da interface. 
-                             O sistema usará sempre o 'gemini' por padrão.
-                             Para mudar o motor globalmente, basta ir ao topo do código e
-                             alterar o valor padrão do estado: 
-                             const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini');
-                          */}
-                          
                           <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span> Geração Editorial</h3>
                           
                           <div className="mb-4">
@@ -1041,33 +1094,41 @@ DIRETRIZES MÁXIMAS DE PENALIZAÇÃO (CUMPRA ESTAS REGRAS ESTRITAMENTE OU O SIST
                           </div>
 
                           <div className="mb-4">
-                              <label className="input-label text-indigo-800">Modo de Geração</label>
-                              <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard font-bold text-indigo-700 bg-white mb-2">
-                                  <option value="expandido">Expandir e Enriquecer Textos com IA</option>
-                                  <option value="rigoroso">Rigoroso (Apenas corrigir ortografia)</option>
-                                  <option value="prompt">Criar 100% do Zero via Prompt</option>
-                              </select>
-                          </div>
-
-                          <div className="mb-4 flex items-center justify-between bg-white p-3 rounded-lg border border-indigo-100">
-                              <label className="input-label mb-0 cursor-pointer text-indigo-900">Incluir Introdução e Conclusão</label>
-                              <input type="checkbox" checked={incluirIntroConclusao} onChange={(e) => setIncluirIntroConclusao(e.target.checked)} className="w-4 h-4 accent-indigo-600 rounded cursor-pointer" />
-                          </div>
-
-                          <div className="mb-4">
-                              <label className="input-label text-indigo-800 mb-2">Texto Base ou Prompt de Comando</label>
+                              <label className="input-label text-indigo-800 mb-2">Instruções / Capítulos para Gerar</label>
                               <textarea 
                                   value={productContent} 
                                   onChange={(e) => setProductContent(e.target.value)} 
                                   className="input-standard h-36 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
-                                  placeholder="Cole as dezenas de páginas aqui, ou digite o tema que a IA criará sozinha..."
+                                  placeholder="Digite o tema principal ou cole a lista de capítulos que deseja gerar/continuar..."
                               ></textarea>
                           </div>
 
-                          <div className="flex flex-col gap-2 mt-auto">
-                              <button onClick={() => executarGeracaoEbook()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider py-3.5 rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2">
-                                  <i className="fas fa-file-alt text-yellow-300 text-lg"></i> Gerar Livro Completo
+                          <div className="flex flex-col gap-3 mt-2">
+                              {/* OPÇÃO 1: COMPLETO (RECOMENDADO PARA APIS PAGAS) */}
+                              <button onClick={() => gerarLivroCompleto()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider py-3.5 rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
+                                  <i className="fas fa-bolt text-yellow-300 text-lg"></i> Gerar E-book Completo
                               </button>
+                              
+                              <div className="flex items-center my-1 opacity-50">
+                                  <div className="flex-1 h-px bg-indigo-800"></div>
+                                  <span className="px-3 text-[9px] font-bold text-indigo-900 uppercase">Ou Gerar por Etapas</span>
+                                  <div className="flex-1 h-px bg-indigo-800"></div>
+                              </div>
+
+                              {/* OPÇÃO 2: ETAPAS */}
+                              <div className="grid grid-cols-1 gap-2">
+                                  <button onClick={() => iniciarEbookEtapas()} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-sky-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
+                                      <i className="fas fa-play-circle text-white"></i> 1. Iniciar (Capa e Índice)
+                                  </button>
+                                  
+                                  <button onClick={() => continuarEbookEtapas()} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-emerald-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
+                                      <i className="fas fa-plus-circle text-white"></i> 2. Adicionar Capítulos (Meio)
+                                  </button>
+
+                                  <button onClick={() => finalizarEbookEtapas()} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-amber-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
+                                      <i className="fas fa-flag-checkered text-white"></i> 3. Finalizar (Conclusão e Autor)
+                                  </button>
+                              </div>
                           </div>
                       </div>
                   </div>
