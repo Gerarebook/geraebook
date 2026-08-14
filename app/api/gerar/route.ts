@@ -46,14 +46,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, html: htmlGerado });
     }
 
-    // === SE O USUÁRIO ESCOLHEU O GEMINI (GEMINI 3.6 FLASH) ===
+    // === SE O USUÁRIO ESCOLHEU O GEMINI (GEMINI 3.5 FLASH) ===
     const geminiApiKey = process.env.GEMINI_API_KEY;
     
     if (!geminiApiKey) {
       return NextResponse.json({ success: false, error: "Chave da API do Gemini não configurada na Vercel." }, { status: 500 });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
