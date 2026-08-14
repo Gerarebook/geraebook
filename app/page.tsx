@@ -244,7 +244,7 @@ export default function Home() {
   const purificarHTML = (rawHtml: string) => {
       let clean = rawHtml;
       
-      // 1. Extrai apenas o HTML
+      // 1. Extrai apenas o HTML (Remove textos antes ou depois que a IA escreva)
       const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
       if (markdownMatch) clean = markdownMatch[1];
       clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
@@ -256,12 +256,18 @@ export default function Home() {
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
-      // 3. O FILTRO ANTI-ALUCINAÇÃO (Limpa parágrafos vazios e lixo de formatação)
-      clean = clean.replace(/<br\s*\/?>/gi, ''); 
-      clean = clean.replace(/<p>\s*<\/p>/gi, ''); 
-      clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); 
+      // 3. O FILTRO ANTI-ALUCINAÇÃO E ANTI-BURACOS
+      clean = clean.replace(/<br\s*\/?>/gi, ''); // Deleta <br>
+      clean = clean.replace(/<p>\s*<\/p>/gi, ''); // Deleta <p></p> vazio
+      clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); // Deleta parágrafos com espaço em branco
       clean = clean.replace(/<p>\s*&nbsp;\s*<\/p>/gi, ''); 
       
+      // Remove parágrafos envolvendo tags de índice que a IA pode colocar por engano
+      clean = clean.replace(/<p>\s*<a class="toc-item"/gi, '<a class="toc-item"');
+      clean = clean.replace(/<\/a>\s*<\/p>/gi, '</a>');
+      clean = clean.replace(/<p>\s*<div class="toc-container"/gi, '<div class="toc-container"');
+      clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
+
       return clean.trim();
   };
 
@@ -370,11 +376,15 @@ img { max-width: 100%; height: auto; max-height: 40vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1.2em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) */
-.toc-list { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 1.5rem; }
-.toc-list a { display: flex; align-items: baseline; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; line-height: 1.5; }
-.toc-list a:hover { color: var(--color-secondary); }
-.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.4; }
+/* ÍNDICE CEGO (TOC) - ALINHAMENTO COMPACTO E PERFEITO */
+.toc-container { display: flex; flex-direction: column; width: 100%; margin: 1.5rem 0; }
+.toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; padding: 6px 0; }
+.toc-item:hover { color: var(--color-secondary); }
+.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
+
+/* Fallback de segurança para IA insistente */
+.toc-list { display: flex; flex-direction: column; width: 100%; margin: 4px 0; padding: 0; }
+.toc-list a { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; padding: 4px 0; }
 
 /* SEÇÃO DO AUTOR CENTRALIZADA */
 .page-container.author-page { display: flex; align-items: center; justify-content: center; min-height: 100%; }
@@ -598,7 +608,7 @@ ${ebookStyles}
     ${regrasComuns}
     OBRIGAÇÕES DESTE MODO (COMPLETO):
     - Gere a Capa: ${regraCapaHtml}
-    - Gere o Índice Clicável (<div class="toc-list">...) com a estrutura completa. No lugar dos números das páginas no índice, insira "X" pois a paginação será automática (Exemplo: <div class="toc-list"><a href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span>X</span></a></div>)
+    - Gere o Índice Clicável: Crie UMA ÚNICA <div class="toc-container">. Dentro dela, insira um link para cada capítulo neste formato exato: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span>X</span></a>
     - Gere TODOS os capítulos solicitados.
     - Gere a Conclusão.
     - OBRIGATÓRIO: Crie no final do livro UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia robusta.</p></div></div></div>.
@@ -617,10 +627,10 @@ ${ebookStyles}
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 1 - INÍCIO):
       1. GERE A CAPA: ${regraCapaHtml}
-      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos necessários para o tema e Conclusão).
-         - Formato OBRIGATÓRIO do Índice: <div class="toc-list"><a href="#cap-1"><span>Nome do Capítulo</span><span class="toc-dots"></span><span>X</span></a></div>
-         - IMPORTANTE: No lugar do número da página, coloque o caractere "X" ou "-", pois é impossível saber a página exata nesta etapa.
-      3. GERE APENAS A INTRODUÇÃO: Escreva apenas a página (ou páginas) de Introdução. Coloque id="introducao" na div ou h1 para o link do índice funcionar.
+      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos e Conclusão).
+         - Formato OBRIGATÓRIO: Crie UMA ÚNICA <div class="toc-container"> e, dentro dela, coloque os itens assim: <a class="toc-item" href="#intro"><span>Introdução</span><span class="toc-dots"></span><span>X</span></a>
+         - IMPORTANTE: No lugar do número da página, coloque o caractere "X". Não use a classe toc-list.
+      3. GERE APENAS A INTRODUÇÃO: Escreva apenas a página (ou páginas) de Introdução. Coloque id="intro" na div ou h1 para o link do índice funcionar.
       4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO. NÃO escreva o Capítulo 1 ou seguintes. NÃO escreva a conclusão.
       `;
 
@@ -642,10 +652,10 @@ ${ebookStyles}
       const instrucao = `Atue como Especialista Editorial. Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 2 - MEIO):
-      1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML do e-book atual (fornecido abaixo). Veja os itens listados na classe "toc-list".
+      1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML atual (fornecido abaixo). Veja os itens listados na classe "toc-container".
       2. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
-      3. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência.
-      4. FIDELIDADE ABSOLUTA: Use EXATAMENTE os mesmos Nomes e IDs (href) que constam no índice do HTML original. Nunca invente um nome diferente do que já está no índice.
+      3. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 capítulos exatos da sequência do índice.
+      4. FIDELIDADE ABSOLUTA: Use EXATAMENTE os mesmos Nomes e os mesmos IDs (href) que constam no índice do HTML original. Nunca invente um nome diferente.
       5. FORMATO DE SAÍDA: Retorne APENAS as tags <div class="page-container"> dos capítulos novos. NUNCA gere capa, índice, <html> ou <body>.
       `;
 
