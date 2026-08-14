@@ -7,12 +7,12 @@ import { NextResponse } from 'next/server';
 // 'gemini'  -> Para usar os modelos do Google (com rodízio configurável)
 // 'groq'    -> Para usar o Llama 3.3 via Groq
 // 'together'-> Para usar a Together.ai
-const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' = 'gemini';
+const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' = 'together';
 
 // Configuração caso use o Gemini (Rodízio de Modelos)
 const REQUISICOES_POR_MODELO = 9999; // Deixe alto para travar em um único modelo se tiver API paga
 const MODELOS_GEMINI = [
-  "gemini-1.5-flash",      // Padrão: Rápido e confiável
+  "gemini-3.7-flash",      // Padrão: Rápido e confiável
   // "gemini-1.5-pro"      // Alternativa pesada (descomente se quiser)
 ];
 
