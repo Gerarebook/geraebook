@@ -244,7 +244,7 @@ export default function Home() {
   const purificarHTML = (rawHtml: string) => {
       let clean = rawHtml;
       
-      // 1. Extrai apenas o HTML (Remove textos antes ou depois que a IA escreva)
+      // 1. Extrai apenas o HTML
       const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
       if (markdownMatch) clean = markdownMatch[1];
       clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
@@ -256,10 +256,11 @@ export default function Home() {
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
-      // 3. O FILTRO ANTI-BURACO: Remove parágrafos vazios e quebras de linha manuais
-      clean = clean.replace(/<br\s*\/?>/gi, ''); // Deleta <br>
-      clean = clean.replace(/<p>\s*<\/p>/gi, ''); // Deleta <p></p> vazio
-      clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); // Deleta parágrafos com espaço em branco
+      // 3. O FILTRO ANTI-ALUCINAÇÃO (Limpa parágrafos vazios e lixo de formatação)
+      clean = clean.replace(/<br\s*\/?>/gi, ''); 
+      clean = clean.replace(/<p>\s*<\/p>/gi, ''); 
+      clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); 
+      clean = clean.replace(/<p>\s*&nbsp;\s*<\/p>/gi, ''); 
       
       return clean.trim();
   };
@@ -552,18 +553,18 @@ ${ebookStyles}
   const obterInstrucoesBase = () => {
       let regraEstiloCapitulos = "";
       if (estiloCapitulos === 'padrao') {
-          regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon">&#xf02d;</div><h1>TÍTULO DO CAPÍTULO AQUI</h1></div>`;
+          regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon">&#xf02d;</div><h1 id="ID_DO_CAPITULO">NOME EXATO DO CAPÍTULO AQUI</h1></div>`;
       } else if (estiloCapitulos === 'box-arredondado') {
-          regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-box-rounded" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-box-inner"><h1 style="margin:0; font-size: 2.2rem;">TÍTULO DO CAPÍTULO AQUI</h1></div></div>`;
+          regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-box-rounded" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" style="margin:0; font-size: 2.2rem;">NOME EXATO DO CAPÍTULO AQUI</h1></div></div>`;
       } else if (estiloCapitulos === 'imagem-pura') {
           regraEstiloCapitulos = `Crie uma página EXCLUSIVA contendo APENAS a imagem: <div class="page-container cap-img-pura" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"></div>`;
       } else {
-          regraEstiloCapitulos = `Estilo Inline: Coloque o <h2>TÍTULO DO CAPÍTULO</h2> direto no topo da <div class="page-container"> normal de texto.`;
+          regraEstiloCapitulos = `Estilo Inline: Coloque o <h2 id="ID_DO_CAPITULO">NOME EXATO DO CAPÍTULO AQUI</h2> direto no topo da <div class="page-container"> normal de texto.`;
       }
 
       let regraRodape = "";
-      if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>X</span>`;
-      else regraRodape = `<span>X</span>`;
+      if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>-</span>`;
+      else regraRodape = `<span>-</span>`;
 
       let regraCapaHtml = "";
       if (tipoCapa === 'imagem-texto') {
@@ -576,12 +577,11 @@ ${ebookStyles}
 
       const regrasComuns = `
       DIRETRIZES DE PENALIZAÇÃO ESTRITA:
-      1. LIMITE DE PARÁGRAFOS: NUNCA coloque mais de 4 ou 5 parágrafos dentro de uma mesma <div class="page-container">. Para não sobrepor o rodapé, feche a div atual e abra uma NOVA <div class="page-container"> com um novo cabeçalho e rodapé para continuar a escrever.
-      2. PROIBIDO PARÁGRAFOS VAZIOS: Você NUNCA deve gerar <br>, <p></p> vazio ou <p>&nbsp;</p>. Escreva um parágrafo de texto imediatamente abaixo do outro. O CSS cuidará do espaçamento.
-      3. IMAGENS CONTEXTUAIS: Busque URLs reais do Unsplash. PROIBIDO usar desenhos ou gráficos.
-      4. CABEÇALHOS/RODAPÉS: Em cada página de texto use EXATAMENTE <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO ATUAL</span></div> e <div class="page-footer">${regraRodape}</div>.
-      5. ESTILO CAPÍTULOS: ${regraEstiloCapitulos}
-      6. MODO GERADOR: RETORNE APENAS HTML PURO. Não escreva textos como "Aqui está a continuação".
+      1. LIMITE DE PARÁGRAFOS E ESPAÇAMENTO: NUNCA coloque mais de 4 ou 5 parágrafos dentro de uma mesma <div class="page-container">. Para não sobrepor o rodapé, feche a div atual e abra uma NOVA <div class="page-container">. NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva um parágrafo imediatamente após o outro e deixe o CSS dar o espaço.
+      2. IMAGENS CONTEXTUAIS: Busque URLs reais do Unsplash. PROIBIDO usar desenhos ou gráficos.
+      3. CABEÇALHOS/RODAPÉS: Em cada página de texto use EXATAMENTE <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO ATUAL</span></div> e <div class="page-footer">${regraRodape}</div>.
+      4. ESTILO CAPÍTULOS: ${regraEstiloCapitulos}
+      5. MODO GERADOR CÓDIGO PURO: RETORNE APENAS HTML. Não escreva textos informativos ou saudações.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape };
@@ -598,7 +598,7 @@ ${ebookStyles}
     ${regrasComuns}
     OBRIGAÇÕES DESTE MODO (COMPLETO):
     - Gere a Capa: ${regraCapaHtml}
-    - Gere o Índice Clicável (<div class="toc-list">...)
+    - Gere o Índice Clicável (<div class="toc-list">...) com a estrutura completa. No lugar dos números das páginas no índice, insira "X" pois a paginação será automática (Exemplo: <div class="toc-list"><a href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span>X</span></a></div>)
     - Gere TODOS os capítulos solicitados.
     - Gere a Conclusão.
     - OBRIGATÓRIO: Crie no final do livro UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia robusta.</p></div></div></div>.
@@ -613,18 +613,20 @@ ${ebookStyles}
       const content = productContent.trim();
       const { regrasComuns, regraCapaHtml } = obterInstrucoesBase();
 
-      const instrucao = `Atue como Especialista Editorial. Gere APENAS O INÍCIO do E-book em HTML.
+      const instrucao = `Atue como Especialista Editorial. Você vai INICIAR um e-book gerando APENAS a estrutura base e a introdução.
       ${regrasComuns}
-      OBRIGAÇÕES DESTE MODO (PASSO 1):
-      - Gere a Capa: ${regraCapaHtml}
-      - Gere o Índice Clicável (<div class="toc-list">...). O ÍNDICE DEVE prever a estrutura do livro inteiro (Ex: de 6 a 12 capítulos).
-      - Depois do índice, escreva APENAS o conteúdo da Introdução e do Capítulo 1.
-      - PARE AÍ. NÃO escreva os capítulos seguintes, não gere Conclusão nem a página do Autor agora.
+      OBRIGAÇÕES DESTE MODO (PASSO 1 - INÍCIO):
+      1. GERE A CAPA: ${regraCapaHtml}
+      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos necessários para o tema e Conclusão).
+         - Formato OBRIGATÓRIO do Índice: <div class="toc-list"><a href="#cap-1"><span>Nome do Capítulo</span><span class="toc-dots"></span><span>X</span></a></div>
+         - IMPORTANTE: No lugar do número da página, coloque o caractere "X" ou "-", pois é impossível saber a página exata nesta etapa.
+      3. GERE APENAS A INTRODUÇÃO: Escreva apenas a página (ou páginas) de Introdução. Coloque id="introducao" na div ou h1 para o link do índice funcionar.
+      4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO. NÃO escreva o Capítulo 1 ou seguintes. NÃO escreva a conclusão.
       `;
 
-      const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E O INÍCIO:\n"""\n${content}\n"""` }], false);
+      const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
       if (data && data.html) aplicarHtmlNovo(data.html, false);
-      (window as any).showNotification("Passo 1 Concluído! Estrutura inicial e Cap 1 gerados.", "success");
+      (window as any).showNotification("Passo 1 Concluído! Índice e Introdução gerados.", "success");
   };
 
   // BOTÃO PASSO 2: CONTINUAR CAPÍTULOS
@@ -637,23 +639,23 @@ ${ebookStyles}
 
       const { regrasComuns } = obterInstrucoesBase();
 
-      const instrucao = `Atue como Especialista Editorial. Você deve CONTINUAR um livro existente.
+      const instrucao = `Atue como Especialista Editorial. Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
-      OBRIGAÇÕES DESTE MODO (PASSO 2):
-      1. LEIA O SEU PRÓPRIO CÓDIGO: Abaixo eu vou fornecer o HTML atual do E-book. Leia a classe "toc-list" (Índice) que você criou no passo anterior.
-      2. IDENTIFIQUE O PONTO DE PARADA: Veja qual foi o último capítulo que você já escreveu no HTML.
-      3. CONTINUE ESCREVENDO: Escreva APENAS os próximos 2 ou 3 capítulos da sequência.
-      4. NÃO ALUCINE TÍTULOS: Use EXATAMENTE os nomes dos capítulos que estão na sua "toc-list".
-      5. FORMATO DE SAÍDA: Retorne APENAS as novas <div class="page-container"> dos novos capítulos. Não gere capa, não gere as tags <html> ou <body>, não gere índice novamente. Apenas o código dos capítulos novos.
+      OBRIGAÇÕES DESTE MODO (PASSO 2 - MEIO):
+      1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML do e-book atual (fornecido abaixo). Veja os itens listados na classe "toc-list".
+      2. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
+      3. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência.
+      4. FIDELIDADE ABSOLUTA: Use EXATAMENTE os mesmos Nomes e IDs (href) que constam no índice do HTML original. Nunca invente um nome diferente do que já está no índice.
+      5. FORMATO DE SAÍDA: Retorne APENAS as tags <div class="page-container"> dos capítulos novos. NUNCA gere capa, índice, <html> ou <body>.
       `;
 
       const data = await chamarMotorIA(instrucao, [
-          { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA O ÍNDICE E VEJA ONDE PAROU):\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES ADICIONAIS:\n"""\n${content || 'Siga a lista do índice e gere os próximos capítulos.'}\n"""` }
+          { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA O ÍNDICE E VEJA ONDE PAROU O ÚLTIMO CAPÍTULO):\n"""\n${currentHtml}\n"""` },
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos capítulos densos.'}\n"""` }
       ], false);
       
       if (data && data.html) aplicarHtmlNovo(data.html, true);
-      (window as any).showNotification("Passo 2 Concluído! Próximos capítulos injetados no final.", "success");
+      (window as any).showNotification("Passo 2 Concluído! Próximos capítulos adicionados.", "success");
   };
 
   // BOTÃO PASSO 3: FINALIZAR (CONCLUSÃO E AUTOR)
@@ -663,18 +665,17 @@ ${ebookStyles}
 
       const { regrasComuns } = obterInstrucoesBase();
 
-      const instrucao = `Atue como Especialista Editorial. Você deve FINALIZAR um livro existente.
+      const instrucao = `Atue como Especialista Editorial. Você vai FINALIZAR a escrita do e-book.
       ${regrasComuns}
-      OBRIGAÇÕES DESTE MODO (PASSO 3):
-      - Gere APENAS DUAS coisas:
-      1. As divs <div class="page-container"> contendo o capítulo de Conclusão do livro.
-      2. OBRIGATÓRIO: Crie no final UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia inspiradora para o autor ${livroAutores}.</p></div></div></div>.
-      - PROIBIDO: Não gere capítulos normais, não gere capa, não gere índice. Apenas a conclusão e a página final.
+      OBRIGAÇÕES DESTE MODO (PASSO 3 - FIM):
+      1. GERE A CONCLUSÃO: Retorne as <div class="page-container"> contendo o capítulo de Conclusão do livro com id="conclusao".
+      2. GERE A PÁGINA DO AUTOR (OBRIGATÓRIO): Crie logo após a conclusão UMA ÚNICA <div class="page-container author-page"> contendo a estrutura: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia envolvente para o autor ${livroAutores}.</p></div></div></div>.
+      3. PROIBIÇÃO: NUNCA gere capa, índice ou capítulos do meio. Apenas a conclusão e o autor.
       `;
 
-      const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para escrever a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
+      const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
       if (data && data.html) aplicarHtmlNovo(data.html, true);
-      (window as any).showNotification("Passo 3 Concluído! E-book finalizado com Sucesso.", "success");
+      (window as any).showNotification("Passo 3 Concluído! E-book finalizado com sucesso.", "success");
   };
 
   const aplicarHtmlNovo = (htmlCru: string, isInjetar: boolean) => {
