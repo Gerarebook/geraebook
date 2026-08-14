@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
 const REQUISICOES_POR_MODELO = 2; // Pula de modelo a cada 2 requisições. Você pode alterar para 3, 4, etc.
 
 const MODELOS_GEMINI = [
-  "gemini-3.6-flash",      // Padrão: Rápido e confiável
+  "gemini-3.7-flash",      // Padrão: Rápido e confiável
   //"gemini-3.6-flash",   // Alternativa leve: Ótimo para capítulos curtos e estruturação
  // "gemini-3.7-flash"         // Alternativa pesada: Mais inteligente e denso
   // Se o Google lançar um novo, basta colocar uma vírgula acima e adicionar aqui: "gemini-2.0-flash",
