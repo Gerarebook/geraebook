@@ -181,14 +181,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
 </script>`;
 
 export default function Home() {
-  useEffect(() => {
-    const verificarAcesso = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { window.location.href = '/login'; }
-    };
-    verificarAcesso();
-  }, []);
-
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   const [textEngine, setTextEngine] = useState<'gemini' | 'groq'>('gemini'); 
   const [modoInspetor, setModoInspetor] = useState(false);
@@ -200,7 +192,7 @@ export default function Home() {
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
-  const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('1em'); // Deixei padrão um pouco mais colado
+  const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('0.8em'); 
   const [recuoParagrafo, setRecuoParagrafo] = useState('20px');
   
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'double'>('none');
@@ -231,33 +223,21 @@ export default function Home() {
 
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Img = event.target?.result as string;
-      if (elementoSelecionado && elementoSelecionado.tagName === 'img') {
-        atualizarElemento('src', base64Img);
-        (window as any).showNotification("Imagem substituída com sucesso!", "success");
-      } else if (elementoSelecionado && elementoSelecionado.bgImage !== undefined) {
-        atualizarElemento('bgImage', base64Img);
-        (window as any).showNotification("Fundo substituído com sucesso!", "success");
-      } else {
-        setImagemCapaUrl(base64Img);
-        (window as any).showNotification("Capa atualizada com sucesso!", "success");
-      }
+  useEffect(() => {
+    const verificarAcesso = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { window.location.href = '/login'; }
     };
-    reader.readAsDataURL(file);
-  };
+    verificarAcesso();
+  }, []);
 
-  const getPaletaObj = () => {
-      if (paletaCores === 'manual') {
-          return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: '#e5e7eb' };
-      }
-      if (htmlTemplate.trim() && paletaCores === 'personalizado') {
-          return { bg: 'var(--template-bg, #ffffff)', text: 'var(--template-text, #111827)', pri: 'var(--template-pri, #3b82f6)', sec: 'var(--template-sec, #60a5fa)', borda: 'var(--template-border, #e5e7eb)' };
-      }
+  // ==========================================
+  // FUNÇÕES DE ESTRUTURA (Hoisted)
+  // ==========================================
+
+  function getPaletaObj() {
+      if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: '#e5e7eb' };
+      if (htmlTemplate.trim() && paletaCores === 'personalizado') return { bg: 'var(--template-bg, #ffffff)', text: 'var(--template-text, #111827)', pri: 'var(--template-pri, #3b82f6)', sec: 'var(--template-sec, #60a5fa)', borda: 'var(--template-border, #e5e7eb)' };
       switch(paletaCores) {
           case 'moderno': return { bg: '#ffffff', text: '#111827', pri: '#2563eb', sec: '#3b82f6', borda: '#e5e7eb' };
           case 'sepia': return { bg: '#fdf6e3', text: '#4a4036', pri: '#8b6d4f', sec: '#c08770', borda: '#e8dccc' };
@@ -265,9 +245,9 @@ export default function Home() {
           case 'personalizado': return { bg: '#ffffff', text: '#111827', pri: '#10b981', sec: '#34d399', borda: '#e5e7eb' };
           default: return { bg: '#ffffff', text: '#1e1914', pri: '#8b6d4f', sec: '#c08770', borda: '#e2e8f0' };
       }
-  };
+  }
 
-  const purificarHTML = (rawHtml: string) => {
+  function purificarHTML(rawHtml: string) {
       let clean = rawHtml;
       
       const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
@@ -280,7 +260,7 @@ export default function Home() {
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
-      // FILTRO ANTI-ALUCINAÇÃO
+      // FILTRO ANTI-ALUCINAÇÃO EXTREMA
       clean = clean.replace(/<br\s*\/?>/gi, ''); 
       clean = clean.replace(/<p>\s*<\/p>/gi, ''); 
       clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); 
@@ -292,16 +272,15 @@ export default function Home() {
       clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
 
       return clean.trim();
-  };
+  }
 
-  // Ajuste do Padding Superior (Afastando o texto do Topo e adaptando para impressão)
-  const getEstilosFormato = (formato: string) => {
-      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '30mm 20mm 25mm 20mm' }; 
-      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '30mm 20mm 25mm 20mm' };
-      return { width: '210mm', height: '297mm', padding: '30mm 20mm 25mm 20mm' }; 
-  };
+  function getEstilosFormato(formato: string) {
+      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '35mm 20mm 25mm 20mm' }; 
+      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '35mm 20mm 25mm 20mm' };
+      return { width: '210mm', height: '297mm', padding: '35mm 20mm 25mm 20mm' }; 
+  }
 
-  const moldarApresentacaoHtml = (rawHtml: string) => {
+  function moldarApresentacaoHtml(rawHtml: string) {
       let clean = purificarHTML(rawHtml);
       const conf = getEstilosFormato(formatoLivro);
       const paleta = getPaletaObj();
@@ -389,9 +368,7 @@ body {
     border-bottom: 1px solid rgba(0,0,0, 0.1); padding-bottom: 5px; 
     font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px;
 }
-.page-header span {
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;
-}
+.page-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%; }
 
 .page-footer { 
     position: absolute; bottom: 12mm; left: 20mm; right: 20mm; 
@@ -400,16 +377,14 @@ body {
     ${estiloRodape === 'simples' ? 'display: flex; justify-content: space-between; align-items: flex-start;' : ''}
     ${estiloRodape === 'centralizado' ? 'display: flex; justify-content: center;' : ''}
 }
-.page-number::after {
-    content: counter(ebook-page);
-}
+.page-number::after { content: counter(ebook-page); }
 
 /* CONTEÚDO BASE */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 1.5rem; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 h2 { font-weight: 700; font-size: 1.6rem; margin-top: 1.5rem; margin-bottom: var(--line-spacing); }
 
-p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: 0.8em !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
 blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(0,0,0, 0.03); padding: 15px 20px; margin: 1.5rem 0; font-size: 11pt; border-radius: 0 8px 8px 0; }
 .highlight-box { background: rgba(139, 109, 79, 0.15); padding: 15px 20px; border-radius: 8px; margin: 1.5rem 0; font-weight: 500; }
@@ -418,21 +393,19 @@ img { max-width: 100%; height: auto; max-height: 40vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1.2em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) - ALINHAMENTO COMPACTO E PERFEITO */
+/* ÍNDICE CEGO (TOC) */
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1.5rem 0; }
 .toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; padding: 6px 0; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
-
-/* Fallback de segurança para IA insistente */
 .toc-list { display: flex; flex-direction: column; width: 100%; margin: 4px 0; padding: 0; }
 .toc-list a { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; padding: 4px 0; }
 
-/* SEÇÃO DO AUTOR CENTRALIZADA */
-.page-container.author-page { display: flex; align-items: center; justify-content: center; min-height: 100%; }
-.author-section { display: flex; align-items: center; gap: 30px; width: 100%; }
-.author-section.layout-topo { flex-direction: column; text-align: center; }
-.author-section.layout-esquerda { flex-direction: row; text-align: justify; }
+/* SEÇÃO DO AUTOR - TOPO ALIGN */
+.page-container.author-page { display: block; }
+.author-section { display: flex; align-items: flex-start; gap: 30px; width: 100%; margin-top: 2rem; }
+.author-section.layout-topo { flex-direction: column; text-align: center; align-items: center; }
+.author-section.layout-esquerda { flex-direction: row; text-align: justify; align-items: flex-start; }
 .author-photo { object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); flex-shrink: 0; }
 .author-photo.circulo { border-radius: 50%; width: 180px; height: 180px; }
 .author-photo.retangulo { border-radius: 8px; width: 160px; height: 210px; }
@@ -472,60 +445,57 @@ ${ebookStyles}
     </div>
 </body>
 </html>`;
-  };
+  }
 
-  useEffect(() => {
-    const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-    const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-    if (codEl && codEl.value && prevEl) {
-        prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
-    }
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
+  // ==========================================
+  // FUNÇÕES DE BOTÃO E EVENTOS
+  // ==========================================
 
-  useEffect(() => {
-    const handleMessage = (e: MessageEvent) => {
-        if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
-        if (e.data.type === 'HTML_SYNC') {
-            const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-            if (codEl) {
-                const htmlLimpo = moldarApresentacaoHtml(e.data.html);
-                setHistoricoCodigo((prev: string[]) => {
-                    if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
-                    return [...prev, codEl.value]; 
-                });
-                codEl.value = htmlLimpo; 
-            }
-        }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const base64Img = event.target?.result as string;
+          if (elementoSelecionado && elementoSelecionado.tagName === 'img') {
+              atualizarElemento('src', base64Img);
+              (window as any).showNotification("Imagem substituída com sucesso!", "success");
+          } else if (elementoSelecionado && elementoSelecionado.bgImage !== undefined) {
+              atualizarElemento('bgImage', base64Img);
+              (window as any).showNotification("Fundo substituído com sucesso!", "success");
+          } else {
+              setImagemCapaUrl(base64Img);
+              (window as any).showNotification("Capa atualizada com sucesso!", "success");
+          }
+      };
+      reader.readAsDataURL(file);
+  }
 
-  const toggleInspetor = () => {
+  function toggleInspetor() {
       const newMode = !modoInspetor;
       setModoInspetor(newMode);
       setElementoSelecionado(null);
       const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
       if(iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
-  };
+  }
 
-  const atualizarElemento = (field: string, value: string | number | boolean, forceTextUpdate = false) => {
+  function atualizarElemento(field: string, value: string | number | boolean, forceTextUpdate = false) {
       if(!elementoSelecionado) return;
       const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
       iframe.contentWindow?.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, [field]: value, forceTextUpdate }, '*');
       setElementoSelecionado((prev: any) => ({...prev, [field]: value}));
-  };
+  }
 
-  const transformarEmNode = (novoTag: string, classExtra: string = '') => {
+  function transformarEmNode(novoTag: string, classExtra: string = '') {
       if(!elementoSelecionado) return;
       const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
       const newHtml = `<${novoTag} id="${elementoSelecionado.id}" class="${classExtra}">${elementoSelecionado.text}</${novoTag}>`;
       iframe.contentWindow?.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml }, '*');
       setElementoSelecionado(null);
       (window as any).showNotification("Elemento transformado!", "success");
-  };
+  }
 
-  const desfazerCodigo = () => {
+  function desfazerCodigo() {
     if (historicoCodigo.length === 0) { (window as any).showNotification("Nenhuma alteração para desfazer.", "error"); return; }
     const novoHistorico = [...historicoCodigo];
     const estadoAnterior = novoHistorico.pop();
@@ -536,9 +506,95 @@ ${ebookStyles}
     if (prevEl) prevEl.srcdoc = (estadoAnterior || '') + SCRIPT_PREVIEW; 
     setElementoSelecionado(null);
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
-  };
+  }
 
-  const chamarMotorIA = async (systemInstructionText: string, promptParts: any[], isElementRefinement = false) => {
+  async function aplicarModificacaoGlobal() {
+      const input = document.getElementById('ai_prompt_global') as HTMLInputElement;
+      const comando = input?.value.trim();
+      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+      
+      if(!comando) { (window as any).showNotification("Digite o que deseja alterar no e-book.", "error"); return; }
+      if(!codEl || !codEl.value) { (window as any).showNotification("Nenhum E-book gerado para modificar.", "error"); return; }
+
+      const instrucao = `Você é um Revisor Editorial Sênior. 
+      Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global DE FORMA RIGOROSA E OBEDIENTE: "${comando}".
+      
+      REGRAS MÁXIMAS DE SEGURANÇA (RISCO DE DESTRUIÇÃO DO LIVRO):
+      1. PRESERVAÇÃO ABSOLUTA: Você é OBRIGADO a devolver o código HTML inteiro, do começo ao fim. NUNCA resuma, corte ou apague capítulos que não foram mencionados na alteração.
+      2. Se a alteração for apenas no índice, altere APENAS a div do índice e REPITA TODO O RESTO DO LIVRO EXATAMENTE COMO ESTÁ.
+      3. NUNCA adicione estilos inline <p style="...">. Mantenha as tags HTML intactas.`;
+
+      const data = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
+
+      if(data && data.html) {
+          let htmlFinal = moldarApresentacaoHtml(purificarHTML(data.html));
+          const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
+          
+          setHistoricoCodigo((prev) => [...prev, codEl.value]); 
+          codEl.value = htmlFinal; 
+          if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
+          
+          if(input) input.value = '';
+          (window as any).showNotification("E-book modificado globalmente com sucesso!", "success");
+      }
+  }
+
+  async function aplicarModificacaoLocal() {
+      const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
+      const comando = input?.value.trim();
+      if(!comando) { (window as any).showNotification("Digite o que alterar neste elemento.", "error"); return; }
+      if(!elementoSelecionado) return;
+
+      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+      if(codEl) setHistoricoCodigo((prev) => [...prev, codEl.value]);
+
+      const instrucao = `Você é um Assistente Editorial. O usuário selecionou um trecho específico de HTML de um e-book.
+      Sua tarefa é modificar APENAS este elemento HTML de acordo com o pedido: "${comando}".
+      
+      REGRAS MÁXIMAS:
+      1. Retorne APENAS o código HTML modificado DESSA CAIXA/ELEMENTO específico. 
+      2. NUNCA retorne o livro todo. NUNCA retorne as tags <html>, <head> ou <body>.
+      3. Mantenha as classes originais a menos que solicitado o contrário. Não use estilos inline.`;
+
+      const data = await chamarMotorIA(instrucao, [{ text: `HTML DO ELEMENTO SELECIONADO:\n"""\n${elementoSelecionado.outerHTML}\n"""` }], true);
+
+      if(data && data.html) {
+          let novoHtml = data.html;
+          const markdownMatch = novoHtml.match(/```html([\s\S]*?)```/i);
+          if (markdownMatch) novoHtml = markdownMatch[1];
+          novoHtml = novoHtml.replace(/```html/gi, '').replace(/```/gi, '').trim();
+
+          const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+          iframe.contentWindow?.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml: novoHtml }, '*');
+          
+          setElementoSelecionado(null);
+          input.value = '';
+          (window as any).showNotification("Trecho modificado com sucesso!", "success");
+      }
+  }
+
+  function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
+      if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
+      return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + htmlNovo + '\n    </div>\n</body>\n</html>');
+  }
+
+  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean) {
+      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+      const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
+      let novoConteudo = purificarHTML(htmlCru);
+      
+      let htmlFinal = "";
+      if (isInjetar) {
+          htmlFinal = injetarHtmlNoFinal(codEl?.value || '', novoConteudo);
+      } else {
+          htmlFinal = moldarApresentacaoHtml(novoConteudo);
+      }
+
+      if (codEl) { setHistoricoCodigo((prev) => [...prev, codEl.value]); codEl.value = htmlFinal; }
+      if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
+  }
+
+  async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA está processando...' : 'A IA está diagramando o E-book...', processing: true });
     try {
       const response = await fetch('/api/gerar', { 
@@ -562,45 +618,9 @@ ${ebookStyles}
       if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Limite excedido (Quota)."; }
       (window as any).showNotification(errorMsg, 'error'); return null;
     } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
-  };
+  }
 
-  const aplicarModificacaoGlobal = async () => {
-      const input = document.getElementById('ai_prompt_global') as HTMLInputElement;
-      const comando = input?.value.trim();
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      
-      if(!comando) { (window as any).showNotification("Digite o que deseja alterar no e-book.", "error"); return; }
-      if(!codEl || !codEl.value) { (window as any).showNotification("Nenhum E-book gerado para modificar.", "error"); return; }
-
-      const instrucao = `Você é um Revisor Editorial Sênior. 
-      Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global DE FORMA RIGOROSA E OBEDIENTE: "${comando}".
-      
-      REGRAS MÁXIMAS DE PENALIZAÇÃO SE NÃO CUMPRIDAS: 
-      1. NUNCA adicione estilos inline <p style="...">.
-      2. Mantenha as tags HTML intactas. Devolva TODO O HTML validado.`;
-
-      const resData = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
-
-      if(resData && resData.html) {
-          let htmlFinal = moldarApresentacaoHtml(purificarHTML(resData.html));
-          const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-          
-          setHistoricoCodigo((prev) => [...prev, codEl.value]); 
-          codEl.value = htmlFinal; 
-          if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
-          
-          if(input) input.value = '';
-          (window as any).showNotification("E-book modificado globalmente com sucesso!", "success");
-      }
-  };
-
-  const injetarHtmlNoFinal = (htmlBase: string, htmlNovo: string) => {
-      if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
-      return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + htmlNovo + '\n    </div>\n</body>\n</html>');
-  };
-
-  // REGRAS BASE DE ESTRUTURA PARA TODOS OS BOTÕES
-  const obterInstrucoesBase = () => {
+  function obterInstrucoesBase() {
       let regraEstiloCapitulos = "";
       if (estiloCapitulos === 'padrao') {
           regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon"><i class="fas fa-book-open"></i></div><h1 id="ID_DO_CAPITULO">NOME EXATO DO CAPÍTULO AQUI</h1></div>`;
@@ -618,7 +638,6 @@ ${ebookStyles}
 
       let regraCapaHtml = "";
       if (formatoLivro === '15x21' || formatoLivro === '14x21') {
-          // Capa limpa (Folha de Rosto) para impressão
           regraCapaHtml = `<div class="page-container page-cover-text"><br><br><h1 style="font-size: 2.5rem; text-transform: uppercase;">${livroTitulo || 'Meu E-book'}</h1><div style="width: 50px; height: 2px; background: var(--color-primary); margin: 2rem auto;"></div><p style="font-size: 1.2rem;">${livroAutores || 'Autor'}</p></div>`;
       } else if (tipoCapa === 'imagem-texto') {
           regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
@@ -630,40 +649,57 @@ ${ebookStyles}
 
       const regrasComuns = `
       DIRETRIZES DE PENALIZAÇÃO ESTRITA:
-      1. LIMITE DE PARÁGRAFOS E ESPAÇAMENTO: NUNCA coloque mais de 4 ou 5 parágrafos dentro de uma mesma <div class="page-container">. Para não sobrepor o rodapé, feche a div atual e abra uma NOVA <div class="page-container">. NUNCA gere as tags <br> ou <p>&nbsp;</p>. 
-      2. PÁGINAS PRÉ-TEXTUAIS: Se o usuário pedir Dedicatória, Prefácio ou Apresentação na instrução, crie-as em <div class="page-container"> exclusivas ANTES do Índice.
-      3. IMAGENS CONTEXTUAIS: Busque URLs reais do Unsplash. PROIBIDO usar desenhos ou gráficos. Use EXCLUSIVAMENTE fotografias humanas reais e realistas.
-      4. CABEÇALHOS/RODAPÉS: Em cada página de texto use EXATAMENTE <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO ATUAL</span></div> e <div class="page-footer">${regraRodape}</div>.
+      1. LIMITE DE PARÁGRAFOS E ESPAÇAMENTO: NUNCA coloque mais de 4 ou 5 parágrafos dentro de uma mesma <div class="page-container">. Para não sobrepor o rodapé, feche a div atual e abra uma NOVA <div class="page-container"> com os mesmos cabeçalhos e rodapés.
+      2. PROIBIDO PARÁGRAFOS VAZIOS E QUEBRAS MANUAIS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva um parágrafo de texto imediatamente após o outro.
+      3. IMAGENS CONTEXTUAIS: Use EXCLUSIVAMENTE URLs do Unsplash com fotografias reais de pessoas. PROIBIDO desenhos, animações, ilustrações ou sci-fi.
+      4. CABEÇALHOS/RODAPÉS: Em CADA PÁGINA de texto use EXATAMENTE <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO ATUAL</span></div> e <div class="page-footer">${regraRodape}</div>.
       5. ESTILO CAPÍTULOS: ${regraEstiloCapitulos}
       6. MODO GERADOR CÓDIGO PURO: RETORNE APENAS HTML. Não escreva textos informativos ou saudações.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape };
-  };
+  }
 
-  // BOTÃO COMPLETO
-  const gerarLivroCompleto = async () => {
+  async function gerarLivroCompleto() {
     const content = productContent.trim();
     if (!content && modoConteudo !== 'prompt') { (window as any).showNotification('Insira o texto base.', 'error'); return; }
 
-    const { regrasComuns, regraCapaHtml } = obterInstrucoesBase();
+    const { regrasComuns, regraCapaHtml, regraRodape } = obterInstrucoesBase();
 
     const instrucao = `Atue como Especialista Editorial. Gere o E-book COMPLETO em HTML.
     ${regrasComuns}
     OBRIGAÇÕES DESTE MODO (COMPLETO):
     - Gere a Capa: ${regraCapaHtml}
     - Gere o Índice Clicável: Crie UMA ÚNICA <div class="toc-container">. Dentro dela, insira um link para cada capítulo neste formato exato: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span>X</span></a>
-    - Gere TODOS os capítulos solicitados. Concentre a biografia no capítulo 1 e dicas práticas nos demais.
-    - Gere a Conclusão.
-    - OBRIGATÓRIO: Crie no final do livro UMA ÚNICA <div class="page-container author-page"> contendo: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia robusta.</p></div></div></div>.
+      GARANTA que o último link seja para o autor: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span>X</span></a>
+    - Gere TODOS os capítulos solicitados. Concentre narrativas no capítulo 1 e dicas práticas nos demais.
+    
+    - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura para finalizar o HTML:
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
+          <h1 id="conclusao">Conclusão</h1>
+          <p>[Escreva a conclusão do e-book aqui...]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+      <div class="page-container author-page">
+          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
+          <h1 id="sobre-o-autor" style="display:none;">Sobre o Autor</h1>
+          <div class="author-section layout-${autorPosicao}">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
+              <div class="author-bio">
+                  <h2>Sobre o Autor</h2>
+                  <p>[Escreva uma biografia envolvente para o autor ${livroAutores}...]</p>
+              </div>
+          </div>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE:\n"""\n${content}\n"""` }], false);
     if (data && data.html) aplicarHtmlNovo(data.html, false);
-  };
+  }
 
-  // BOTÃO PASSO 1: INICIAR
-  const iniciarEbookEtapas = async () => {
+  async function iniciarEbookEtapas() {
       const content = productContent.trim();
       const { regrasComuns, regraCapaHtml } = obterInstrucoesBase();
 
@@ -671,8 +707,9 @@ ${ebookStyles}
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 1 - INÍCIO):
       1. GERE A CAPA: ${regraCapaHtml}
-      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos e Conclusão).
-         - Formato OBRIGATÓRIO: Crie UMA ÚNICA <div class="toc-container"> e, dentro dela, coloque os itens assim: <a class="toc-item" href="#intro"><span>Introdução</span><span class="toc-dots"></span><span>X</span></a>
+      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos, Conclusão e Sobre o Autor).
+         - Formato OBRIGATÓRIO: Crie UMA ÚNICA <div class="toc-container"> e, dentro dela, coloque os itens.
+         - O último link DEVE ser OBRIGATORIAMENTE: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span>X</span></a>
          - IMPORTANTE: No lugar do número da página, coloque o caractere "X".
       3. GERE APENAS A INTRODUÇÃO: Escreva apenas a página (ou páginas) de Introdução. Coloque id="intro" na div ou h1 para o link do índice funcionar.
       4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO. NÃO escreva o Capítulo 1 ou seguintes. NÃO escreva a conclusão.
@@ -681,10 +718,9 @@ ${ebookStyles}
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
       if (data && data.html) aplicarHtmlNovo(data.html, false);
       (window as any).showNotification("Passo 1 Concluído! Índice e Introdução gerados.", "success");
-  };
+  }
 
-  // BOTÃO PASSO 2: CONTINUAR CAPÍTULOS
-  const continuarEbookEtapas = async () => {
+  async function continuarEbookEtapas() {
       const content = productContent.trim();
       const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
       const currentHtml = codEl?.value || '';
@@ -710,43 +746,58 @@ ${ebookStyles}
       
       if (data && data.html) aplicarHtmlNovo(data.html, true);
       (window as any).showNotification("Passo 2 Concluído! Próximos capítulos adicionados.", "success");
-  };
+  }
 
-  // BOTÃO PASSO 3: FINALIZAR (CONCLUSÃO E AUTOR)
-  const finalizarEbookEtapas = async () => {
+  async function finalizarEbookEtapas() {
       const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
       if (!codEl?.value.includes('page-container')) { (window as any).showNotification('Gere o livro antes de finalizar.', 'error'); return; }
 
-      const { regrasComuns } = obterInstrucoesBase();
+      const { regrasComuns, regraRodape } = obterInstrucoesBase();
 
       const instrucao = `Atue como Especialista Editorial. Você vai FINALIZAR a escrita do e-book.
       ${regrasComuns}
+
       OBRIGAÇÕES DESTE MODO (PASSO 3 - FIM):
-      1. GERE A CONCLUSÃO: Retorne as <div class="page-container"> contendo o capítulo de Conclusão do livro com id="conclusao".
-      2. GERE A PÁGINA DO AUTOR (OBRIGATÓRIO): Crie logo após a conclusão UMA ÚNICA <div class="page-container author-page"> contendo a estrutura: <div class="author-section layout-${autorPosicao}"><img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor"><div class="author-bio"><h2>Sobre o Autor</h2><p>Escreva uma biografia envolvente para o autor ${livroAutores}.</p></div></div></div>.
-      3. PROIBIÇÃO: NUNCA gere capa, índice ou capítulos do meio. Apenas a conclusão e o autor.
+      Você DEVE obrigatoriamente usar EXATAMENTE o molde de código HTML abaixo para finalizar o livro. 
+      Sua única tarefa é COPIAR o código abaixo e substituir apenas os colchetes "[...]" pelo conteúdo real que você vai gerar.
+
+      MOLDE HTML OBRIGATÓRIO (NÃO ALTERE AS CLASSES E AS DIVS):
+
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
+          <h1 id="conclusao">Conclusão</h1>
+          <p>[Escreva o parágrafo 1 da conclusão do e-book aqui...]</p>
+          <p>[Escreva o parágrafo 2 da conclusão do e-book aqui...]</p>
+          <p>[Escreva o parágrafo 3 da conclusão do e-book aqui...]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+      <div class="page-container author-page">
+          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
+          <h1 id="sobre-o-autor" style="display:none;">Sobre o Autor</h1>
+          <div class="author-section layout-${autorPosicao}">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
+              <div class="author-bio">
+                  <h2>Sobre o Autor</h2>
+                  <p>[Escreva a biografia do autor ${livroAutores} aqui...]</p>
+              </div>
+          </div>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+
+      PROIBIÇÕES ABSOLUTAS:
+      - NUNCA aplique a estrutura de "capa de capítulo" (com imagem de fundo e ícone) na Conclusão.
+      - NUNCA omita a <div class="page-header"> ou a <div class="page-footer"> da página do autor.
+      - RETORNE APENAS HTML. NUNCA gere capa frontal ou índice.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
       if (data && data.html) aplicarHtmlNovo(data.html, true);
       (window as any).showNotification("Passo 3 Concluído! E-book finalizado com sucesso.", "success");
-  };
+  }
 
-  const aplicarHtmlNovo = (htmlCru: string, isInjetar: boolean) => {
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-      let novoConteudo = purificarHTML(htmlCru);
-      
-      let htmlFinal = "";
-      if (isInjetar) {
-          htmlFinal = injetarHtmlNoFinal(codEl.value, novoConteudo);
-      } else {
-          htmlFinal = moldarApresentacaoHtml(novoConteudo);
-      }
-
-      if (codEl) { setHistoricoCodigo((prev) => [...prev, codEl.value]); codEl.value = htmlFinal; }
-      if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
-  };
+  // ==========================================
+  // EFEITOS (UseEffects devem ficar no final da declaração do componente)
+  // ==========================================
 
   useEffect(() => {
     (window as any).mudarSeparador = (aba: string) => {
@@ -772,7 +823,6 @@ ${ebookStyles}
         if(iframe && iframe.contentWindow) { iframe.contentWindow.print(); }
     };
 
-    // NOVO MÉTODO DE DOWNLOAD: Puxa do iframe (tela) para salvar com os números do Índice aplicados
     (window as any).baixarHtml = () => {
         const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -780,7 +830,7 @@ ${ebookStyles}
         
         const clone = doc.documentElement.cloneNode(true) as HTMLElement;
         const script = clone.querySelector('#editor-magic-script');
-        if (script) script.remove(); // Limpa o script de edição antes de salvar
+        if (script) script.remove(); 
         
         const finalHtml = "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n" + clone.innerHTML + "\n</html>";
         const blob = new Blob([finalHtml], { type: 'text/html' });
@@ -790,6 +840,33 @@ ${ebookStyles}
         a.click();
     };
   }, [livroTitulo]);
+
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+        if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
+        if (e.data.type === 'HTML_SYNC') {
+            const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+            if (codEl) {
+                const htmlLimpo = moldarApresentacaoHtml(e.data.html);
+                setHistoricoCodigo((prev: string[]) => {
+                    if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
+                    return [...prev, codEl.value]; 
+                });
+                codEl.value = htmlLimpo; 
+            }
+        }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
+
+  useEffect(() => {
+    const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+    const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
+    if (codEl && codEl.value && prevEl) {
+        prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
+    }
+  }, [fontFamily, formatoLivro, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
 
   return (
     <div className="h-screen overflow-hidden flex relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
@@ -867,8 +944,15 @@ ${ebookStyles}
                                       </div>
                                   </div>
 
+                                  {/* NOVA ÁREA: IA PARA O ELEMENTO SELECIONADO */}
+                                  <div className="mt-2 mb-4">
+                                      <label className="input-label mb-2 text-indigo-700 flex items-center gap-1"><i className="fas fa-magic text-yellow-500"></i> Editar este trecho com IA</label>
+                                      <textarea id="ai_prompt_local" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva este parágrafo em um tom mais persuasivo... ou Atualize este índice..."></textarea>
+                                      <button onClick={aplicarModificacaoLocal} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wide py-2 rounded-lg transition shadow-sm">Aplicar IA no Selecionado</button>
+                                  </div>
+
                                   {elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage ? (
-                                      <div className="space-y-3">
+                                      <div className="space-y-3 pt-3 border-t border-slate-100">
                                           <div>
                                               <label className="input-label mb-1">Buscar URL (Unsplash)</label>
                                               <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-xs" />
@@ -909,11 +993,10 @@ ${ebookStyles}
                                           )}
                                       </div>
                                   ) : (
-                                      <div>
-                                          <label className="input-label mb-2">Edição de Texto</label>
+                                      <div className="pt-3 border-t border-slate-100">
+                                          <label className="input-label mb-2">Edição Manual de Texto</label>
                                           <textarea rows={5} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
                                           
-                                          {/* FERRAMENTAS DE HIGHLIGHT E QUOTE */}
                                           <div className="mt-3 flex gap-2">
                                               <button onClick={() => transformarEmNode('blockquote')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition"><i className="fas fa-quote-right mr-1"></i> Virar Citação</button>
                                               <button onClick={() => transformarEmNode('div', 'highlight-box')} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-bold text-[9px] uppercase py-2 rounded border border-yellow-200 transition"><i className="fas fa-highlighter mr-1"></i> Destacar Fundo</button>
@@ -1178,7 +1261,7 @@ ${ebookStyles}
                                   value={productContent} 
                                   onChange={(e) => setProductContent(e.target.value)} 
                                   className="input-standard h-36 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
-                                  placeholder="Ex: Crie um ebook com 10 capítulos. Adicione uma Dedicatória e um Prefácio."
+                                  placeholder="Digite o tema principal ou cole a lista de capítulos que deseja gerar/continuar..."
                               ></textarea>
                           </div>
 
