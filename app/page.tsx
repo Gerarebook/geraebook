@@ -21,7 +21,33 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
+    // Função de Ouro: Calcula e atualiza os números das páginas no Índice automaticamente
+    function autoUpdatePages() {
+        const pages = Array.from(document.querySelectorAll('.page-container'));
+        const tocItems = document.querySelectorAll('.toc-item');
+        tocItems.forEach(item => {
+            const href = item.getAttribute('href');
+            if(!href || !href.startsWith('#')) return;
+            const target = document.getElementById(href.substring(1));
+            if(target) {
+                const page = target.closest('.page-container');
+                if(page) {
+                    const pageIndex = pages.indexOf(page) + 1;
+                    const spans = item.querySelectorAll('span');
+                    if(spans.length >= 3) {
+                        spans[2].innerText = pageIndex; // Substitui o 'X' pelo número real da página
+                    }
+                }
+            }
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        autoUpdatePages(); // Atualiza os números assim que carrega
+    });
+
     function sendCleanHtml() {
+        autoUpdatePages(); // Atualiza antes de salvar
         let outlineAntigo = '';
         if(elSelecionado) { outlineAntigo = elSelecionado.style.outline; elSelecionado.style.outline = ''; }
         let htmlStr = '<!DOCTYPE html>\\n' + document.documentElement.outerHTML;
@@ -244,25 +270,22 @@ export default function Home() {
   const purificarHTML = (rawHtml: string) => {
       let clean = rawHtml;
       
-      // 1. Extrai apenas o HTML (Remove textos antes ou depois que a IA escreva)
       const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
       if (markdownMatch) clean = markdownMatch[1];
       clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
 
-      // 2. Remove lixo de injeção de edição (se houver)
       clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
       clean = clean.replace(/<style id="builder-core-styles">[\s\S]*?<\/style>/gi, '');
       clean = clean.replace(/\bbuilder-editing\b/gi, '');
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
-      // 3. O FILTRO ANTI-ALUCINAÇÃO E ANTI-BURACOS
-      clean = clean.replace(/<br\s*\/?>/gi, ''); // Deleta <br>
-      clean = clean.replace(/<p>\s*<\/p>/gi, ''); // Deleta <p></p> vazio
-      clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); // Deleta parágrafos com espaço em branco
+      // FILTRO ANTI-ALUCINAÇÃO
+      clean = clean.replace(/<br\s*\/?>/gi, ''); 
+      clean = clean.replace(/<p>\s*<\/p>/gi, ''); 
+      clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); 
       clean = clean.replace(/<p>\s*&nbsp;\s*<\/p>/gi, ''); 
       
-      // Remove parágrafos envolvendo tags de índice que a IA pode colocar por engano
       clean = clean.replace(/<p>\s*<a class="toc-item"/gi, '<a class="toc-item"');
       clean = clean.replace(/<\/a>\s*<\/p>/gi, '</a>');
       clean = clean.replace(/<p>\s*<div class="toc-container"/gi, '<div class="toc-container"');
@@ -298,7 +321,13 @@ export default function Home() {
     --text-indent: ${recuoParagrafo};
 }
 
-body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; font-family: var(--font-body); color: var(--color-text); }
+/* Paginação Automática via CSS Counters */
+body { 
+    background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; 
+    font-family: var(--font-body); color: var(--color-text); 
+    counter-reset: ebook-page; 
+}
+
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
 .page-container {
@@ -318,17 +347,14 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
     word-wrap: break-word;
     overflow-wrap: break-word;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    counter-increment: ebook-page;
 }
 
 .page-container::after {
     content: '';
     position: absolute;
-    top: 7mm;
-    left: 7mm;
-    right: 7mm;
-    bottom: 7mm;
-    pointer-events: none;
-    z-index: 50;
+    top: 7mm; left: 7mm; right: 7mm; bottom: 7mm;
+    pointer-events: none; z-index: 50;
     border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : 'none'};
 }
 
@@ -346,7 +372,7 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
 /* CAPAS DE CAPÍTULO */
 .cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; }
 .cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-.cap-icon { font-size: 40px; color: var(--color-secondary); font-family: "Font Awesome 6 Free"; font-weight: 900; margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+.cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 
 .cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; box-sizing: border-box; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
@@ -354,12 +380,27 @@ body { background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; fle
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-/* CABEÇALHOS E RODAPÉS */
-.page-header { position: absolute; top: 12mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; font-size: 9pt; color: var(--color-primary); border-bottom: 1px solid rgba(139, 109, 79, 0.3); padding-bottom: 5px; font-weight: bold; text-transform: uppercase; z-index: 20; }
-.page-footer { position: absolute; bottom: 12mm; left: 20mm; right: 20mm; font-size: 9pt; color: var(--color-primary); z-index: 20; 
-    ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 5px; display: flex; justify-content: space-between;' : ''}
-    ${estiloRodape === 'simples' ? 'display: flex; justify-content: space-between;' : ''}
-    ${estiloRodape === 'centralizado' ? 'text-align: center; display: block;' : ''}
+/* CABEÇALHOS E RODAPÉS - ELEGANTES E BLINDADOS */
+.page-header { 
+    position: absolute; top: 12mm; left: 20mm; right: 20mm; 
+    display: flex; justify-content: space-between; align-items: flex-end;
+    font-size: 8pt; color: var(--color-primary); opacity: 0.8;
+    border-bottom: 1px solid rgba(0,0,0, 0.1); padding-bottom: 5px; 
+    font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px;
+}
+.page-header span {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%;
+}
+
+.page-footer { 
+    position: absolute; bottom: 12mm; left: 20mm; right: 20mm; 
+    font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8;
+    ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 5px; display: flex; justify-content: space-between; align-items: flex-start;' : ''}
+    ${estiloRodape === 'simples' ? 'display: flex; justify-content: space-between; align-items: flex-start;' : ''}
+    ${estiloRodape === 'centralizado' ? 'display: flex; justify-content: center;' : ''}
+}
+.page-number::after {
+    content: counter(ebook-page);
 }
 
 /* CONTEÚDO BASE */
@@ -381,10 +422,6 @@ li { margin-bottom: 0.5rem; page-break-inside: avoid; }
 .toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; padding: 6px 0; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
-
-/* Fallback de segurança para IA insistente */
-.toc-list { display: flex; flex-direction: column; width: 100%; margin: 4px 0; padding: 0; }
-.toc-list a { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; padding: 4px 0; }
 
 /* SEÇÃO DO AUTOR CENTRALIZADA */
 .page-container.author-page { display: flex; align-items: center; justify-content: center; min-height: 100%; }
@@ -563,7 +600,7 @@ ${ebookStyles}
   const obterInstrucoesBase = () => {
       let regraEstiloCapitulos = "";
       if (estiloCapitulos === 'padrao') {
-          regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon">&#xf02d;</div><h1 id="ID_DO_CAPITULO">NOME EXATO DO CAPÍTULO AQUI</h1></div>`;
+          regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-img-overlay" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-icon"><i class="fas fa-book-open"></i></div><h1 id="ID_DO_CAPITULO">NOME EXATO DO CAPÍTULO AQUI</h1></div>`;
       } else if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `Crie uma página exclusiva de capa para o capítulo: <div class="page-container cap-box-rounded" style="background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat;"><div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" style="margin:0; font-size: 2.2rem;">NOME EXATO DO CAPÍTULO AQUI</h1></div></div>`;
       } else if (estiloCapitulos === 'imagem-pura') {
@@ -573,8 +610,8 @@ ${ebookStyles}
       }
 
       let regraRodape = "";
-      if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span>-</span>`;
-      else regraRodape = `<span>-</span>`;
+      if (estiloRodape === 'simples' || estiloRodape === 'linha-superior') regraRodape = `<span>${livroAutores}</span><span class="page-number"></span>`;
+      else regraRodape = `<span class="page-number"></span>`;
 
       let regraCapaHtml = "";
       if (tipoCapa === 'imagem-texto') {
