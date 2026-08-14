@@ -3,20 +3,16 @@ import { NextResponse } from 'next/server';
 // =====================================================================
 // 🎛️ PAINEL DE CONTROLE MESTRE DA INTELIGÊNCIA ARTIFICIAL
 // =====================================================================
-// Para escolher qual API deseja usar, basta alterar a palavra abaixo para:
-// 'gemini'  -> Para usar os modelos do Google (com rodízio configurável)
-// 'groq'    -> Para usar o Llama 3.3 via Groq
-// 'together'-> Para usar a Together.ai
-const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' = 'gemini';
+// Para escolher a IA de testes, altere o valor abaixo para: 
+// 'gemini' | 'groq' | 'together' | 'nvidia'
+const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'nvidia';
 
 // Configuração caso use o Gemini (Rodízio de Modelos)
-const REQUISICOES_POR_MODELO = 9999; // Deixe alto para travar em um único modelo se tiver API paga
+const REQUISICOES_POR_MODELO = 9999; 
 const MODELOS_GEMINI = [
-  "gemini-3.5-flash",      // Padrão: Rápido e confiável
-  // "gemini-1.5-pro"      // Alternativa pesada (descomente se quiser)
+  "gemini-3.6-flash",      
 ];
 
-// Variáveis globais para o rodízio do Gemini
 let contadorRequisicoes = 0;
 let indiceModeloAtual = 0;
 
@@ -85,7 +81,7 @@ export async function POST(req: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'meta-llama/Llama-3-70b-chat-hf', // Modelo padrão robusto na Together.ai
+          model: 'meta-llama/Llama-3-70b-chat-hf', 
           messages: [
             { role: 'system', content: systemInstruction || '' },
             { role: 'user', content: textoUsuario }
@@ -106,7 +102,44 @@ export async function POST(req: Request) {
     }
 
     // =====================================================================
-    // 💎 3. SE O PROVEDOR ATIVO FOR O GEMINI (PADRÃO)
+    // 🟢 3. SE O PROVEDOR ATIVO FOR A NVIDIA (NIM)
+    // =====================================================================
+    if (PROVEDOR_ATIVO === 'nvidia') {
+      const nvidiaApiKey = process.env.NVIDIA_API_KEY;
+      
+      if (!nvidiaApiKey) {
+        return NextResponse.json({ success: false, error: "Chave da API NVIDIA não configurada na Vercel." }, { status: 500 });
+      }
+
+      const nvidiaResponse = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${nvidiaApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'meta/llama-3.1-70b-instruct', // Modelo de altíssima performance para textos e código HTML
+          messages: [
+            { role: 'system', content: systemInstruction || '' },
+            { role: 'user', content: textoUsuario }
+          ],
+          temperature: 0.7,
+          max_tokens: 8000,
+        }),
+      });
+
+      const nvidiaData = await nvidiaResponse.json();
+      
+      if (!nvidiaResponse.ok) {
+        throw new Error(nvidiaData.error?.message || "Erro na API da NVIDIA");
+      }
+
+      const htmlGerado = nvidiaData.choices?.[0]?.message?.content || '';
+      return NextResponse.json({ success: true, html: htmlGerado });
+    }
+
+    // =====================================================================
+    // 💎 4. SE O PROVEDOR ATIVO FOR O GEMINI
     // =====================================================================
     if (PROVEDOR_ATIVO === 'gemini') {
       const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -115,7 +148,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: "Chave da API do Gemini não configurada na Vercel." }, { status: 500 });
       }
 
-      // Lógica de rodízio interno de modelos do Gemini
       contadorRequisicoes++;
       if (contadorRequisicoes > REQUISICOES_POR_MODELO) {
           contadorRequisicoes = 1; 
@@ -126,8 +158,6 @@ export async function POST(req: Request) {
       }
 
       const modeloEscolhido = MODELOS_GEMINI[indiceModeloAtual];
-      console.log(`[INFO] Processando com o modelo Gemini: ${modeloEscolhido}`);
-
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modeloEscolhido}:generateContent?key=${geminiApiKey}`;
 
       const geminiResponse = await fetch(geminiUrl, {
@@ -157,7 +187,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, html: htmlGerado });
     }
 
-    return NextResponse.json({ success: false, error: "Nenhum provedor de IA válido foi configurado no painel." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Nenhum provedor de IA configurado." }, { status: 400 });
 
   } catch (error: any) {
     console.error("Erro na API de Geração:", error);
