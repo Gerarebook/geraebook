@@ -282,11 +282,11 @@ export default function Home() {
       return clean.trim();
   }
 
-  // MARGENS SEGURAS OTIMIZADAS PARA EVITAR ESTOURO DE PÁGINA
+  // MARGENS BALANCEADAS (42mm topo para afastar perfeitamente do cabeçalho)
   function getEstilosFormato(formato: string) {
-      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '38mm 16mm 20mm 16mm' }; 
-      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '38mm 16mm 20mm 16mm' };
-      return { width: '210mm', height: '297mm', padding: '38mm 18mm 20mm 18mm' }; 
+      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '42mm 18mm 22mm 18mm' }; 
+      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '42mm 18mm 22mm 18mm' };
+      return { width: '210mm', height: '297mm', padding: '42mm 18mm 22mm 18mm' }; 
   }
 
   function moldarApresentacaoHtml(rawHtml: string) {
@@ -342,7 +342,7 @@ body {
 .page-container::after {
     content: '';
     position: absolute;
-    top: 7mm; left: 7mm; right: 7mm; bottom: 7mm;
+    top: 6mm; left: 6mm; right: 6mm; bottom: 6mm;
     pointer-events: none; z-index: 50;
     border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : 'none'};
 }
@@ -369,14 +369,14 @@ body {
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-.chapter-banner-img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+.chapter-banner-img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.5rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
 
-/* CABEÇALHOS E RODAPÉS - ELEGANTES E BLINDADOS */
+/* CABEÇALHOS E RODAPÉS - MARGENS CORRETAS */
 .page-header { 
-    position: absolute; top: 15mm; left: 18mm; right: 18mm; 
+    position: absolute; top: 16mm; left: 18mm; right: 18mm; 
     display: flex; justify-content: space-between; align-items: flex-end;
     font-size: 8pt; color: var(--color-primary); opacity: 0.8;
-    border-bottom: 1px solid rgba(0,0,0, 0.1); padding-bottom: 4px; 
+    border-bottom: 1px solid rgba(0,0,0, 0.1); padding-bottom: 5px; 
     font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px;
 }
 .page-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%; }
@@ -384,7 +384,7 @@ body {
 .page-footer { 
     position: absolute; bottom: 10mm; left: 18mm; right: 18mm; 
     font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8;
-    ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 4px; display: flex; justify-content: space-between; align-items: flex-start;' : ''}
+    ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 5px; display: flex; justify-content: space-between; align-items: flex-start;' : ''}
     ${estiloRodape === 'simples' ? 'display: flex; justify-content: space-between; align-items: flex-start;' : ''}
     ${estiloRodape === 'centralizado' ? 'display: flex; justify-content: center;' : ''}
 }
@@ -393,26 +393,26 @@ body {
 /* CONTEÚDO BASE */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
-h2 { font-weight: 700; font-size: 1.6rem; margin-top: 0.2rem; margin-bottom: 0.8em; }
+h2 { font-weight: 700; font-size: 1.8rem; margin-top: 0.2rem; margin-bottom: var(--line-spacing); }
 
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
-blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(0,0,0, 0.03); padding: 12px 16px; margin: 1rem 0; font-size: 11pt; border-radius: 0 8px 8px 0; }
-.highlight-box { background: rgba(139, 109, 79, 0.15); padding: 12px 16px; border-radius: 8px; margin: 1rem 0; font-weight: 500; }
+blockquote { page-break-inside: avoid; break-inside: avoid; font-style: italic; color: var(--color-text); border-left: 5px solid var(--color-secondary); background: rgba(0,0,0, 0.03); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
+.highlight-box { background: rgba(139, 109, 79, 0.15); padding: 12px 18px; border-radius: 8px; margin: 1rem 0; font-weight: 500; font-size: ${tamanhoFonteBase}; }
 
 img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; margin: 1rem auto; display: block; object-fit: cover; page-break-inside: avoid; break-inside: avoid; }
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) */
+/* ÍNDICE CEGO (TOC) - FONTE IGUAL AO MIOLO */
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; }
-.toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: 11pt; font-weight: 600; padding: 5px 0; }
+.toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: ${tamanhoFonteBase}; font-weight: 600; padding: 6px 0; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 
 /* SEÇÃO DO AUTOR - TOPO ALIGN */
 .page-container.author-page { display: block; }
-.author-section { display: flex; align-items: flex-start; gap: 25px; width: 100%; margin-top: 1.5rem; }
+.author-section { display: flex; align-items: flex-start; gap: 30px; width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { flex-direction: column; text-align: center; align-items: center; }
 .author-section.layout-esquerda { flex-direction: row; text-align: justify; align-items: flex-start; }
 .author-photo { object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); flex-shrink: 0; }
@@ -640,14 +640,14 @@ ${ebookStyles}
           Para ABRIR um novo capítulo, use EXATAMENTE este bloco HTML (Página de Capa):
           <div class="page-container cap-img-overlay" style="background: url('URL_DA_IMAGEM_UNSPLASH') center/cover no-repeat;">
               <div class="cap-icon"><i class="fas fa-book-open"></i></div>
-              <h2 id="ID_DO_CAPITULO">NOME DO CAPÍTULO AQUI</h2>
+              <h1 id="ID_DO_CAPITULO">NOME DO CAPÍTULO AQUI</h1>
           </div>
           Após essa capa, abra uma NOVA <div class="page-container"> normal com cabeçalho e rodapé para começar o texto.`;
       } else if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, use EXATAMENTE este bloco HTML (Página de Capa):
           <div class="page-container cap-box-rounded" style="background: url('URL_DA_IMAGEM_UNSPLASH') center/cover no-repeat;">
-              <div class="cap-box-inner"><h2 id="ID_DO_CAPITULO" style="margin:0; font-size: 1.8rem;">NOME DO CAPÍTULO AQUI</h2></div>
+              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" style="margin:0; font-size: 2.2rem;">NOME DO CAPÍTULO AQUI</h1></div>
           </div>
           Após essa capa, abra uma NOVA <div class="page-container"> normal com cabeçalho e rodapé para começar o texto.`;
       } else if (estiloCapitulos === 'imagem-pura') {
@@ -690,9 +690,9 @@ ${ebookStyles}
       const regrasComuns = `
       DIRETRIZES DE PENALIZAÇÃO ESTRITA:
       1. RESPEITE A DENSIDADE: Preencha o e-book com o volume de parágrafos solicitados no prompt.
-      2. LIMITE MÁXIMO DE TAMANHO DA PÁGINA: O texto NUNCA pode vazar pelo fundo da página e sobrepor o rodapé. Você DEVE usar no máximo de 2 a 3 parágrafos médios por <div class="page-container"> para caber confortavelmente sem estourar as margens. Quando a página encher, feche a div e abra uma NOVA <div class="page-container"> com cabeçalho e rodapé idênticos.
-      3. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos imediatamente um após o outro.
-      4. IMAGENS CONTEXTUAIS: Use EXCLUSIVAMENTE URLs do Unsplash com fotografias reais e realistas. PROIBIDO desenhos, animações ou ilustrações.
+      2. LIMITE MÁXIMO DE TAMANHO DA PÁGINA: O texto NUNCA pode vazar pelo fundo da página e sobrepor o rodapé. Você DEVE usar exatamente 5 parágrafos por <div class="page-container"> para preencher a página de forma ideal. Quando a página encher, feche a div e abra uma NOVA <div class="page-container"> com cabeçalho e rodapé idênticos.
+      3. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos imediatamente um após o outro, sem pular linhas vazias.
+      4. IMAGENS CONTEXTUAIS: Use EXCLUSIVAMENTE URLs do Unsplash com fotografias reais e realistas. PROIBIDO desenhos, animações, ilustrações ou sci-fi.
       5. CABEÇALHOS/RODAPÉS: Em CADA PÁGINA de texto use EXATAMENTE <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO ATUAL</span></div> e <div class="page-footer">${regraRodape}</div>.
       6. ESTILO CAPÍTULOS: ${regraEstiloCapitulos}
       7. MODO GERADOR CÓDIGO PURO: RETORNE APENAS HTML. Sem introduções.
@@ -714,20 +714,30 @@ ${ebookStyles}
     - Gere o Índice Clicável: Crie UMA ÚNICA <div class="toc-container">. Dentro dela, insira um link para cada capítulo neste formato: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span>X</span></a>
       GARANTA que o último link seja para o autor: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span>X</span></a>
     
-    - A INTRODUÇÃO DEVE USAR H2 IGUAL AOS CAPÍTULOS: A introdução deve começar obrigatoriamente com <h2 id="intro">Introdução</h2> para manter o mesmo tamanho e formato de título dos capítulos. Sem capa exclusiva ou banner, apenas o título h2 seguido dos parágrafos de texto.
+    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS: A página de introdução DEVE ser gerada obrigatoriamente utilizando este molde com a tag <h2 id="intro">Introdução</h2> para manter o padrão visual idêntico:
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
+          <h2 id="intro">Introdução</h2>
+          <p>[Parágrafo 1...]</p>
+          <p>[Parágrafo 2...]</p>
+          <p>[Parágrafo 3...]</p>
+          <p>[Parágrafo 4...]</p>
+          <p>[Parágrafo 5...]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
     
     - Gere TODOS os capítulos solicitados. Concentre narrativas no capítulo 1 e dicas práticas nos demais.
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
-          <h2 id="conclusao">Conclusão</h2>
-          <p>[Escreva a conclusão do e-book aqui...]</p>
+          <h1 id="conclusao">Conclusão</h1>
+          <p>[Escreva o parágrafo 1 da conclusão do e-book aqui...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
           <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" style="display:none;">Sobre o Autor</h2>
+          <h1 id="sobre-o-autor" style="display:none;">Sobre o Autor</h1>
           <div class="author-section layout-${autorPosicao}">
               <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
               <div class="author-bio">
@@ -756,11 +766,15 @@ ${ebookStyles}
          - O último link DEVE ser OBRIGATORIAMENTE: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span>X</span></a>
          - IMPORTANTE: No lugar do número da página, coloque o caractere "X".
       
-      3. A INTRODUÇÃO DEVE USAR H2 IDÊNTICO AOS CAPÍTULOS: A introdução deve começar com <h2 id="intro">Introdução</h2> (usando a mesma tag e formato visual dos títulos de capítulos). Escreva apenas a página (ou páginas) de Introdução com este molde:
+      3. A INTRODUÇÃO DEVE SEGUIR O MESMO FORMATO DOS CAPÍTULOS: A introdução deve começar obrigatoriamente com a tag <h2 id="intro">Introdução</h2> para manter exatamente o mesmo tamanho e formato dos títulos dos capítulos. Use este molde exato:
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro">Introdução</h2>
-            <p>[Conteúdo da Introdução aqui...]</p>
+            <p>[Parágrafo 1...]</p>
+            <p>[Parágrafo 2...]</p>
+            <p>[Parágrafo 3...]</p>
+            <p>[Parágrafo 4...]</p>
+            <p>[Parágrafo 5...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
@@ -817,14 +831,15 @@ ${ebookStyles}
 
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
-          <h2 id="conclusao">Conclusão</h2>
+          <h1 id="conclusao">Conclusão</h1>
           <p>[Escreva o parágrafo 1 da conclusão do e-book aqui...]</p>
           <p>[Escreva o parágrafo 2 da conclusão do e-book aqui...]</p>
+          <p>[Escreva o parágrafo 3 da conclusão do e-book aqui...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
           <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" style="display:none;">Sobre o Autor</h2>
+          <h1 id="sobre-o-autor" style="display:none;">Sobre o Autor</h1>
           <div class="author-section layout-${autorPosicao}">
               <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
               <div class="author-bio">
