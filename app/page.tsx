@@ -43,7 +43,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(autoUpdatePages, 500); // Dá tempo para fontes renderizarem e ajustarem blocos
+        setTimeout(autoUpdatePages, 500); 
     });
 
     function sendCleanHtml() {
@@ -195,7 +195,7 @@ export default function Home() {
   const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('0.8em'); 
   const [recuoParagrafo, setRecuoParagrafo] = useState('20px');
   
-  const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'double' | 'double-fina'>('none');
+  const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'double' | 'double-thin'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
   const [htmlTemplate, setHtmlTemplate] = useState('');
@@ -211,7 +211,7 @@ export default function Home() {
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline-imagem' | 'inline'>('inline-imagem');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
-  const [estiloRodape, setEstiloRodape] = useState<'simples' | 'linha-superior' | 'centralizado' | 'circulo' | 'circulo-centralizado'>('simples');
+  const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('simples');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
@@ -232,7 +232,7 @@ export default function Home() {
   }, []);
 
   // ==========================================
-  // FUNÇÕES DE ESTRUTURA BLINDADAS (Hoisted)
+  // FUNÇÕES DE ESTRUTURA BLINDADAS
   // ==========================================
 
   function getPaletaObj() {
@@ -254,40 +254,33 @@ export default function Home() {
       if (markdownMatch) clean = markdownMatch[1];
       clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
 
-      // Remove injeções de script de edição
       clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
       clean = clean.replace(/<style id="builder-core-styles">[\s\S]*?<\/style>/gi, '');
       clean = clean.replace(/\bbuilder-editing\b/gi, '');
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
-      // FILTRO ANTI-ALUCINAÇÃO EXTREMA (O Erro da página fantasma e pulo de números)
       clean = clean.replace(/<br\s*\/?>/gi, ''); 
       clean = clean.replace(/<p>\s*<\/p>/gi, ''); 
       clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); 
       clean = clean.replace(/<p>\s*&nbsp;\s*<\/p>/gi, ''); 
       
-      // Vacina contra números inventados pela IA no rodapé
-      clean = clean.replace(/<span class="page-number">[^<]*<\/span>/gi, '<span class="page-number"></span>');
-      clean = clean.replace(/<span class="page-number-circle">[^<]*<\/span>/gi, '<span class="page-number-circle"></span>');
+      clean = clean.replace(/<span class="page-number( circulo)?">[^<]*<\/span>/gi, '<span class="page-number$1"></span>');
 
-      // Limpa lixos no índice
       clean = clean.replace(/<p>\s*<a class="toc-item"/gi, '<a class="toc-item"');
       clean = clean.replace(/<\/a>\s*<\/p>/gi, '</a>');
       clean = clean.replace(/<p>\s*<div class="toc-container"/gi, '<div class="toc-container"');
       clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
 
-      // Exterminador de páginas vazias (Mata a raiz do problema de pular números)
       clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
       return clean.trim();
   }
 
-  // MARGENS BALANCEADAS (42mm topo para afastar perfeitamente do cabeçalho)
   function getEstilosFormato(formato: string) {
-      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '42mm 18mm 25mm 18mm' }; 
-      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '42mm 18mm 25mm 18mm' };
-      return { width: '210mm', height: '297mm', padding: '42mm 18mm 25mm 18mm' }; 
+      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '42mm 18mm 22mm 18mm' }; 
+      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '42mm 18mm 22mm 18mm' };
+      return { width: '210mm', height: '297mm', padding: '42mm 18mm 22mm 18mm' }; 
   }
 
   function moldarApresentacaoHtml(rawHtml: string) {
@@ -345,9 +338,7 @@ body {
     position: absolute;
     top: 6mm; left: 6mm; right: 6mm; bottom: 6mm;
     pointer-events: none; z-index: 50;
-    border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : 
-             tipoBorda === 'double' ? '6px double var(--color-primary)' : 
-             tipoBorda === 'double-fina' ? '3px double var(--color-primary)' : 'none'};
+    border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : tipoBorda === 'double-thin' ? '3px double var(--color-primary)' : 'none'};
 }
 
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
@@ -361,21 +352,22 @@ body {
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--color-bg); color: var(--color-primary); box-sizing: border-box; }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-/* CAPAS DE CAPÍTULO E BANNERS HORIZONTAIS */
-.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; }
+/* BANNERS E TITULOS */
+.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; background-position: center !important; color: #ffffff; box-sizing: border-box; }
 .cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 
-.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; box-sizing: border-box; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; box-sizing: border-box; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
 .cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
 
-.cap-img-pura { background-size: cover !important; background-position: center !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.cap-img-pura { background-size: cover !important; background-position: center !important; }
 
-.chapter-banner-img { width: 100%; height: 280px; object-fit: cover; border-radius: 8px; margin: 1rem 0 2rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-.chapter-title-inline { text-align: center; font-size: 2.5rem; margin-top: 0; margin-bottom: 2rem; color: var(--color-primary); }
+/* IMAGEM HORIZONTAL AJUSTADA */
+.chapter-banner-img { width: 100%; height: 360px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.5rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+.chapter-title-inline { text-align: center; font-size: 2.6rem; margin-top: 0; margin-bottom: 1.5rem; color: var(--color-primary); }
 
-/* CABEÇALHOS E RODAPÉS - MARGENS CORRETAS */
+/* CABEÇALHOS E RODAPÉS */
 .page-header { 
     position: absolute; top: 16mm; left: 18mm; right: 18mm; 
     display: flex; justify-content: space-between; align-items: flex-end;
@@ -386,27 +378,29 @@ body {
 .page-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%; }
 
 .page-footer { 
-    position: absolute; bottom: 12mm; left: 18mm; right: 18mm; 
+    position: absolute; bottom: 10mm; left: 18mm; right: 18mm; 
     font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8;
-    ${(estiloRodape === 'linha-superior') ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 5px;' : ''}
-    ${(estiloRodape === 'centralizado' || estiloRodape === 'circulo-centralizado') ? 'display: flex; justify-content: center;' : 'display: flex; justify-content: space-between; align-items: flex-start;'}
+    ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'}
+    ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 8px;' : ''}
 }
 .page-number::after { content: counter(ebook-page); }
 
-.page-number-circle {
+/* NOVO: NÚMERO DA PÁGINA EM CÍRCULO COLORIDO */
+.page-number.circulo { 
     display: inline-flex; justify-content: center; align-items: center;
-    width: 24px; height: 24px; border-radius: 50%;
-    background-color: var(--color-primary); color: #ffffff;
-    font-size: 8pt; font-weight: 800;
-    transform: translateY(-4px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 26px; height: 26px; border-radius: 50%; 
+    background-color: var(--color-primary); color: #ffffff !important; 
+    font-size: 10px; font-weight: 800; margin-bottom: -3px; 
 }
-.page-number-circle::after { content: counter(ebook-page); }
+.page-number.circulo::after { color: #ffffff !important; }
 
 /* CONTEÚDO BASE */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
-h2 { font-weight: 700; font-size: 1.8rem; margin-top: 0.2rem; margin-bottom: var(--line-spacing); }
+
+/* REGRA DE ESPAÇAMENTO DE 1 LINHA APÓS TÍTULOS */
+h2 { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
+h3 { font-weight: 700; font-size: 1.4rem; margin-top: 1.2rem; margin-bottom: 1.2rem; }
 
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
@@ -417,9 +411,9 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) - FONTE IGUAL AO MIOLO */
+/* ÍNDICE CEGO (TOC) COM FONTE EXATAMENTE IGUAL AO MIOLO */
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; }
-.toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-size: ${tamanhoFonteBase}; font-weight: 600; padding: calc(var(--line-spacing) * 3px) 0; line-height: var(--line-spacing); }
+.toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; font-weight: 500 !important; line-height: var(--line-spacing) !important; padding: 4px 0; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 
@@ -617,7 +611,7 @@ ${ebookStyles}
   }
 
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
-    setStatusApis({ texto: isElementRefinement ? 'A IA está processando...' : 'A IA está diagramando o E-book...', processing: true });
+    setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
       const response = await fetch('/api/gerar', { 
           method: 'POST', 
@@ -643,13 +637,13 @@ ${ebookStyles}
   }
 
   function obterInstrucoesBase() {
-      let htmlNumero = estiloRodape.includes('circulo') ? '<span class="page-number-circle"></span>' : '<span class="page-number"></span>';
-      
+      let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
-      if (estiloRodape === 'simples' || estiloRodape === 'linha-superior' || estiloRodape === 'circulo') {
-          regraRodape = `<span>${livroAutores}</span>${htmlNumero}`;
+      
+      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) {
+          regraRodape = `<span>${livroAutores}</span>${numSpan}`;
       } else {
-          regraRodape = `${htmlNumero}`;
+          regraRodape = `${numSpan}`;
       }
 
       let regraEstiloCapitulos = "";
@@ -706,18 +700,19 @@ ${ebookStyles}
       }
 
       const regrasComuns = `
-      DIRETRIZES DE PENALIZAÇÃO ESTRITA:
-      1. RESPEITE A DENSIDADE: Preencha o e-book com o volume de parágrafos solicitados no prompt.
-      2. PAGINAÇÃO ESTRITA (LIMITE VISUAL): Cada <div class="page-container"> é uma folha física. O texto ou a lista do Índice NUNCA pode vazar pelo fundo da página. Se o Índice tiver muitos itens ou se o texto do capítulo passar de 4 a 5 parágrafos, você DEVE fechar a </div> atual e abrir uma NOVA <div class="page-container"> com o mesmo page-header e page-footer para continuar o conteúdo.
-      3. FORMATAÇÃO DO ÍNDICE: A lista do índice deve obrigatoriamente manter a mesma fonte, tamanho e espaçamento do miolo.
-      4. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos imediatamente um após o outro.
-      5. IMAGENS CONTEXTUAIS: Use EXCLUSIVAMENTE URLs do Unsplash com fotografias reais. PROIBIDO desenhos ou ilustrações.
-      6. CABEÇALHOS/RODAPÉS: Em CADA PÁGINA de texto use EXATAMENTE <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO ATUAL</span></div> e <div class="page-footer">${regraRodape}</div>.
-      7. ESTILO CAPÍTULOS: ${regraEstiloCapitulos}
-      8. GERAÇÃO INCOMPLETA: Oculte qualquer comentário verbal (ex: "Aqui está"). Retorne apenas HTML. Se o conteúdo for longo, assegure-se de fechar todas as </div> corretamente antes do corte.
+      DIRETRIZES ESTRITAS DE FORMATAÇÃO E PAGINAÇÃO:
+      1. LIMITE RIGOROSO POR PÁGINA (TEXTO): O texto NUNCA pode vazar pelo fundo da página e sobrepor o rodapé. Você DEVE colocar no máximo de 4 a 5 parágrafos por <div class="page-container">. Se o conteúdo continuar, FECHE a div atual e ABRA uma nova <div class="page-container"> com cabeçalho e rodapé idênticos para dar continuidade ao capítulo.
+      2. LIMITE RIGOROSO DO ÍNDICE: Se o índice possuir muitos capítulos (mais de 12 a 15 linhas), ele NÃO caberá em uma única página. Você DEVE dividir o índice, fechando a <div class="page-container"> e criando uma NOVA página apenas para continuar os itens restantes do índice.
+      3. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos imediatamente um após o outro.
+      4. REGRAS DE IMAGEM: A imagem horizontal do capítulo DEVE aparecer APENAS na primeira página de cada capítulo. Nunca insira imagens nas páginas de continuação do mesmo capítulo.
+      5. NATUREZA DAS IMAGENS: Use APENAS fotografias humanas e reais do Unsplash. É estritamente proibido usar desenhos, animações ou elementos de tecnologia/sci-fi.
+      6. ESPAÇAMENTO DOS TÓPICOS: Respeite rigorosamente a margem configurada no CSS, garantindo exatamente o espaço de 1 linha de respiro entre os subtítulos de tópicos (h3) e o texto seguinte.
+      7. CONTEÚDO NARRATIVO: Toda a história biográfica do autor deve ser consolidada apenas no Capítulo 1. Os demais capítulos deverão ser focados puramente em dicas práticas.
+      8. MODO GERADOR CÓDIGO PURO: Retorne APENAS HTML. Nenhuma palavra a mais, sem saudações.
+      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA PÁGINA gerada, use EXATAMENTE a estrutura de <div class="page-header"> e <div class="page-footer"> correspondente.
       `;
 
-      return { regrasComuns, regraCapaHtml, regraRodape };
+      return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
   }
 
   async function gerarLivroCompleto() {
@@ -730,23 +725,25 @@ ${ebookStyles}
     ${regrasComuns}
     OBRIGAÇÕES DESTE MODO (COMPLETO):
     - Gere a Capa: ${regraCapaHtml}
-    - Gere o Índice Clicável: Crie a <div class="toc-container">. Dentro dela, insira os links: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span>X</span></a>. Se o índice tiver muitos capítulos, divida-o em duas ou mais <div class="page-container">.
+    - Gere o Índice Clicável: Crie a <div class="toc-container">. Insira os links: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span>X</span></a>
+      GARANTA que o último link seja para o autor: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span>X</span></a>. LEMBRE-SE: Divida o índice em 2 páginas se houver muitos itens!
     
-    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE): Comece com <h2 id="intro" class="chapter-title-inline">Introdução</h2>.
+    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE): A página de introdução DEVE ser gerada obrigatoriamente utilizando o mesmo estilo visual, começando com <h2 id="intro" class="chapter-title-inline">Introdução</h2>.
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-          <p>[Parágrafos...]</p>
+          <p>[Parágrafo 1...]</p>
+          <p>[Parágrafo 2...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados.
+    - Gere TODOS os capítulos solicitados aplicando as regras de quebra de página.
     
-    - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, finalize o livro com:
+    - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h1 id="conclusao">Conclusão</h1>
-          <p>[Conclusão...]</p>
+          <p>[Escreva a conclusão...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -756,7 +753,7 @@ ${ebookStyles}
               <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
               <div class="author-bio">
                   <h2>Sobre o Autor</h2>
-                  <p>[Biografia...]</p>
+                  <p>[Escreva a biografia de ${livroAutores}...]</p>
               </div>
           </div>
           <div class="page-footer">${regraRodape}</div>
@@ -775,16 +772,19 @@ ${ebookStyles}
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 1 - INÍCIO):
       1. GERE A CAPA: ${regraCapaHtml}
-      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro. Se o índice for longo, espalhe os links por múltiplas <div class="page-container">. No lugar do número da página, coloque "X".
-      3. A INTRODUÇÃO DEVE SEGUIR O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE): 
+      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos, Conclusão e Sobre o Autor).
+         - Formato: Use <div class="toc-container"> e os itens em <a class="toc-item"...>.
+         - ATENÇÃO: Se o índice passar de 12 itens, você DEVE fechar a <div class="page-container"> atual e criar UMA NOVA PÁGINA (outra <div class="page-container"> com header/footer) apenas para continuar o índice.
+      
+      3. A INTRODUÇÃO DEVE SEGUIR O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE): A página de introdução DEVE ser gerada obrigatoriamente começando com a tag <h2 id="intro" class="chapter-title-inline">Introdução</h2>.
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <p>[Parágrafos...]</p>
+            <p>[Seu texto de introdução aqui...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
-      4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO. NÃO escreva o Capítulo 1.
+      4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO (ou após a página 2 da introdução, se houver spillover). NÃO escreva o Capítulo 1.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
@@ -799,20 +799,22 @@ ${ebookStyles}
 
       if (!currentHtml.includes('page-container')) { (window as any).showNotification('Gere o Passo 1 primeiro!', 'error'); return; }
 
-      const { regrasComuns } = obterInstrucoesBase();
+      const { regrasComuns, regraEstiloCapitulos } = obterInstrucoesBase();
 
       const instrucao = `Atue como Especialista Editorial. Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 2 - MEIO):
-      1. LEIA O ÍNDICE EXISTENTE: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
-      2. GERE NO MÁXIMO 2 CAPÍTULOS POR VEZ para garantir que o código HTML não seja cortado.
-      3. FIDELIDADE: Use os mesmos Nomes e IDs (href) que constam no índice do HTML original.
-      4. FORMATO DE SAÍDA: Retorne APENAS CÓDIGO HTML VALIDO das tags <div class="page-container"> dos capítulos novos. NUNCA diga "Aqui está", NUNCA use markdown, exceto para o bloco HTML. FECHE TODAS AS DIVS.
+      1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML atual (fornecido abaixo).
+      2. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
+      3. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência do índice.
+      4. APLIQUE O ESTILO DEFINIDO: 
+         ${regraEstiloCapitulos}
+      5. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO das páginas geradas. NÃO DEVOLVA RESPOSTAS VAZIAS OU CORTADAS. Não resuma. Entregue as tags <div class="page-container"> completas.
       `;
 
       const data = await chamarMotorIA(instrucao, [
-          { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos 2 capítulos.'}\n"""` }
+          { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU):\n"""\n${currentHtml}\n"""` },
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos capítulos aplicando quebras de páginas quando o texto exceder 5 parágrafos.'}\n"""` }
       ], false);
       
       if (data && data.html) aplicarHtmlNovo(data.html, true);
@@ -829,12 +831,12 @@ ${ebookStyles}
       ${regrasComuns}
 
       OBRIGAÇÕES DESTE MODO (PASSO 3 - FIM):
-      MOLDE HTML OBRIGATÓRIO (NÃO ALTERE AS CLASSES E AS DIVS):
+      Você DEVE obrigatoriamente usar EXATAMENTE o molde de código HTML abaixo para finalizar o livro. 
 
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h1 id="conclusao">Conclusão</h1>
-          <p>[Parágrafo 1...]</p>
+          <p>[Escreva a conclusão respeitando o limite de parágrafos. Crie mais de uma página se necessário...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -849,9 +851,6 @@ ${ebookStyles}
           </div>
           <div class="page-footer">${regraRodape}</div>
       </div>
-
-      PROIBIÇÕES ABSOLUTAS:
-      - RETORNE APENAS HTML. NUNCA gere capa frontal ou índice.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
@@ -860,7 +859,7 @@ ${ebookStyles}
   }
 
   // ==========================================
-  // EFEITOS (UseEffects devem ficar no final)
+  // EFEITOS 
   // ==========================================
 
   useEffect(() => {
@@ -1189,7 +1188,7 @@ ${ebookStyles}
                                       <option value="none">Sem Borda (Clean)</option>
                                       <option value="single">Borda Simples (Elegante)</option>
                                       <option value="double">Borda Dupla (Clássico Premium)</option>
-                                      <option value="double-fina">Borda Dupla Fina (Moderna)</option>
+                                      <option value="double-thin">Borda Dupla Fina</option>
                                   </select>
                               </div>
 
@@ -1197,10 +1196,10 @@ ${ebookStyles}
                                   <label className="input-label mb-2">Estilo do Rodapé</label>
                                   <select value={estiloRodape} onChange={(e) => setEstiloRodape(e.target.value as any)} className="input-standard font-medium text-slate-800">
                                       <option value="simples">Simples (Autor esq. | Número dir.)</option>
+                                      <option value="simples-circulo">Simples + Número no Círculo Colorido</option>
                                       <option value="linha-superior">Com Linha Superior de Divisão</option>
-                                      <option value="centralizado">Minimalista (Apenas Número Centralizado)</option>
-                                      <option value="circulo">Número com Círculo Colorido</option>
-                                      <option value="circulo-centralizado">Círculo Colorido Centralizado</option>
+                                      <option value="centralizado">Minimalista Centralizado</option>
+                                      <option value="centralizado-circulo">Centralizado + Número no Círculo Colorido</option>
                                   </select>
                               </div>
                           </div>
