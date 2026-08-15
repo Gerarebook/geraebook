@@ -21,35 +21,49 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // 1. SINCRONIZADOR DE ÍNDICE: Atualiza títulos e deleta capítulos fantasma
+    // 1. SINCRONIZADOR DE ÍNDICE MESTRE: Constrói o índice 100% baseado no miolo real
     function sincronizarIndice() {
-        const tocItems = document.querySelectorAll('.toc-item');
-        tocItems.forEach(item => {
-            const href = item.getAttribute('href');
-            if(!href || !href.startsWith('#')) return;
-            
-            const targetId = href.substring(1);
-            const targetEl = document.getElementById(targetId);
-            
-            if (!targetEl) {
-                item.remove();
-            } else {
-                const titleSpan = item.querySelector('span:first-child');
-                if(titleSpan && targetEl.innerText) {
-                    titleSpan.innerText = targetEl.innerText.trim();
-                }
-            }
-        });
+        const tocContainer = document.querySelector('.toc-container');
+        if (!tocContainer) return;
 
-        document.querySelectorAll('.toc-container').forEach(tc => {
-            if(tc.children.length === 0) tc.remove();
+        // Pega TODOS os títulos principais do livro gerado
+        const titles = document.querySelectorAll('h2.chapter-title-inline');
+        
+        // Limpa o índice velho/incompleto feito pela IA
+        tocContainer.innerHTML = '';
+
+        titles.forEach((titleEl, index) => {
+            // Garante que todo título tenha um ID para a âncora funcionar
+            if (!titleEl.id) {
+                titleEl.id = 'cap-auto-' + Math.random().toString(36).substr(2, 9);
+            }
+
+            // Ignora títulos ocultos (ex: display:none do autor) mas pega o texto correto
+            const a = document.createElement('a');
+            a.className = 'toc-item';
+            a.href = '#' + titleEl.id;
+            
+            const spanTitle = document.createElement('span');
+            spanTitle.innerText = titleEl.innerText.trim();
+            
+            const spanDots = document.createElement('span');
+            spanDots.className = 'toc-dots';
+            
+            const spanPage = document.createElement('span');
+            spanPage.className = 'toc-page-num';
+            
+            a.appendChild(spanTitle);
+            a.appendChild(spanDots);
+            a.appendChild(spanPage);
+            
+            tocContainer.appendChild(a);
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO: A4 Perfeito (Corta texto antes de tocar o rodapé)
+    // 2. MOTOR DE REFLUXO AVANÇADO: A4 Perfeito (Corta texto milimetricamente antes do rodapé)
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
-        let maxIterations = 60; 
+        let maxIterations = 80; 
         
         while(requiresReflow && maxIterations > 0) {
             requiresReflow = false;
@@ -86,6 +100,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     let nodeRect = node.getBoundingClientRect();
                     let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom || 0);
                     
+                    // Lógica especial de corte dinâmico para o Índice
                     if (node.classList.contains('toc-container')) {
                         let tocItems = Array.from(node.children);
                         let tocOverflowIndex = -1;
@@ -134,9 +149,10 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         let loaded = 0;
         
         function runFormatting() {
-            sincronizarIndice();
-            aplicarRefluxoDePagina();
+            sincronizarIndice(); // Sempre constrói o índice real primeiro
+            aplicarRefluxoDePagina(); // Depois quebra as páginas
             
+            // Depois calcula os números e injeta no índice e rodapés
             const pages = Array.from(document.querySelectorAll('.page-container'));
             document.querySelectorAll('.toc-item').forEach(item => {
                 const href = item.getAttribute('href');
@@ -299,7 +315,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL (Focado em A4)
+  // CONFIGURAÇÕES DE DESIGN GERAL (Apenas A4)
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -828,16 +844,15 @@ ${ebookStyles}
           : `MODO EXPANDIDO (CRIATIVO): O usuário forneceu um tema ou rascunho. Atue como um autor best-seller e EXPANDA esse texto gerando um e-book muito profundo e detalhado.`;
 
       const regrasComuns = `
-      DIRETRIZES ESTRITAS DE FORMATAÇÃO (LEIA COM ATENÇÃO MAXIMA):
+      DIRETRIZES ESTRITAS DE VOLUME E ESTRUTURA (LEIA COM ATENÇÃO MÁXIMA):
       1. REGRA DE OPERAÇÃO: ${regraModo}
-      2. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Você DEVE colocar TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. O meu sistema fará o "Reflow" automático para quebrar as páginas na medida certa!
-      3. TÍTULOS COM OBRIGAÇÃO NUMÉRICA: Todo título de capítulo DEVE OBRIGATORIAMENTE começar com a palavra "Capítulo" e o número. Exemplo: <h2 id="cap-1" class="chapter-title-inline">Capítulo 1: O Início</h2>
-      4. DENSIDADE (MÍNIMO DE PARÁGRAFOS): Cada página normal deve ter obrigatoriamente cerca de 5 parágrafos densos de conteúdo. A página que contém a imagem inicial do capítulo deve ter NO MÍNIMO 2 a 3 parágrafos contínuos.
-      5. ELEMENTOS VISUAIS E ILUSTRAÇÃO: Use as tags <blockquote class="highlight-box"> para citações e <div class="highlight-box"> para quadros de destaque em conteúdos importantes.
-      6. ÍNDICE DINÂMICO E CLICÁVEL: O índice deve ter a mesma proporção de espaçamento entre linhas do miolo. Use RIGOROSAMENTE este formato cego:
-         <a class="toc-item" href="#cap-1"><span>Capítulo 1: Título do Capítulo</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
+      2. REGRA DE VOLUME EXTREMO (MUITO IMPORTANTE): Cada capítulo DEVE ser LONGO, PROFUNDO e DENSO. É terminantemente PROIBIDO criar capítulos curtos. Você DEVE gerar NO MÍNIMO de 8 a 12 parágrafos longos por capítulo para preencher múltiplas páginas perfeitamente.
+      3. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Você DEVE colocar TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. O meu sistema fará o "Reflow" automático para quebrar as páginas na medida certa!
+      4. TÍTULOS COM OBRIGAÇÃO NUMÉRICA: Todo título de capítulo DEVE OBRIGATORIAMENTE começar com a palavra "Capítulo" e o número. Exemplo: <h2 id="cap-1" class="chapter-title-inline">Capítulo 1: O Início</h2>
+      5. ELEMENTOS VISUAIS E ILUSTRAÇÃO: Para quebrar blocos longos de texto, use obrigatoriamente as tags <blockquote class="highlight-box"> para citações inspiradoras e <div class="highlight-box"> para quadros de resumo no decorrer dos capítulos.
+      6. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="toc-container"></div>. O meu sistema criará os links automaticamente.
       7. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do livro profissional. NUNCA gere tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva em sequência.
-      8. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS UMA VEZ no início do bloco do capítulo. Use APENAS URLs de fotos REAIS do Unsplash. É terminantemente proibido estilo sci-fi, cartoon ou ilustrações.
+      8. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS UMA VEZ no início do bloco do capítulo. Use APENAS URLs de fotos REAIS do Unsplash. Sem sci-fi ou ilustrações.
       9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA <div class="page-container"> que você criar, insira no topo o <div class="page-header"> e no final o <div class="page-footer">${regraRodape}</div>.
       `;
 
@@ -854,33 +869,29 @@ ${ebookStyles}
     ${regrasComuns}
     OBRIGAÇÕES DESTE MODO (COMPLETO):
     - Gere a Capa: ${regraCapaHtml}
-    - Gere o Índice: Crie a <div class="toc-container">. Insira os links cegos: <a class="toc-item" href="#cap-1"><span>Capítulo 1: Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
-      GARANTA que o último link seja para o autor: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>.
+    - Gere o Índice: Crie apenas a <div class="toc-container"></div>. O sistema fará o resto.
     
-    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS E UM ÚNICO CONTAINER: 
+    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS E UM ÚNICO CONTAINER. GERE NO MÍNIMO 8 PARÁGRAFOS LONGOS: 
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
           <p>[Parágrafo denso 1...]</p>
-          <p>[Parágrafo denso 2...]</p>
-          <p>[Parágrafo denso 3...]</p>
-          <p>[Parágrafo denso 4...]</p>
-          <p>[Parágrafo denso 5...]</p>
+          ... (Gere de 8 a 12 parágrafos no total)
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados aplicando a regra de UM ÚNICO CONTAINER POR CAPÍTULO.
+    - Gere TODOS os capítulos solicitados aplicando a regra de UM ÚNICO CONTAINER POR CAPÍTULO e VOLUME EXTREMO (Mínimo de 8 parágrafos por capítulo).
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com pelo menos 5 parágrafos dentro desta única div...]</p>
+          <p>[Escreva a conclusão densa com pelo menos 6 parágrafos dentro desta única div...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
           <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" style="display:none;">Sobre o Autor</h2>
+          <h2 id="sobre-o-autor" class="chapter-title-inline" style="display:none;">Sobre o Autor</h2>
           <div class="author-section layout-${autorPosicao}">
               <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
               <div class="author-bio">
@@ -891,7 +902,7 @@ ${ebookStyles}
           <div class="page-footer">${regraRodape}</div>
       </div>
 
-      AVISO DE LIMITE DE TOKENS: Se o limite de caracteres da resposta for alcançado, priorize fechar as tags HTML da <div class="page-container"> corretamente.
+      AVISO DE LIMITE DE TOKENS: Se o limite for alcançado, priorize fechar a <div class="page-container"> atual.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE:\n"""\n${content}\n"""` }], false);
@@ -906,14 +917,13 @@ ${ebookStyles}
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 1 - INÍCIO):
       1. GERE A CAPA: ${regraCapaHtml}
-      2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos, Conclusão e Sobre o Autor).
-         - Formato OBRIGATÓRIO: <a class="toc-item" href="#cap-1"><span>Capítulo 1: Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
+      2. GERE O ÍNDICE COMPLETO (TOC): Crie apenas a <div class="toc-container"></div>. O sistema fará o resto.
       
-      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO: 
+      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO E EXTREMO: 
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <p>[Seu texto de introdução aqui: gere EXATAMENTE de 5 a 8 parágrafos muito ricos e profundos. O sistema vai cortar as páginas pra você...]</p>
+            <p>[Seu texto de introdução aqui: gere EXATAMENTE de 8 a 12 parágrafos muito ricos e profundos. O sistema vai cortar as páginas pra você...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
@@ -937,17 +947,16 @@ ${ebookStyles}
       const instrucao = `Atue como Especialista Editorial. Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 2 - MEIO):
-      1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML atual para saber a sequência exata de hrefs e IDs.
-      2. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
-      3. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência do índice.
-      4. APLIQUE O ESTILO DEFINIDO E A REGRA DE CONTEINER ÚNICO POR CAPÍTULO: 
+      1. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
+      2. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência.
+      3. APLIQUE O ESTILO DEFINIDO E A REGRA DE CONTEINER ÚNICO E VOLUME EXTREMO (8 a 12 Parágrafos por capítulo): 
          ${regraEstiloCapitulos}
-      5. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO. NÃO pule os IDs, use o prefixo "Capítulo X:" no título e NÃO corte a resposta no meio.
+      4. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO. NÃO pule os IDs, use o prefixo "Capítulo X:" no título e NÃO corte a resposta no meio.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU E QUAIS IDs USAR):\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos capítulos escrevendo parágrafos densos e volumosos.'}\n"""` }
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Gere os próximos capítulos escrevendo parágrafos MUITO longos e densos (no mínimo 10 por capítulo).'}\n"""` }
       ], false);
       
       if (data && data.html) aplicarHtmlNovo(data.html, true);
@@ -969,12 +978,12 @@ ${ebookStyles}
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com 5 a 8 parágrafos ricos dentro desta mesma div...]</p>
+          <p>[Escreva a conclusão densa com 6 a 10 parágrafos ricos dentro desta mesma div...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
           <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" style="display:none;">Sobre o Autor</h2>
+          <h2 id="sobre-o-autor" class="chapter-title-inline" style="display:none;">Sobre o Autor</h2>
           <div class="author-section layout-${autorPosicao}">
               <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
               <div class="author-bio">
@@ -992,7 +1001,7 @@ ${ebookStyles}
   }
 
   // ==========================================
-  // EFEITOS 
+  // EFEITOS E INTERFACE
   // ==========================================
 
   useEffect(() => {
@@ -1114,7 +1123,7 @@ ${ebookStyles}
                       {/* COMANDO GLOBAL */}
                       <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
                           <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
-                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Adicionar um quadro em todo final de capítulo."></textarea>
+                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva o Índice para incluir os novos capítulos que eu gerei nas etapas."></textarea>
                           <button onClick={aplicarModificacaoGlobal} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wide py-2.5 rounded-lg transition shadow-sm">Aplicar no Livro Inteiro</button>
                       </div>
 
@@ -1124,7 +1133,7 @@ ${ebookStyles}
                                   <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
                               </div>
                               <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                              <p className="text-xs font-medium text-slate-400">Clique em textos, titles ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
+                              <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
                           </div>
                       ) : (
                           <div className="pb-10 bg-white">
@@ -1152,7 +1161,7 @@ ${ebookStyles}
                                   {elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage ? (
                                       <div className="space-y-3 pt-3 border-t border-slate-100">
                                           <div>
-                                              <label className="input-label mb-1">Buscar Imagem (Unsplash) / Gerar por IA</label>
+                                              <label className="input-label mb-1">Buscar URL (Unsplash) / Gerar por IA</label>
                                               <div className="flex gap-2">
                                                 <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-xs flex-1" />
                                                 <button onClick={buscarImagemIAInspetor} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 rounded shadow-sm" title="A IA lerá o texto para buscar a melhor imagem"><i className="fas fa-magic text-[10px]"></i></button>
@@ -1209,7 +1218,7 @@ ${ebookStyles}
                                               <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
                                                   <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
                                                   <strong>Container Estrutural</strong><br/>
-                                                  Você selecionou um bloco de estrutura (Página ou Seção). A edição manual de texto está desabilitada aqui para não quebrar o layout. Use a <strong>IA acima</strong> para alterar toda a página ou clique diretamente em um parágrafo.
+                                                  A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
                                               </div>
                                           )}
                                       </div>
@@ -1257,7 +1266,7 @@ ${ebookStyles}
                       <div>
                           <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Capa & Design Geral</h3>
                           <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-
+                              
                               <div className="pt-3 border-t border-slate-100">
                                   <label className="input-label mb-2">Paleta de Cores</label>
                                   <select value={paletaCores} onChange={(e) => setPaletaCores(e.target.value as any)} className="input-standard font-medium text-slate-800">
