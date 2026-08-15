@@ -23,12 +23,11 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // 1. SINCRONIZADOR DE ÍNDICE MESTRE: Constrói o índice 100% baseado no miolo real
+    // 1. SINCRONIZADOR DE ÍNDICE MESTRE
     function sincronizarIndice() {
         const tocContainer = document.querySelector('.toc-container');
         if (!tocContainer) return;
 
-        // Pega capítulos e, se habilitado, pega os subtópicos também
         const selector = ${indexShowSubtopics ? "'h2.chapter-title-inline, h3.subtopic-title'" : "'h2.chapter-title-inline'"};
         const titles = document.querySelectorAll(selector);
         
@@ -42,7 +41,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             const a = document.createElement('a');
             a.className = 'toc-item';
             
-            // Regra de Negrito Dinâmico e Recuo
             if (titleEl.tagName === 'H2') {
                 a.style.fontWeight = ${indexShowSubtopics ? "'700'" : "'400'"};
                 a.style.color = 'var(--color-primary)';
@@ -76,7 +74,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO (Com Prevenção de Título Órfão e Páginas Vazias)
+    // 2. MOTOR DE REFLUXO AVANÇADO (Blindado contra destruição de Capas Exclusivas)
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -88,7 +86,14 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             
             for(let i=0; i < pages.length; i++) {
                 let page = pages[i];
-                if(page.classList.contains('page-cover-pura') || page.classList.contains('page-cover-img')) continue;
+                
+                // IMUNIDADE: O sistema PULA páginas de Capa e Capas Exclusivas de Capítulo
+                // Isso evita que o layout Flexbox centralizado seja destruído ou sobreposto no índice
+                if(page.classList.contains('page-cover-pura') || 
+                   page.classList.contains('page-cover-img') || 
+                   page.classList.contains('cap-img-overlay') || 
+                   page.classList.contains('cap-box-rounded') || 
+                   page.classList.contains('cap-img-pura')) continue;
 
                 let computedStyle = window.getComputedStyle(page);
                 let paddingBottom = parseFloat(computedStyle.paddingBottom);
@@ -176,14 +181,19 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             }
         }
 
-        // LIMPADOR DE PÁGINAS FANTASMAS
+        // LIMPADOR DE PÁGINAS FANTASMAS (Mantendo as capas protegidas)
         document.querySelectorAll('.page-container').forEach(page => {
             const contentNodes = Array.from(page.children).filter(el => 
                 !el.classList.contains('page-header') && 
                 !el.classList.contains('page-footer') && 
                 el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
             );
-            if (contentNodes.length === 0 && !page.classList.contains('page-cover-pura') && !page.classList.contains('page-cover-img')) {
+            if (contentNodes.length === 0 && 
+                !page.classList.contains('page-cover-pura') && 
+                !page.classList.contains('page-cover-img') && 
+                !page.classList.contains('cap-img-overlay') && 
+                !page.classList.contains('cap-box-rounded') && 
+                !page.classList.contains('cap-img-pura')) {
                 page.remove();
             }
         });
@@ -441,6 +451,7 @@ export default function Home() {
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
+      // Remove lixos invisíveis que quebram o visual
       clean = clean.replace(/<br\s*\/?>/gi, ''); 
       clean = clean.replace(/<p>[\s\n\r&nbsp;]*<\/p>/gi, ''); 
       
@@ -456,6 +467,7 @@ export default function Home() {
       return clean.trim();
   }
 
+  // Focado apenas em A4
   function getEstilosFormato() {
       return { width: '210mm', height: '297mm', padding: '32mm 20mm 25mm 20mm' }; 
   }
@@ -517,27 +529,28 @@ body {
     border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : tipoBorda === 'double-thin' ? '3px double var(--color-primary)' : 'none'};
 }
 
+/* BLINDAGEM DO DISPLAY PARA EXCLUSIVAS (Força a ocupar 100% da folha) */
+.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background-size: cover !important; background-position: center !important; background-color: var(--color-bg); color: #ffffff; box-sizing: border-box; height: 100% !important; }
+.cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); z-index: 10; position: relative; }
+.cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
+
+.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; box-sizing: border-box; background-size: cover !important; background-position: center !important; background-color: var(--color-bg); height: 100% !important; }
+.cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); z-index: 10; position: relative; }
+.cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
+
+.cap-img-pura { background-size: cover !important; background-position: center !important; background-color: var(--color-bg); height: 100% !important; display: block; }
+
+/* CAPAS INICIAIS */
+.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; height: 100% !important;}
+.page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: 100% !important;}
+.page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--color-bg); color: var(--color-primary); box-sizing: border-box; height: 100% !important;}
+.page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
+
+/* Oculta os pseudo-elementos (bordas da folha) nas capas e exclusivas */
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
     display: none;
 }
-
-/* CAPAS INICIAIS */
-.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; }
-.page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: var(--color-bg); color: var(--color-primary); box-sizing: border-box; }
-.page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
-
-/* BANNERS E TITULOS DOS CAPÍTULOS */
-.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; background-position: center !important; color: #ffffff; box-sizing: border-box; }
-.cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-.cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
-
-.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; box-sizing: border-box; background: url('INSIRA_URL_IMAGEM_AQUI') center/cover no-repeat !important; }
-.cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); }
-.cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
-
-.cap-img-pura { background-size: cover !important; background-position: center !important; }
 
 /* IMAGEM HORIZONTAL E TÍTULO PRINCIPAL */
 .chapter-banner-img { width: 100%; height: 300px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.2rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
@@ -587,14 +600,14 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) */
+/* ÍNDICE CEGO (TOC) COM A MESMA PROPORÇÃO DO MIOLO E RECUOS DINÂMICOS */
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
 .toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; padding: 6px 0; cursor: pointer; margin-bottom: 0.2rem; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR */
+/* SEÇÃO DO AUTOR - LAYOUT PARA FLUTUAR TEXTO SOB A FOTO */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
@@ -830,51 +843,48 @@ ${ebookStyles}
     } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
   }
 
+  // ==== INSTRUÇÕES DO PROMPT (Totalmente Isoladas) ====
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
-      
-      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) {
-          regraRodape = `<span>${livroAutores}</span>${numSpan}`;
-      } else {
-          regraRodape = `${numSpan}`;
-      }
+      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { regraRodape = `<span>${livroAutores}</span>${numSpan}`; } 
+      else { regraRodape = `${numSpan}`; }
 
       let regraEstiloCapitulos = "";
       if (estiloCapitulos === 'padrao') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a usar EXATAMENTE este bloco HTML (Página Exclusiva do Capítulo):
-          <div class="page-container cap-img-overlay" style="background: url('URL_DA_IMAGEM_UNSPLASH') center/cover no-repeat;">
+          <div class="page-container cap-img-overlay" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
               <div class="cap-icon"><i class="fas fa-book-open"></i></div>
-              <h1 id="ID_DO_CAPITULO">NOME DO CAPÍTULO AQUI</h1>
+              <h1 id="ID_DO_CAPITULO">Capítulo X: NOME DO CAPÍTULO AQUI</h1>
           </div>
-          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
           Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo. NUNCA insira um título ou imagem dentro dessa segunda página de texto.`;
       } else if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a usar EXATAMENTE este bloco HTML (Página Exclusiva do Capítulo):
-          <div class="page-container cap-box-rounded" style="background: url('URL_DA_IMAGEM_UNSPLASH') center/cover no-repeat;">
-              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" style="margin:0; font-size: 2.2rem;">NOME DO CAPÍTULO AQUI</h1></div>
+          <div class="page-container cap-box-rounded" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
+              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" style="margin:0; font-size: 2.2rem;">Capítulo X: NOME DO CAPÍTULO AQUI</h1></div>
           </div>
-          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
           Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo. NUNCA insira um título ou imagem dentro dessa segunda página de texto.`;
       } else if (estiloCapitulos === 'imagem-pura') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a criar UMA PÁGINA EXCLUSIVA apenas com a imagem de fundo:
-          <div class="page-container cap-img-pura" style="background: url('URL_DA_IMAGEM_UNSPLASH') center/cover no-repeat;"></div>
-          NÃO INCLUA nenhum texto ou título nesta div!
-          Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">NOME DO CAPÍTULO AQUI</h2> no topo e então inicie os parágrafos do capítulo.`;
+          <div class="page-container cap-img-pura" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');"></div>
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash. NÃO INCLUA nenhum texto ou título nesta div!
+          Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2> no topo e então inicie os parágrafos do capítulo.`;
       } else if (estiloCapitulos === 'inline-imagem') {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva de fundo. Para abrir o capítulo, USE UM ÚNICO CONTAINER com a Imagem no topo:
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
-              <img src="URL_DA_IMAGEM_UNSPLASH" class="chapter-banner-img" alt="Ilustração do Capítulo" />
+              <img src="URL_DA_IMAGEM_UNSPLASH_AQUI" class="chapter-banner-img" alt="Ilustração do Capítulo" />
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          Nunca crie imagens de fundo de página inteira neste modo.`;
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de foto do Unsplash. Nunca crie imagens de fundo de página inteira neste modo.`;
       } else {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva e NÃO use imagens. O capítulo deve iniciar como texto contínuo:
@@ -897,7 +907,7 @@ ${ebookStyles}
       }
 
       const regraModo = modoConteudo === 'rigoroso' 
-          ? `MODO RIGOROSO (REVISOR E FORMATADOR): VOCÊ ESTÁ PROIBIDO DE INVENTAR CONTEÚDO NOVO. Sua única função é pegar o texto fornecido pelo usuário, corrigir pontuações e ortografia, e formata-lo perfeitamente com as tags HTML solicitadas, respeitando exatamente a quantidade original. Se o texto for pequeno, deixe-o pequeno.` 
+          ? `MODO RIGOROSO (REVISOR E FORMATADOR): VOCÊ ESTÁ PROIBIDO DE INVENTAR CONTEÚDO NOVO. Sua única função é pegar o texto fornecido pelo usuário, corrigir pontuações e ortografia, e formata-lo perfeitamente com as tags HTML solicitadas, respeitando exatamente a quantidade de conteúdo original.` 
           : `MODO EXPANDIDO (CRIATIVO): O usuário forneceu um tema ou rascunho. Atue como um autor best-seller e EXPANDA esse texto gerando um e-book muito profundo e detalhado.`;
 
       const regrasComuns = `
@@ -1046,7 +1056,7 @@ ${ebookStyles}
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com vários parágrafos ricos dentro desta mesma div, SEM IMAGENS...]</p>
+          <p>[Escreva a conclusão densa com vários parágrafos ricos dentro desta mesma div, SEM NENHUMA IMAGEM...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
