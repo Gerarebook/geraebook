@@ -21,7 +21,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // 1. SINCRONIZADOR DE ÍNDICE: Atualiza títulos e deleta capítulos não gerados
+    // 1. SINCRONIZADOR DE ÍNDICE: Atualiza títulos e deleta capítulos fantasma
     function sincronizarIndice() {
         const tocItems = document.querySelectorAll('.toc-item');
         tocItems.forEach(item => {
@@ -35,7 +35,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
             if (!targetEl) {
                 item.remove();
             } else {
-                // Se existe, atualiza o texto do índice para ser idêntico ao do miolo
+                // Sincroniza o texto do índice com o título real do miolo
                 const titleSpan = item.querySelector('span:first-child');
                 if(titleSpan && targetEl.innerText) {
                     titleSpan.innerText = targetEl.innerText.trim();
@@ -43,118 +43,153 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
             }
         });
 
-        // Limpa containers de índice que ficaram vazios
+        // Limpa containers de índice que ficaram vazios após a varredura
         document.querySelectorAll('.toc-container').forEach(tc => {
             if(tc.children.length === 0) tc.remove();
         });
     }
 
-    // 2. REFLUXO DE PÁGINA: Impede que o texto invada o rodapé
+    // 2. MOTOR DE REFLUXO AVANÇADO (Corta o texto milimetricamente)
     function aplicarRefluxoDePagina() {
-        const pages = document.querySelectorAll('.page-container');
-        let repaginou = false;
-
-        pages.forEach(page => {
-            if(page.classList.contains('page-cover-pura') || page.classList.contains('page-cover-img')) return;
-
-            const childNodes = Array.from(page.children).filter(el => 
-                !el.classList.contains('page-header') && 
-                !el.classList.contains('page-footer') && 
-                el.tagName !== 'STYLE'
-            );
-
-            let computedStyle = window.getComputedStyle(page);
-            let paddingBottom = parseFloat(computedStyle.paddingBottom);
-            let pageRect = page.getBoundingClientRect();
-            let limitY = pageRect.bottom - paddingBottom;
+        let requiresReflow = true;
+        let maxIterations = 60; // Trava de segurança contra loops infinitos
+        
+        while(requiresReflow && maxIterations > 0) {
+            requiresReflow = false;
+            maxIterations--;
+            let pages = document.querySelectorAll('.page-container');
             
-            let nodesToMove = [];
+            for(let i=0; i < pages.length; i++) {
+                let page = pages[i];
+                if(page.classList.contains('page-cover-pura') || page.classList.contains('page-cover-img')) continue;
 
-            childNodes.forEach(node => {
-                if(nodesToMove.length > 0) {
-                    nodesToMove.push(node);
-                } else {
-                    let nodeRect = node.getBoundingClientRect();
-                    let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom);
-                    
-                    if(node.classList.contains('toc-container')) {
-                        let tocItems = Array.from(node.children);
-                        let movedTocItems = [];
-                        
-                        tocItems.forEach(item => {
-                            let itemRect = item.getBoundingClientRect();
-                            let itemBottom = itemRect.bottom + parseFloat(window.getComputedStyle(item).marginBottom);
-                            if(itemBottom > limitY) {
-                                movedTocItems.push(item);
-                            }
-                        });
-                        
-                        if(movedTocItems.length > 0) {
-                            let nextContainer = node.cloneNode(false); 
-                            movedTocItems.forEach(i => nextContainer.appendChild(i));
-                            nodesToMove.push(nextContainer);
-                        }
-                        return;
+                let computedStyle = window.getComputedStyle(page);
+                let paddingBottom = parseFloat(computedStyle.paddingBottom);
+                let pageRect = page.getBoundingClientRect();
+                
+                // O limite Y absoluto da página (A margem de segurança antes do rodapé)
+                let limitY = pageRect.bottom - paddingBottom;
+                
+                let childNodes = Array.from(page.children).filter(el => 
+                    !el.classList.contains('page-header') && 
+                    !el.classList.contains('page-footer') && 
+                    el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
+                );
+
+                let nodesToMove = [];
+                let hasOverflow = false;
+
+                for(let j=0; j < childNodes.length; j++) {
+                    let node = childNodes[j];
+                    if(hasOverflow) {
+                        nodesToMove.push(node);
+                        continue;
                     }
 
-                    if (nodeBottom > limitY) {
+                    let nodeRect = node.getBoundingClientRect();
+                    let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom || 0);
+                    
+                    // Quebra especial para o Índice
+                    if (node.classList.contains('toc-container')) {
+                        let tocItems = Array.from(node.children);
+                        let tocOverflowIndex = -1;
+                        for(let k=0; k < tocItems.length; k++) {
+                            let itemRect = tocItems[k].getBoundingClientRect();
+                            if(itemRect.bottom > limitY) {
+                                tocOverflowIndex = k;
+                                break;
+                            }
+                        }
+                        if(tocOverflowIndex !== -1) {
+                            let movedTocItems = tocItems.slice(tocOverflowIndex);
+                            let nextContainer = node.cloneNode(false);
+                            movedTocItems.forEach(item => nextContainer.appendChild(item));
+                            nodesToMove.push(nextContainer);
+                            hasOverflow = true;
+                        }
+                    } else if (nodeBottom > limitY + 3) { // 3px de tolerância visual
                         nodesToMove.push(node);
+                        hasOverflow = true;
+                    }
+                }
+
+                if (nodesToMove.length > 0) {
+                    let newPage = document.createElement('div');
+                    newPage.className = page.className;
+                    
+                    let header = page.querySelector('.page-header');
+                    let footer = page.querySelector('.page-footer');
+                    
+                    if(header) newPage.appendChild(header.cloneNode(true));
+                    nodesToMove.forEach(n => newPage.appendChild(n));
+                    if(footer) newPage.appendChild(footer.cloneNode(true));
+                    
+                    page.parentNode.insertBefore(newPage, page.nextSibling);
+                    requiresReflow = true;
+                    break; // Sai do for loop para reavaliar o DOM atualizado
+                }
+            }
+        }
+    }
+
+    // 3. ORQUESTRADOR: Espera imagens, Sincroniza, Reflui e Numera
+    function triggerSmartReflow() {
+        const images = Array.from(document.images);
+        let loaded = 0;
+        
+        function runFormatting() {
+            sincronizarIndice();
+            aplicarRefluxoDePagina();
+            
+            const pages = Array.from(document.querySelectorAll('.page-container'));
+            document.querySelectorAll('.toc-item').forEach(item => {
+                const href = item.getAttribute('href');
+                if(!href || !href.startsWith('#')) return;
+                const target = document.getElementById(href.substring(1));
+                if(target) {
+                    const page = target.closest('.page-container');
+                    if(page) {
+                        const pageIndex = pages.indexOf(page) + 1;
+                        const pageNumberSpan = item.querySelector('.toc-page-num');
+                        if (pageNumberSpan) pageNumberSpan.innerText = pageIndex;
                     }
                 }
             });
+        }
 
-            if (nodesToMove.length > 0) {
-                let newPage = document.createElement('div');
-                newPage.className = page.className;
-                
-                let header = page.querySelector('.page-header');
-                let footer = page.querySelector('.page-footer');
-                
-                if(header) newPage.appendChild(header.cloneNode(true));
-                nodesToMove.forEach(n => newPage.appendChild(n));
-                if(footer) newPage.appendChild(footer.cloneNode(true));
-                
-                page.parentNode.insertBefore(newPage, page.nextSibling);
-                repaginou = true;
+        if(images.length === 0) { runFormatting(); return; }
+        
+        let timeoutTriggered = false;
+        const checkDone = () => {
+            loaded++;
+            if(loaded >= images.length && !timeoutTriggered) {
+                runFormatting();
+            }
+        };
+
+        images.forEach(img => {
+            if(img.complete) { checkDone(); } 
+            else {
+                img.addEventListener('load', checkDone);
+                img.addEventListener('error', checkDone); // Mesmo se der erro, avança
             }
         });
         
-        return repaginou;
-    }
-
-    // ORQUESTRADOR CENTRAL: Sincroniza -> Reflui -> Numera
-    function autoUpdatePages() {
-        sincronizarIndice();
-        aplicarRefluxoDePagina();
-
-        const pages = Array.from(document.querySelectorAll('.page-container'));
-        const tocItems = document.querySelectorAll('.toc-item');
-        tocItems.forEach(item => {
-            const href = item.getAttribute('href');
-            if(!href || !href.startsWith('#')) return;
-            
-            const targetId = href.substring(1);
-            let target = document.getElementById(targetId);
-            
-            if(target) {
-                const page = target.closest('.page-container');
-                if(page) {
-                    const pageIndex = pages.indexOf(page) + 1;
-                    const spans = item.querySelectorAll('span');
-                    if (spans.length >= 3) {
-                        spans[spans.length - 1].innerText = pageIndex;
-                    }
-                }
+        // Fallback blindado (3 segundos max)
+        setTimeout(() => { 
+            if(!timeoutTriggered && loaded < images.length) {
+                timeoutTriggered = true;
+                runFormatting();
             }
-        });
+        }, 3000);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(autoUpdatePages, 500); 
+        setTimeout(triggerSmartReflow, 300); 
     });
 
     function sendCleanHtml() {
-        autoUpdatePages(); 
+        triggerSmartReflow(); 
         let outlineAntigo = '';
         if(elSelecionado) { outlineAntigo = elSelecionado.style.outline; elSelecionado.style.outline = ''; }
         let htmlStr = '<!DOCTYPE html>\\n' + document.documentElement.outerHTML;
@@ -179,20 +214,13 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         else if(elSelecionado.classList.contains('text-justify')) tAlign = 'text-justify';
         else if(elSelecionado.classList.contains('text-left')) tAlign = 'text-left';
 
-        let bgImgRaw = compStyle.backgroundImage;
-        let bgImgUrl = '';
-        if (bgImgRaw && bgImgRaw !== 'none' && bgImgRaw.includes('url(')) {
-            let matches = bgImgRaw.match(/url\\(["']?(.*?)["']?\\)/);
-            if(matches && matches[1]) bgImgUrl = matches[1];
-        }
-
         window.parent.postMessage({
             type: 'ELEMENT_SELECTED',
             id: elSelecionado.id,
             tagName: elSelecionado.tagName.toLowerCase(),
             text: elSelecionado.innerText || '',
             src: elSelecionado.src || '',
-            bgImage: bgImgUrl,
+            bgImage: '',
             width: elSelecionado.style.width || elSelecionado.width || '',
             height: elSelecionado.style.height || elSelecionado.height || '',
             className: elSelecionado.className,
@@ -236,27 +264,9 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 if(event.data.height !== undefined) el.style.height = event.data.height;
                 if(event.data.textColor !== undefined) el.style.setProperty('color', event.data.textColor, 'important');
                 if(event.data.bgColor !== undefined) el.style.setProperty('background-color', event.data.bgColor, 'important');
-                
-                if(event.data.bgImage !== undefined) {
-                    if(event.data.bgImage === '') {
-                        el.style.setProperty('background-image', 'none', 'important');
-                    } else {
-                        el.style.setProperty('background-image', \`url('\${event.data.bgImage}')\`, 'important');
-                        el.style.setProperty('background-size', 'cover', 'important');
-                        el.style.setProperty('background-position', 'center', 'important');
-                    }
-                }
-
-                if(event.data.rawBgImage !== undefined) {
-                    el.style.setProperty('background-image', event.data.rawBgImage, 'important');
-                    el.style.setProperty('background-size', 'cover', 'important');
-                    el.style.setProperty('background-position', 'center', 'important');
-                }
-
                 if(event.data.fontSize !== undefined) {
                     el.style.setProperty('font-size', event.data.fontSize + 'px', 'important');
                 }
-
                 if(event.data.textAlign !== undefined) {
                     el.classList.remove('text-left', 'text-center', 'text-right', 'text-justify');
                     if(event.data.textAlign) el.classList.add(event.data.textAlign);
@@ -375,7 +385,7 @@ export default function Home() {
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
-      // Remove BRs e parágrafos invisíveis criados pela IA (Evita espaçamento gigante na Conclusão)
+      // Remove BRs e parágrafos vazios que quebram o layout
       clean = clean.replace(/<br\s*\/?>/gi, ''); 
       clean = clean.replace(/<p>[\s\n\r&nbsp;]*<\/p>/gi, ''); 
       
@@ -392,9 +402,9 @@ export default function Home() {
   }
 
   function getEstilosFormato(formato: string) {
-      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' }; 
-      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' };
-      return { width: '210mm', height: '297mm', padding: '32mm 18mm 25mm 18mm' }; 
+      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '25mm 15mm 20mm 15mm' }; 
+      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '25mm 15mm 20mm 15mm' };
+      return { width: '210mm', height: '297mm', padding: '30mm 20mm 25mm 20mm' }; 
   }
 
   function moldarApresentacaoHtml(rawHtml: string) {
@@ -420,7 +430,6 @@ export default function Home() {
     --text-indent: ${recuoParagrafo};
 }
 
-/* Paginação Automática via CSS Counters */
 body { 
     background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center; 
     font-family: var(--font-body); color: var(--color-text); 
@@ -461,7 +470,7 @@ body {
     display: none;
 }
 
-/* COMPORTAMENTO DINÂMICO PARA LIVROS IMPRESSOS (FOLHA DE ROSTO BRANCA) */
+/* COMPORTAMENTO DINÂMICO PARA LIVROS IMPRESSOS */
 ${isPrinted ? `
 .page-cover-img, .page-cover-pura { background: none !important; background-color: var(--color-bg) !important; color: var(--color-text) !important; justify-content: center; }
 .page-cover-img h1, .page-cover-pura h1 { color: var(--color-primary) !important; text-shadow: none !important; font-size: 2.5rem; }
@@ -469,7 +478,7 @@ ${isPrinted ? `
 .chapter-banner-img { height: 200px !important; margin-top: 0 !important; }
 ` : ''}
 
-/* CAPAS INICIAIS (A4 Normal) */
+/* CAPAS INICIAIS */
 .page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -487,10 +496,8 @@ ${isPrinted ? `
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; }
 
-/* IMAGEM HORIZONTAL (BANNER INLINE) */
+/* IMAGEM HORIZONTAL E TÍTULO */
 .chapter-banner-img { width: 100%; height: 360px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.5rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-
-/* TÍTULO DO CAPÍTULO (AJUSTADO PARA COLAR NO TOPO) */
 .chapter-title-inline { text-align: center; font-size: 2.6rem; margin-top: 0; margin-bottom: 1.5rem; color: var(--color-primary); font-weight: 800; line-height: 1.1; }
 
 /* CABEÇALHOS E RODAPÉS */
@@ -511,7 +518,6 @@ ${isPrinted ? `
 }
 .page-number::after { content: counter(ebook-page); }
 
-/* NÚMERO DA PÁGINA EM CÍRCULO COLORIDO */
 .page-number.circulo { 
     display: inline-flex; justify-content: center; align-items: center;
     width: 26px; height: 26px; border-radius: 50%; 
@@ -524,7 +530,6 @@ ${isPrinted ? `
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 
-/* REGRA DE ESPAÇAMENTO DE 1 LINHA APÓS TÍTULOS E SUBTITULOS */
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 h3 { font-weight: 700; font-size: 1.4rem; margin-top: 1.2rem; margin-bottom: 1.2rem; }
 
@@ -537,14 +542,14 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) COM FONTE EXATAMENTE IGUAL AO MIOLO E CLICÁVEL E ALINHADO */
+/* ÍNDICE CEGO (TOC) */
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
 .toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; font-weight: 500 !important; line-height: var(--line-spacing) !important; padding: 4px 0; cursor: pointer; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR - LAYOUT CORRIGIDO PARA TEXTO FLUTUAR SOB A FOTO */
+/* SEÇÃO DO AUTOR - LAYOUT CORRIGIDO PARA FLUTUAR TEXTO */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
@@ -666,9 +671,8 @@ ${ebookStyles}
       Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global DE FORMA RIGOROSA E OBEDIENTE: "${comando}".
       
       REGRAS MÁXIMAS DE SEGURANÇA:
-      1. PRESERVAÇÃO ABSOLUTA: Você é OBRIGADO a devolver o código HTML inteiro, do começo ao fim. NUNCA resuma, corte ou apague capítulos que não foram mencionados na alteração.
-      2. Se a alteração for apenas no índice, altere APENAS a div do índice e REPITA TODO O RESTO DO LIVRO EXATAMENTE COMO ESTÁ.
-      3. NUNCA adicione estilos inline <p style="...">. Mantenha as tags HTML intactas.`;
+      1. PRESERVAÇÃO ABSOLUTA: Você é OBRIGADO a devolver o código HTML inteiro, do começo ao fim. NUNCA resuma ou apague o resto do livro.
+      2. NUNCA adicione estilos inline <p style="...">. Mantenha as tags HTML intactas.`;
 
       const data = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
 
@@ -681,7 +685,7 @@ ${ebookStyles}
           if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
           
           if(input) input.value = '';
-          (window as any).showNotification("E-book modificado globalmente com sucesso!", "success");
+          (window as any).showNotification("E-book modificado com sucesso!", "success");
       }
   }
 
@@ -698,10 +702,9 @@ ${ebookStyles}
       Sua tarefa é modificar APENAS este elemento HTML de acordo com o pedido: "${comando}".
       
       REGRAS MÁXIMAS:
-      1. PRESERVAÇÃO DE ESTRUTURA: Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos. Não os apague.
+      1. PRESERVAÇÃO DE ESTRUTURA: Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos.
       2. Retorne APENAS o código HTML modificado DESSA CAIXA/ELEMENTO específico. 
-      3. NUNCA retorne o livro todo. NUNCA retorne as tags <html>, <head> ou <body>.
-      4. Mantenha as classes originais a menos que solicitado o contrário. Não use estilos inline.`;
+      3. Mantenha as classes originais.`;
 
       const data = await chamarMotorIA(instrucao, [{ text: `HTML DO ELEMENTO SELECIONADO:\n"""\n${elementoSelecionado.outerHTML}\n"""` }], true);
 
@@ -800,12 +803,12 @@ ${ebookStyles}
           Após ela, abra uma NOVA <div class="page-container"> normal e coloque o <h2 id="ID_DO_CAPITULO">NOME DO CAPÍTULO AQUI</h2> no topo.`;
       } else if (estiloCapitulos === 'inline-imagem') {
           regraEstiloCapitulos = `
-          NÃO crie página de capa exclusiva. Para abrir o capítulo, use o formato de banner contínuo:
+          NÃO crie página de capa exclusiva. Para abrir o capítulo, use o formato de banner contínuo em uma única div (MEU SISTEMA VAI CORTAR AS PÁGINAS PRA VOCÊ):
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">NOME DO CAPÍTULO AQUI</h2>
+              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
               <img src="URL_DA_IMAGEM_UNSPLASH" class="chapter-banner-img" alt="Ilustração do Capítulo" />
-              <p>[Seu primeiro parágrafo aqui...]</p>
+              <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>`;
       } else {
@@ -813,8 +816,8 @@ ${ebookStyles}
           NÃO crie página de capa exclusiva. O capítulo deve iniciar como texto contínuo:
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">NOME DO CAPÍTULO AQUI</h2>
-              <p>[Seu primeiro parágrafo aqui...]</p>
+              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
+              <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>`;
       }
@@ -832,22 +835,17 @@ ${ebookStyles}
       }
 
       const regrasComuns = `
-      DIRETRIZES ESTRITAS DE FORMATAÇÃO E VOLUME:
-      1. GERAÇÃO COMPLETA OBRIGATÓRIA: Devolva TODO o conteúdo solicitado até o fim da narrativa sem resumir ou cortar código!
-      2. DENSIDADE OBRIGATÓRIA (MÍNIMO DE PARÁGRAFOS): 
-         - Nas páginas normais de texto contínuo, você DEVE escrever EXATAMENTE de 4 a 5 parágrafos médios/longos por <div class="page-container"> para preencher todo o espaço do livro impresso.
-         - Na PRIMEIRA página de um capítulo (a que possui a imagem de banner), você DEVE escrever EXATAMENTE de 3 a 4 parágrafos abaixo da imagem.
-         - Sempre que a página encher o limite de 5 parágrafos, FECHE a div atual e ABRA uma nova <div class="page-container"> com o cabeçalho e rodapé idênticos.
-      3. ÍNDICE DINÂMICO E CLICÁVEL: Use RIGOROSAMENTE este formato cego para o índice:
-         <a class="toc-item" href="#cap-1"><span>1. Título do Capítulo</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
-         E OBRIGATORIAMENTE o mesmo ID nos títulos dos capítulos gerados:
-         <h2 id="cap-1" class="chapter-title-inline">1. Título do Capítulo</h2>
-      4. PROIBIDO PARÁGRAFOS VAZIOS OU BR: NUNCA gere as tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva os parágrafos imediatamente um após o outro (Ex: <p>Texto</p><p>Texto</p>). Se precisar de volume, crie parágrafos densos e não espaços em branco.
-      5. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS na primeira página de cada capítulo. Use APENAS URLs de fotos reais do Unsplash. Sem sci-fi.
-      6. ESPAÇAMENTO DOS TÓPICOS: Respeite a margem garantindo 1 linha de respiro entre subtítulos (h3) e parágrafos.
-      7. CONTEÚDO NARRATIVO: A história biográfica entra apenas no Capítulo 1. Os demais capítulos são focados puramente em dicas práticas.
-      8. MODO GERADOR CÓDIGO PURO: Retorne APENAS HTML.
-      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA PÁGINA gerada, insira o <div class="page-header"> e o <div class="page-footer">${regraRodape}</div>.
+      DIRETRIZES ESTRITAS DE FORMATAÇÃO (LEIA COM ATENÇÃO MAXIMA):
+      1. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Você DEVE colocar TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. O meu sistema fará o "Reflow" automático para quebrar as páginas na medida certa!
+      2. TÍTULOS COM OBRIGAÇÃO NUMÉRICA: Todo título de capítulo DEVE OBRIGATORIAMENTE começar com a palavra "Capítulo" e o número. Exemplo: <h2 id="cap-1" class="chapter-title-inline">Capítulo 1: O Início</h2>
+      3. DENSIDADE E VOLUME MÁXIMO: Seu único dever é focar em escrever um conteúdo extremamente rico, denso e profundo. Escreva NO MÍNIMO de 8 a 15 parágrafos médios por capítulo para preencher o volume do livro.
+      4. ÍNDICE DINÂMICO E CLICÁVEL: Use RIGOROSAMENTE este formato cego para o índice:
+         <a class="toc-item" href="#cap-1"><span>Capítulo 1: Título do Capítulo</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
+      5. PROIBIDO PARÁGRAFOS VAZIOS OU BR: NUNCA gere as tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva os parágrafos imediatamente um após o outro (Ex: <p>Texto</p><p>Texto</p>).
+      6. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS UMA VEZ no início do bloco do capítulo. Use APENAS URLs de fotos REAIS do Unsplash. É terminantemente proibido estilo sci-fi, cartoon ou ilustrações.
+      7. CONTEÚDO NARRATIVO: A história biográfica entra apenas no Capítulo 1. Os demais capítulos são focados puramente em dicas práticas, conceitos psicológicos ou estratégias aplicáveis.
+      8. MODO GERADOR CÓDIGO PURO: Retorne APENAS HTML. Nenhuma palavra a mais.
+      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA <div class="page-container"> que você criar, insira no topo o <div class="page-header"> e no final o <div class="page-footer">${regraRodape}</div>.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -863,27 +861,29 @@ ${ebookStyles}
     ${regrasComuns}
     OBRIGAÇÕES DESTE MODO (COMPLETO):
     - Gere a Capa: ${regraCapaHtml}
-    - Gere o Índice: Crie a <div class="toc-container">. Insira os links cegos: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
+    - Gere o Índice: Crie a <div class="toc-container">. Insira os links cegos: <a class="toc-item" href="#cap-1"><span>Capítulo 1: Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
       GARANTA que o último link seja para o autor: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>.
     
-    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE): 
+    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE) E UM ÚNICO CONTAINER: 
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-          <p>[Parágrafo 1...]</p>
-          <p>[Parágrafo 2...]</p>
-          <p>[Parágrafo 3...]</p>
-          <p>[Parágrafo 4...]</p>
+          <p>[Parágrafo denso 1...]</p>
+          <p>[Parágrafo denso 2...]</p>
+          <p>[Parágrafo denso 3...]</p>
+          <p>[Parágrafo denso 4...]</p>
+          <p>[Parágrafo denso 5...]</p>
+          <p>[Parágrafo denso 6...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados aplicando as regras de quebra de página se exceder 5 parágrafos e inserindo a imagem de capa apenas na página 1 do capítulo.
+    - Gere TODOS os capítulos solicitados aplicando a regra de UM ÚNICO CONTAINER POR CAPÍTULO.
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão com 4 a 5 parágrafos densos...]</p>
+          <p>[Escreva a conclusão densa com 6 a 8 parágrafos. Coloque tudo dentro desta única div...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -898,6 +898,8 @@ ${ebookStyles}
           </div>
           <div class="page-footer">${regraRodape}</div>
       </div>
+
+      AVISO DE LIMITE DE TOKENS: Se o limite de caracteres da resposta for alcançado, priorize fechar as tags HTML da <div class="page-container"> corretamente.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE:\n"""\n${content}\n"""` }], false);
@@ -913,17 +915,17 @@ ${ebookStyles}
       OBRIGAÇÕES DESTE MODO (PASSO 1 - INÍCIO):
       1. GERE A CAPA: ${regraCapaHtml}
       2. GERE O ÍNDICE COMPLETO (TOC): Crie um índice prevendo a estrutura TOTAL do livro (Introdução, todos os capítulos, Conclusão e Sobre o Autor).
-         - Formato OBRIGATÓRIO: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
+         - Formato OBRIGATÓRIO: <a class="toc-item" href="#cap-1"><span>Capítulo 1: Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
       
-      3. A INTRODUÇÃO DEVE SEGUIR O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE): 
+      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO: 
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <p>[Seu texto de introdução aqui: gere EXATAMENTE de 4 a 5 parágrafos para preencher a página...]</p>
+            <p>[Seu texto de introdução aqui: gere EXATAMENTE de 6 a 10 parágrafos muito ricos e profundos. O sistema vai cortar as páginas pra você...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
-      4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO. NÃO escreva o Capítulo 1 ainda.
+      4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A ÚNICA DIV DA INTRODUÇÃO. NÃO escreva o Capítulo 1 ainda.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
@@ -946,14 +948,14 @@ ${ebookStyles}
       1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML atual para saber a sequência exata de hrefs e IDs.
       2. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
       3. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência do índice.
-      4. APLIQUE O ESTILO DEFINIDO E FORÇA DE VOLUME (MÍNIMO 4 A 5 PARÁGRAFOS POR PÁGINA): 
+      4. APLIQUE O ESTILO DEFINIDO E A REGRA DE CONTEINER ÚNICO POR CAPÍTULO: 
          ${regraEstiloCapitulos}
-      5. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO das páginas geradas sem cortar ou omitir marcações.
+      5. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO. NÃO pule os IDs, use o prefixo "Capítulo X:" no título e NÃO corte a resposta no meio.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU E QUAIS IDs USAR):\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos capítulos aplicando quebras de páginas.'}\n"""` }
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos capítulos escrevendo parágrafos densos e volumosos.'}\n"""` }
       ], false);
       
       if (data && data.html) aplicarHtmlNovo(data.html, true);
@@ -975,7 +977,7 @@ ${ebookStyles}
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão com 4 a 5 parágrafos. Crie mais de uma página se necessário para preencher o volume...]</p>
+          <p>[Escreva a conclusão densa com 6 a 10 parágrafos ricos dentro desta mesma div...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -1130,7 +1132,7 @@ ${ebookStyles}
                                   <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
                               </div>
                               <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                              <p className="text-xs font-medium text-slate-400">Clique em textos, titles ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
+                              <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
                           </div>
                       ) : (
                           <div className="pb-10 bg-white">
