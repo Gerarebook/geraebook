@@ -3,7 +3,9 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 
-const SCRIPT_PREVIEW = `<script id="editor-magic-script">
+// Função para injetar o Script com as variáveis de estado do React
+function getScriptPreview(indexShowSubtopics: boolean) {
+    return `<script id="editor-magic-script">
     let modoEdicao = false;
     let elSelecionado = null;
 
@@ -21,26 +23,32 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // 1. SINCRONIZADOR DE ÍNDICE MESTRE: Constrói o índice 100% baseado no miolo real
+    // 1. SINCRONIZADOR DE ÍNDICE MESTRE
     function sincronizarIndice() {
         const tocContainer = document.querySelector('.toc-container');
         if (!tocContainer) return;
 
-        // Pega TODOS os títulos principais do livro gerado
-        const titles = document.querySelectorAll('h2.chapter-title-inline');
+        // Pega capítulos e, se habilitado, pega os subtópicos também
+        const selector = ${indexShowSubtopics ? "'h2.chapter-title-inline, h3.subtopic-title'" : "'h2.chapter-title-inline'"};
+        const titles = document.querySelectorAll(selector);
         
-        // Limpa o índice velho/incompleto feito pela IA
         tocContainer.innerHTML = '';
 
-        titles.forEach((titleEl, index) => {
-            // Garante que todo título tenha um ID para a âncora funcionar
+        titles.forEach((titleEl) => {
             if (!titleEl.id) {
-                titleEl.id = 'cap-auto-' + Math.random().toString(36).substr(2, 9);
+                titleEl.id = 'sec-auto-' + Math.random().toString(36).substr(2, 9);
             }
 
-            // Ignora títulos ocultos (ex: display:none do autor) mas pega o texto correto
             const a = document.createElement('a');
             a.className = 'toc-item';
+            
+            // Dá um recuo charmoso se for um subtópico
+            if (titleEl.tagName === 'H3') {
+                a.style.paddingLeft = '20px';
+                a.style.fontSize = '0.9em';
+                a.style.opacity = '0.9';
+            }
+
             a.href = '#' + titleEl.id;
             
             const spanTitle = document.createElement('span');
@@ -58,9 +66,13 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
             
             tocContainer.appendChild(a);
         });
+
+        document.querySelectorAll('.toc-container').forEach(tc => {
+            if(tc.children.length === 0) tc.remove();
+        });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO: A4 Perfeito (Corta texto milimetricamente antes do rodapé)
+    // 2. MOTOR DE REFLUXO AVANÇADO (Com Prevenção de Título Órfão e Páginas Vazias)
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -78,7 +90,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 let paddingBottom = parseFloat(computedStyle.paddingBottom);
                 let pageRect = page.getBoundingClientRect();
                 
-                // O limite Y absoluto da página (A margem de segurança)
                 let limitY = pageRect.bottom - paddingBottom;
                 
                 let childNodes = Array.from(page.children).filter(el => 
@@ -87,60 +98,95 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
                 );
 
-                let nodesToMove = [];
-                let hasOverflow = false;
+                let overflowIndex = -1;
+                let tocOverflowIndex = -1;
 
+                // Identifica onde ocorreu o primeiro estouro da margem
                 for(let j=0; j < childNodes.length; j++) {
                     let node = childNodes[j];
-                    if(hasOverflow) {
-                        nodesToMove.push(node);
-                        continue;
-                    }
-
-                    let nodeRect = node.getBoundingClientRect();
-                    let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom || 0);
-                    
-                    // Lógica especial de corte dinâmico para o Índice
                     if (node.classList.contains('toc-container')) {
                         let tocItems = Array.from(node.children);
-                        let tocOverflowIndex = -1;
                         for(let k=0; k < tocItems.length; k++) {
                             let itemRect = tocItems[k].getBoundingClientRect();
                             if(itemRect.bottom > limitY) {
                                 tocOverflowIndex = k;
+                                overflowIndex = j;
                                 break;
                             }
                         }
-                        if(tocOverflowIndex !== -1) {
-                            let movedTocItems = tocItems.slice(tocOverflowIndex);
-                            let nextContainer = node.cloneNode(false);
-                            movedTocItems.forEach(item => nextContainer.appendChild(item));
-                            nodesToMove.push(nextContainer);
-                            hasOverflow = true;
+                        if (overflowIndex !== -1) break;
+                    } else {
+                        let nodeRect = node.getBoundingClientRect();
+                        let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom || 0);
+                        if (nodeBottom > limitY + 2) { 
+                            overflowIndex = j;
+                            break;
                         }
-                    } else if (nodeBottom > limitY + 2) { 
-                        nodesToMove.push(node);
-                        hasOverflow = true;
                     }
                 }
 
-                if (nodesToMove.length > 0) {
-                    let newPage = document.createElement('div');
-                    newPage.className = page.className;
+                if (overflowIndex !== -1) {
+                    let node = childNodes[overflowIndex];
+                    let nodesToMove = [];
                     
-                    let header = page.querySelector('.page-header');
-                    let footer = page.querySelector('.page-footer');
-                    
-                    if(header) newPage.appendChild(header.cloneNode(true));
-                    nodesToMove.forEach(n => newPage.appendChild(n));
-                    if(footer) newPage.appendChild(footer.cloneNode(true));
-                    
-                    page.parentNode.insertBefore(newPage, page.nextSibling);
-                    requiresReflow = true;
-                    break; 
+                    if (node.classList.contains('toc-container') && tocOverflowIndex !== -1) {
+                        // Corta e move apenas os links excedentes do índice
+                        let tocItems = Array.from(node.children);
+                        let movedTocItems = tocItems.slice(tocOverflowIndex);
+                        let nextContainer = node.cloneNode(false);
+                        movedTocItems.forEach(item => nextContainer.appendChild(item));
+                        
+                        nodesToMove = childNodes.slice(overflowIndex + 1);
+                        nodesToMove.unshift(nextContainer);
+                    } else {
+                        // SISTEMA ANTI-ÓRFÃO: Se o elemento que sobrou no fundo da página for um Título, ele PULA pra página seguinte
+                        while (overflowIndex > 0) {
+                            let prevNode = childNodes[overflowIndex - 1];
+                            if (prevNode.tagName.match(/^H[1-6]$/i) || prevNode.classList.contains('subtopic-title')) {
+                                overflowIndex--;
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        // Trava de segurança para loop infinito caso um elemento seja gigante
+                        if (overflowIndex === 0 && childNodes.length > 1) {
+                            overflowIndex = 1;
+                        }
+                        
+                        nodesToMove = childNodes.slice(overflowIndex);
+                    }
+
+                    if (nodesToMove.length > 0) {
+                        let newPage = document.createElement('div');
+                        newPage.className = page.className;
+                        
+                        let header = page.querySelector('.page-header');
+                        let footer = page.querySelector('.page-footer');
+                        
+                        if(header) newPage.appendChild(header.cloneNode(true));
+                        nodesToMove.forEach(n => newPage.appendChild(n));
+                        if(footer) newPage.appendChild(footer.cloneNode(true));
+                        
+                        page.parentNode.insertBefore(newPage, page.nextSibling);
+                        requiresReflow = true;
+                        break; 
+                    }
                 }
             }
         }
+
+        // LIMPADOR DE PÁGINAS FANTASMAS
+        document.querySelectorAll('.page-container').forEach(page => {
+            const contentNodes = Array.from(page.children).filter(el => 
+                !el.classList.contains('page-header') && 
+                !el.classList.contains('page-footer') && 
+                el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
+            );
+            if (contentNodes.length === 0 && !page.classList.contains('page-cover-pura') && !page.classList.contains('page-cover-img')) {
+                page.remove();
+            }
+        });
     }
 
     // 3. ORQUESTRADOR
@@ -149,10 +195,9 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         let loaded = 0;
         
         function runFormatting() {
-            sincronizarIndice(); // Sempre constrói o índice real primeiro
-            aplicarRefluxoDePagina(); // Depois quebra as páginas
+            sincronizarIndice(); 
+            aplicarRefluxoDePagina(); 
             
-            // Depois calcula os números e injeta no índice e rodapés
             const pages = Array.from(document.querySelectorAll('.page-container'));
             document.querySelectorAll('.toc-item').forEach(item => {
                 const href = item.getAttribute('href');
@@ -307,6 +352,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         }
     }, true); 
 </script>`;
+}
 
 export default function Home() {
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
@@ -315,7 +361,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL (Apenas A4)
+  // CONFIGURAÇÕES DE DESIGN GERAL (SÓ A4)
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -342,13 +388,12 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
-  // DADOS DO PROJETO
+  // DADOS DO PROJETO E OPÇÕES DO ÍNDICE
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
-  
-  // MODO DE CONTEÚDO (Expandido ou Rigoroso)
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso'>('expandido');
+  const [indexShowSubtopics, setIndexShowSubtopics] = useState(true);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -388,7 +433,7 @@ export default function Home() {
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
-      // Remove lixos invisíveis
+      // Remove lixos invisíveis que quebram o visual
       clean = clean.replace(/<br\s*\/?>/gi, ''); 
       clean = clean.replace(/<p>[\s\n\r&nbsp;]*<\/p>/gi, ''); 
       
@@ -404,8 +449,8 @@ export default function Home() {
       return clean.trim();
   }
 
-  // Focado apenas em A4
   function getEstilosFormato() {
+      // Formato A4 blindado
       return { width: '210mm', height: '297mm', padding: '32mm 20mm 25mm 20mm' }; 
   }
 
@@ -488,9 +533,12 @@ body {
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; }
 
-/* IMAGEM HORIZONTAL E TÍTULO */
+/* IMAGEM HORIZONTAL E TÍTULO PRINCIPAL */
 .chapter-banner-img { width: 100%; height: 360px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.5rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
 .chapter-title-inline { text-align: center; font-size: 2.6rem; margin-top: 0; margin-bottom: 1.5rem; color: var(--color-primary); font-weight: 800; line-height: 1.1; }
+
+/* TÍTULOS DE TÓPICOS DENTRO DO CAPÍTULO (H3) */
+h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 0.8rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
 
 /* CABEÇALHOS E RODAPÉS */
 .page-header { 
@@ -510,7 +558,6 @@ body {
 }
 .page-number::after { content: counter(ebook-page); }
 
-/* NÚMERO DA PÁGINA EM CÍRCULO COLORIDO */
 .page-number.circulo { 
     display: inline-flex; justify-content: center; align-items: center;
     width: 26px; height: 26px; border-radius: 50%; 
@@ -524,7 +571,6 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
-h3 { font-weight: 700; font-size: 1.4rem; margin-top: 1.2rem; margin-bottom: 1.2rem; }
 
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
@@ -647,7 +693,7 @@ ${ebookStyles}
     const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
     const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
     if (codEl) codEl.value = estadoAnterior || '';
-    if (prevEl) prevEl.srcdoc = (estadoAnterior || '') + SCRIPT_PREVIEW; 
+    if (prevEl) prevEl.srcdoc = (estadoAnterior || '') + getScriptPreview(indexShowSubtopics); 
     setElementoSelecionado(null);
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
@@ -690,7 +736,7 @@ ${ebookStyles}
           
           setHistoricoCodigo((prev) => [...prev, codEl.value]); 
           codEl.value = htmlFinal; 
-          if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
+          if (prevEl) prevEl.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics); 
           
           if(input) input.value = '';
           (window as any).showNotification("E-book modificado com sucesso!", "success");
@@ -749,7 +795,7 @@ ${ebookStyles}
       }
 
       if (codEl) { setHistoricoCodigo((prev) => [...prev, codEl.value]); codEl.value = htmlFinal; }
-      if (prevEl) prevEl.srcdoc = htmlFinal + SCRIPT_PREVIEW; 
+      if (prevEl) prevEl.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics); 
   }
 
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
@@ -840,19 +886,19 @@ ${ebookStyles}
       }
 
       const regraModo = modoConteudo === 'rigoroso' 
-          ? `MODO RIGOROSO (MÁXIMA ATENÇÃO): VOCÊ ESTÁ PROIBIDO DE CRIAR, INVENTAR OU CORTAR CONTEÚDO. Sua única função é pegar o texto fornecido pelo usuário, corrigir pontuações e ortografia, e formata-lo com as tags HTML solicitadas, respeitando exatamente a quantidade original. Se o texto for pequeno, deixe-o pequeno.` 
+          ? `MODO RIGOROSO (REVISOR E FORMATADOR): VOCÊ ESTÁ PROIBIDO DE INVENTAR CONTEÚDO NOVO. Sua única função é pegar o texto fornecido pelo usuário, corrigir pontuações e ortografia, e formata-lo perfeitamente com as tags HTML solicitadas, respeitando exatamente a quantidade de conteúdo original.` 
           : `MODO EXPANDIDO (CRIATIVO): O usuário forneceu um tema ou rascunho. Atue como um autor best-seller e EXPANDA esse texto gerando um e-book muito profundo e detalhado.`;
 
       const regrasComuns = `
       DIRETRIZES ESTRITAS DE VOLUME E ESTRUTURA (LEIA COM ATENÇÃO MÁXIMA):
       1. REGRA DE OPERAÇÃO: ${regraModo}
-      2. REGRA DE VOLUME EXTREMO (MUITO IMPORTANTE): Cada capítulo DEVE ser LONGO, PROFUNDO e DENSO. É terminantemente PROIBIDO criar capítulos curtos. Você DEVE gerar NO MÍNIMO de 8 a 12 parágrafos longos por capítulo para preencher múltiplas páginas perfeitamente.
-      3. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Você DEVE colocar TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. O meu sistema fará o "Reflow" automático para quebrar as páginas na medida certa!
-      4. TÍTULOS COM OBRIGAÇÃO NUMÉRICA: Todo título de capítulo DEVE OBRIGATORIAMENTE começar com a palavra "Capítulo" e o número. Exemplo: <h2 id="cap-1" class="chapter-title-inline">Capítulo 1: O Início</h2>
+      2. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Você DEVE colocar TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. O meu sistema fará o "Reflow" automático para quebrar as páginas na medida certa!
+      3. TÍTULOS COM OBRIGAÇÃO NUMÉRICA: Todo título de capítulo DEVE OBRIGATORIAMENTE começar com a palavra "Capítulo" e o número. Exemplo: <h2 id="cap-1" class="chapter-title-inline">Capítulo 1: O Início</h2>
+      4. TÓPICOS E SUBTÍTULOS OBRIGATÓRIOS: NUNCA crie uma parede de texto gigante sem divisões. OBRIGATORIAMENTE dívida os conteúdos longos criando subtópicos com a tag <h3 class="subtopic-title">Nome do Tópico</h3>. Os tópicos organizam os parágrafos.
       5. ELEMENTOS VISUAIS E ILUSTRAÇÃO: Para quebrar blocos longos de texto, use obrigatoriamente as tags <blockquote class="highlight-box"> para citações inspiradoras e <div class="highlight-box"> para quadros de resumo no decorrer dos capítulos.
       6. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="toc-container"></div>. O meu sistema criará os links automaticamente.
-      7. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do livro profissional. NUNCA gere tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva em sequência.
-      8. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS UMA VEZ no início do bloco do capítulo. Use APENAS URLs de fotos REAIS do Unsplash. Sem sci-fi ou ilustrações.
+      7. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do livro profissional. NUNCA gere tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva os parágrafos em sequência.
+      8. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS UMA VEZ no início dos CAPÍTULOS NUMERADOS. É TOTALMENTE PROIBIDO inserir imagens na Introdução e na Conclusão. Use APENAS URLs de fotos REAIS do Unsplash.
       9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA <div class="page-container"> que você criar, insira no topo o <div class="page-header"> e no final o <div class="page-footer">${regraRodape}</div>.
       `;
 
@@ -871,22 +917,26 @@ ${ebookStyles}
     - Gere a Capa: ${regraCapaHtml}
     - Gere o Índice: Crie apenas a <div class="toc-container"></div>. O sistema fará o resto.
     
-    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS E UM ÚNICO CONTAINER. GERE NO MÍNIMO 8 PARÁGRAFOS LONGOS: 
+    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS E UM ÚNICO CONTAINER. GERE PARÁGRAFOS LONGOS: 
+      <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
           <p>[Parágrafo denso 1...]</p>
-          ... (Gere de 8 a 12 parágrafos no total)
+          <h3 class="subtopic-title">O Começo da Jornada</h3>
+          <p>[Parágrafo denso 2...]</p>
+          ... (Gere o restante dos parágrafos e tópicos, SEM NENHUMA IMAGEM)
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados aplicando a regra de UM ÚNICO CONTAINER POR CAPÍTULO e VOLUME EXTREMO (Mínimo de 8 parágrafos por capítulo).
+    - Gere TODOS os capítulos solicitados aplicando a regra de UM ÚNICO CONTAINER POR CAPÍTULO. Não esqueça dos <h3 class="subtopic-title">.
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
+      <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com pelo menos 6 parágrafos dentro desta única div...]</p>
+          <p>[Escreva a conclusão densa com vários parágrafos dentro desta única div, SEM NENHUMA IMAGEM...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -917,13 +967,16 @@ ${ebookStyles}
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 1 - INÍCIO):
       1. GERE A CAPA: ${regraCapaHtml}
-      2. GERE O ÍNDICE COMPLETO (TOC): Crie apenas a <div class="toc-container"></div>. O sistema fará o resto.
+      2. GERE O ÍNDICE COMPLETO: Crie apenas a <div class="toc-container"></div>. O sistema fará os links.
       
-      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO E EXTREMO: 
+      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA, TEXTO DENSO E TÓPICOS: 
+         <!-- PROIBIDO USAR TAG IMG AQUI -->
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <p>[Seu texto de introdução aqui: gere EXATAMENTE de 8 a 12 parágrafos muito ricos e profundos. O sistema vai cortar as páginas pra você...]</p>
+            <p>[Seu texto de introdução aqui...]</p>
+            <h3 class="subtopic-title">Visão Geral</h3>
+            <p>[Parágrafos...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
@@ -932,7 +985,7 @@ ${ebookStyles}
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
       if (data && data.html) aplicarHtmlNovo(data.html, false);
-      (window as any).showNotification("Passo 1 Concluído! Índice e Introdução gerados.", "success");
+      (window as any).showNotification("Passo 1 Concluído! Capa, Índice e Introdução gerados.", "success");
   }
 
   async function continuarEbookEtapas() {
@@ -947,16 +1000,16 @@ ${ebookStyles}
       const instrucao = `Atue como Especialista Editorial. Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 2 - MEIO):
-      1. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
-      2. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência.
-      3. APLIQUE O ESTILO DEFINIDO E A REGRA DE CONTEINER ÚNICO E VOLUME EXTREMO (8 a 12 Parágrafos por capítulo): 
+      1. PROIBIÇÃO ABSOLUTA: NÃO crie capa, NÃO crie a div do índice, NÃO repita a Introdução! Comece DIRETAMENTE nas divs dos novos capítulos inéditos.
+      2. IDENTIFIQUE DE ONDE CONTINUAR: Leia o HTML atual para saber em qual capítulo parou e comece pelo próximo (ex: se parou no 2, faça o 3 e 4).
+      3. APLIQUE O ESTILO DEFINIDO E A REGRA DE CONTEINER ÚNICO POR CAPÍTULO: 
          ${regraEstiloCapitulos}
       4. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO. NÃO pule os IDs, use o prefixo "Capítulo X:" no título e NÃO corte a resposta no meio.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU E QUAIS IDs USAR):\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Gere os próximos capítulos escrevendo parágrafos MUITO longos e densos (no mínimo 10 por capítulo).'}\n"""` }
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Gere os próximos capítulos garantindo o uso de subtópicos h3.subtopic-title e parágrafos muito longos.'}\n"""` }
       ], false);
       
       if (data && data.html) aplicarHtmlNovo(data.html, true);
@@ -975,10 +1028,11 @@ ${ebookStyles}
       OBRIGAÇÕES DESTE MODO (PASSO 3 - FIM):
       Você DEVE obrigatoriamente usar EXATAMENTE o molde de código HTML abaixo para finalizar o livro. 
 
+      <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com 6 a 10 parágrafos ricos dentro desta mesma div...]</p>
+          <p>[Escreva a conclusão densa com vários parágrafos ricos dentro desta mesma div...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -1069,9 +1123,9 @@ ${ebookStyles}
     const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
     const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
     if (codEl && codEl.value && prevEl) {
-        prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + SCRIPT_PREVIEW;
+        prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + getScriptPreview(indexShowSubtopics);
     }
-  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate]);
+  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate, indexShowSubtopics]);
 
   const isTextElement = elementoSelecionado ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(elementoSelecionado.tagName.toLowerCase()) : false;
 
@@ -1123,7 +1177,7 @@ ${ebookStyles}
                       {/* COMANDO GLOBAL */}
                       <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
                           <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
-                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva o Índice para incluir os novos capítulos que eu gerei nas etapas."></textarea>
+                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Adicionar um quadro em todo final de capítulo."></textarea>
                           <button onClick={aplicarModificacaoGlobal} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wide py-2.5 rounded-lg transition shadow-sm">Aplicar no Livro Inteiro</button>
                       </div>
 
@@ -1154,14 +1208,14 @@ ${ebookStyles}
                                   {/* NOVA ÁREA: IA PARA O ELEMENTO SELECIONADO */}
                                   <div className="mt-2 mb-4">
                                       <label className="input-label mb-2 text-indigo-700 flex items-center gap-1"><i className="fas fa-magic text-yellow-500"></i> Editar este trecho com IA</label>
-                                      <textarea id="ai_prompt_local" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva este parágrafo em um tom mais persuasivo... ou Atualize este índice..."></textarea>
+                                      <textarea id="ai_prompt_local" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva este parágrafo em um tom mais persuasivo..."></textarea>
                                       <button onClick={aplicarModificacaoLocal} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wide py-2 rounded-lg transition shadow-sm">Aplicar IA no Selecionado</button>
                                   </div>
 
                                   {elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage ? (
                                       <div className="space-y-3 pt-3 border-t border-slate-100">
                                           <div>
-                                              <label className="input-label mb-1">Buscar URL (Unsplash) / Gerar por IA</label>
+                                              <label className="input-label mb-1">Buscar Imagem (Unsplash) / Gerar por IA</label>
                                               <div className="flex gap-2">
                                                 <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-xs flex-1" />
                                                 <button onClick={buscarImagemIAInspetor} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 rounded shadow-sm" title="A IA lerá o texto para buscar a melhor imagem"><i className="fas fa-magic text-[10px]"></i></button>
@@ -1405,7 +1459,7 @@ ${ebookStyles}
 
                       {/* TIPOGRAFIA E ESPAÇAMENTOS */}
                       <div>
-                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">3</span> Tipografia</h3>
+                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">3</span> Tipografia e Índice</h3>
                           <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
                               <div>
                                   <label className="input-label mb-2">Fonte do Livro</label>
@@ -1455,6 +1509,12 @@ ${ebookStyles}
                                       </select>
                                   </div>
                               </div>
+                              <div className="pt-3 border-t border-slate-100">
+                                  <label className="flex items-center text-xs font-bold text-gray-700 cursor-pointer">
+                                      <input type="checkbox" checked={indexShowSubtopics} onChange={(e) => setIndexShowSubtopics(e.target.checked)} className="mr-2 h-4 w-4 text-blue-600 rounded" />
+                                      Incluir Tópicos (Subtítulos) no Índice
+                                  </label>
+                              </div>
                           </div>
                       </div>
 
@@ -1464,9 +1524,9 @@ ${ebookStyles}
                           
                           <div className="mb-4">
                               <label className="input-label text-indigo-800">Modo de Criação da IA</label>
-                              <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard text-sm mb-3 font-bold text-indigo-700 bg-white">
+                              <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard text-sm mb-3 font-bold text-indigo-700 bg-white shadow-sm border-indigo-300">
                                   <option value="expandido">💡 Criar do Zero (A IA cria o livro baseado no tema)</option>
-                                  <option value="rigoroso">📝 Apenas Formatar (Usa SÓ seu texto sem inventar)</option>
+                                  <option value="rigoroso">📝 Formatar e Corrigir (Usa SÓ seu texto, não inventa)</option>
                               </select>
                           </div>
 
@@ -1552,7 +1612,7 @@ ${ebookStyles}
                   <textarea id="codigoGerado" className="w-full h-full font-mono text-[13px] bg-[#0d1117] text-[#56d364] border-none outline-none resize-none custom-scrollbar p-8 leading-relaxed"
                       onChange={(e) => {
                           const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-                          if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + SCRIPT_PREVIEW; }
+                          if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + getScriptPreview(indexShowSubtopics); }
                       }}
                   ></textarea>
               </div>
