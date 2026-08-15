@@ -21,7 +21,35 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // Função de Refluxo Absoluto: Usa coordenadas de pixel para garantir que nada passe do rodapé
+    // 1. SINCRONIZADOR DE ÍNDICE: Atualiza títulos e deleta capítulos não gerados
+    function sincronizarIndice() {
+        const tocItems = document.querySelectorAll('.toc-item');
+        tocItems.forEach(item => {
+            const href = item.getAttribute('href');
+            if(!href || !href.startsWith('#')) return;
+            
+            const targetId = href.substring(1);
+            const targetEl = document.getElementById(targetId);
+            
+            // Se o capítulo não existe no miolo do livro, remove do índice
+            if (!targetEl) {
+                item.remove();
+            } else {
+                // Se existe, atualiza o texto do índice para ser idêntico ao do miolo
+                const titleSpan = item.querySelector('span:first-child');
+                if(titleSpan && targetEl.innerText) {
+                    titleSpan.innerText = targetEl.innerText.trim();
+                }
+            }
+        });
+
+        // Limpa containers de índice que ficaram vazios
+        document.querySelectorAll('.toc-container').forEach(tc => {
+            if(tc.children.length === 0) tc.remove();
+        });
+    }
+
+    // 2. REFLUXO DE PÁGINA: Impede que o texto invada o rodapé
     function aplicarRefluxoDePagina() {
         const pages = document.querySelectorAll('.page-container');
         let repaginou = false;
@@ -35,7 +63,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 el.tagName !== 'STYLE'
             );
 
-            // Calcula o limite EXATO antes de tocar na área de padding inferior (rodapé)
             let computedStyle = window.getComputedStyle(page);
             let paddingBottom = parseFloat(computedStyle.paddingBottom);
             let pageRect = page.getBoundingClientRect();
@@ -50,7 +77,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     let nodeRect = node.getBoundingClientRect();
                     let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom);
                     
-                    // Tratamento Milimétrico do Índice (Corta as linhas excedentes)
                     if(node.classList.contains('toc-container')) {
                         let tocItems = Array.from(node.children);
                         let movedTocItems = [];
@@ -96,11 +122,11 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return repaginou;
     }
 
+    // ORQUESTRADOR CENTRAL: Sincroniza -> Reflui -> Numera
     function autoUpdatePages() {
-        // Roda a repaginação geométrica
+        sincronizarIndice();
         aplicarRefluxoDePagina();
 
-        // Conta e distribui os números atualizados nas páginas e no índice
         const pages = Array.from(document.querySelectorAll('.page-container'));
         const tocItems = document.querySelectorAll('.toc-item');
         tocItems.forEach(item => {
@@ -116,7 +142,6 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     const pageIndex = pages.indexOf(page) + 1;
                     const spans = item.querySelectorAll('span');
                     if (spans.length >= 3) {
-                        // Sempre pega o último span para blindar a numeração da IA
                         spans[spans.length - 1].innerText = pageIndex;
                     }
                 }
@@ -313,7 +338,6 @@ export default function Home() {
     verificarAcesso();
   }, []);
 
-  // LÓGICA DE AUTO-AJUSTE PARA LIVRO IMPRESSO
   function handleFormatChange(val: string) {
       setFormatoLivro(val as any);
       if (val === '15x21' || val === '14x21') {
@@ -351,10 +375,9 @@ export default function Home() {
       clean = clean.replace(/cursor:\s*pointer;?/gi, '').replace(/cursor:\s*text;?/gi, '').replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '').replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '').replace(/outline-offset:\s*-3px;?/gi, '').replace(/data-old-outline="[^"]*"/gi, '').replace(/\s*style="\s*"/gi, ''); 
       clean = clean.replace(/ class="\s*"/gi, ''); 
 
+      // Remove BRs e parágrafos invisíveis criados pela IA (Evita espaçamento gigante na Conclusão)
       clean = clean.replace(/<br\s*\/?>/gi, ''); 
-      clean = clean.replace(/<p>\s*<\/p>/gi, ''); 
-      clean = clean.replace(/<p>&nbsp;<\/p>/gi, ''); 
-      clean = clean.replace(/<p>\s*&nbsp;\s*<\/p>/gi, ''); 
+      clean = clean.replace(/<p>[\s\n\r&nbsp;]*<\/p>/gi, ''); 
       
       clean = clean.replace(/<span class="toc-page-num">[^<]*<\/span>/gi, '<span class="toc-page-num"></span>');
       clean = clean.replace(/<span class="page-number( circulo)?">[^<]*<\/span>/gi, '<span class="page-number$1"></span>');
@@ -368,7 +391,6 @@ export default function Home() {
       return clean.trim();
   }
 
-  // MARGENS BALANCEADAS (Calculadas para não invadir o topo nem o rodapé)
   function getEstilosFormato(formato: string) {
       if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' }; 
       if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' };
@@ -522,16 +544,19 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR */
+/* SEÇÃO DO AUTOR - LAYOUT CORRIGIDO PARA TEXTO FLUTUAR SOB A FOTO */
 .page-container.author-page { display: block; }
-.author-section { display: flex; align-items: flex-start; gap: 30px; width: 100%; margin-top: 1.5rem; }
-.author-section.layout-topo { flex-direction: column; text-align: center; align-items: center; }
-.author-section.layout-esquerda { flex-direction: row; text-align: justify; align-items: flex-start; }
-.author-photo { object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); flex-shrink: 0; }
-.author-photo.circulo { border-radius: 50%; width: 160px; height: 160px; }
-.author-photo.retangulo { border-radius: 8px; width: 140px; height: 190px; }
-.author-bio { flex: 1; }
-.author-bio h2 { margin-top: 0; }
+.author-section { width: 100%; margin-top: 1.5rem; }
+.author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
+.author-section.layout-esquerda { display: block; text-align: justify; }
+.author-section.layout-esquerda .author-photo { float: left; margin-right: 25px; margin-bottom: 10px; }
+.author-section::after { content: ""; display: table; clear: both; }
+
+.author-photo { object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+.author-photo.circulo { border-radius: 50%; width: 150px; height: 150px; }
+.author-photo.retangulo { border-radius: 8px; width: 130px; height: 180px; }
+.author-bio { display: block; }
+.author-bio h2 { margin-top: 0; margin-bottom: 1rem; }
 
 @page { size: ${formatoLivro === 'A4' ? 'A4' : formatoLivro === '15x21' ? '150mm 210mm' : '140mm 210mm'} portrait; margin: 0; }
 @media print {
@@ -780,10 +805,7 @@ ${ebookStyles}
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">NOME DO CAPÍTULO AQUI</h2>
               <img src="URL_DA_IMAGEM_UNSPLASH" class="chapter-banner-img" alt="Ilustração do Capítulo" />
-              <p>[Parágrafo 1...]</p>
-              <p>[Parágrafo 2...]</p>
-              <p>[Parágrafo 3...]</p>
-              <p>[Parágrafo 4...]</p>
+              <p>[Seu primeiro parágrafo aqui...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>`;
       } else {
@@ -792,11 +814,7 @@ ${ebookStyles}
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">NOME DO CAPÍTULO AQUI</h2>
-              <p>[Parágrafo 1...]</p>
-              <p>[Parágrafo 2...]</p>
-              <p>[Parágrafo 3...]</p>
-              <p>[Parágrafo 4...]</p>
-              <p>[Parágrafo 5...]</p>
+              <p>[Seu primeiro parágrafo aqui...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>`;
       }
@@ -824,7 +842,7 @@ ${ebookStyles}
          <a class="toc-item" href="#cap-1"><span>1. Título do Capítulo</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
          E OBRIGATORIAMENTE o mesmo ID nos títulos dos capítulos gerados:
          <h2 id="cap-1" class="chapter-title-inline">1. Título do Capítulo</h2>
-      4. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos em sequência direta.
+      4. PROIBIDO PARÁGRAFOS VAZIOS OU BR: NUNCA gere as tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva os parágrafos imediatamente um após o outro (Ex: <p>Texto</p><p>Texto</p>). Se precisar de volume, crie parágrafos densos e não espaços em branco.
       5. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS na primeira página de cada capítulo. Use APENAS URLs de fotos reais do Unsplash. Sem sci-fi.
       6. ESPAÇAMENTO DOS TÓPICOS: Respeite a margem garantindo 1 linha de respiro entre subtítulos (h3) e parágrafos.
       7. CONTEÚDO NARRATIVO: A história biográfica entra apenas no Capítulo 1. Os demais capítulos são focados puramente em dicas práticas.
@@ -864,13 +882,13 @@ ${ebookStyles}
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
-          <h1 id="conclusao">Conclusão</h1>
+          <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
           <p>[Escreva a conclusão com 4 a 5 parágrafos densos...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
           <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h1 id="sobre-o-autor" style="display:none;">Sobre o Autor</h1>
+          <h2 id="sobre-o-autor" style="display:none;">Sobre o Autor</h2>
           <div class="author-section layout-${autorPosicao}">
               <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
               <div class="author-bio">
@@ -956,13 +974,13 @@ ${ebookStyles}
 
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
-          <h1 id="conclusao">Conclusão</h1>
+          <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
           <p>[Escreva a conclusão com 4 a 5 parágrafos. Crie mais de uma página se necessário para preencher o volume...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
           <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h1 id="sobre-o-autor" style="display:none;">Sobre o Autor</h1>
+          <h2 id="sobre-o-autor" style="display:none;">Sobre o Autor</h2>
           <div class="author-section layout-${autorPosicao}">
               <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
               <div class="author-bio">
@@ -1112,7 +1130,7 @@ ${ebookStyles}
                                   <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
                               </div>
                               <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                              <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
+                              <p className="text-xs font-medium text-slate-400">Clique em textos, titles ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
                           </div>
                       ) : (
                           <div className="pb-10 bg-white">
