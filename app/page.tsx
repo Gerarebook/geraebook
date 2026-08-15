@@ -23,56 +23,80 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // 1. SINCRONIZADOR DE ÍNDICE MESTRE
+    // 1. SINCRONIZADOR DE ÍNDICE MESTRE (Consolida, preserva edições manuais e impede duplicidade)
     function sincronizarIndice() {
-        const tocContainer = document.querySelector('.toc-container');
-        if (!tocContainer) return;
+        const allTocs = document.querySelectorAll('.toc-container');
+        if (allTocs.length === 0) return;
 
-        // Pega capítulos e, se habilitado, pega os subtópicos também
+        const mainToc = allTocs[0];
+        const existingItemsMap = {};
+
+        // Coleta todos os itens de todos os containers do índice e mapeia
+        allTocs.forEach(container => {
+            container.querySelectorAll('.toc-item').forEach(item => {
+                const href = item.getAttribute('href');
+                if (href) existingItemsMap[href] = item;
+            });
+        });
+
+        // Limpa o container principal e deleta os fragmentos espalhados pelas páginas
+        mainToc.innerHTML = '';
+        for(let i = 1; i < allTocs.length; i++) {
+            allTocs[i].remove();
+        }
+
         const selector = ${indexShowSubtopics ? "'h2.chapter-title-inline, h3.subtopic-title'" : "'h2.chapter-title-inline'"};
         const titles = document.querySelectorAll(selector);
-        
-        tocContainer.innerHTML = '';
 
         titles.forEach((titleEl) => {
             if (!titleEl.id) {
                 titleEl.id = 'sec-auto-' + Math.random().toString(36).substr(2, 9);
             }
-
-            const a = document.createElement('a');
-            a.className = 'toc-item';
             
-            // Dá um recuo charmoso se for um subtópico
-            if (titleEl.tagName === 'H3') {
-                a.style.paddingLeft = '20px';
-                a.style.fontSize = '0.9em';
-                a.style.opacity = '0.9';
+            const href = '#' + titleEl.id;
+            let a = existingItemsMap[href];
+
+            // Se o link já existia, ele será reaproveitado (preservando suas edições manuais de texto)
+            // Se não existia, nós o criamos do zero
+            if (!a) {
+                a = document.createElement('a');
+                a.className = 'toc-item';
+                a.href = href;
+                
+                const spanTitle = document.createElement('span');
+                // Usa textContent para pegar o texto mesmo que o h2 esteja oculto (display:none)
+                spanTitle.innerText = titleEl.textContent.trim();
+                
+                const spanDots = document.createElement('span');
+                spanDots.className = 'toc-dots';
+                
+                const spanPage = document.createElement('span');
+                spanPage.className = 'toc-page-num';
+                
+                a.appendChild(spanTitle);
+                a.appendChild(spanDots);
+                a.appendChild(spanPage);
             }
 
-            a.href = '#' + titleEl.id;
-            
-            const spanTitle = document.createElement('span');
-            spanTitle.innerText = titleEl.innerText.trim();
-            
-            const spanDots = document.createElement('span');
-            spanDots.className = 'toc-dots';
-            
-            const spanPage = document.createElement('span');
-            spanPage.className = 'toc-page-num';
-            
-            a.appendChild(spanTitle);
-            a.appendChild(spanDots);
-            a.appendChild(spanPage);
-            
-            tocContainer.appendChild(a);
-        });
+            // Aplica os estilos (Negrito dinâmico e recuos) de forma inquebrável
+            if (titleEl.tagName === 'H2') {
+                a.style.fontWeight = ${indexShowSubtopics ? "'700'" : "'400'"};
+                a.style.color = 'var(--color-primary)';
+                a.style.paddingLeft = '0px';
+                a.style.fontSize = '1em';
+                a.style.opacity = '1';
+            } else if (titleEl.tagName === 'H3') {
+                a.style.paddingLeft = '20px';
+                a.style.fontSize = '0.9em';
+                a.style.opacity = '0.85';
+                a.style.fontWeight = '400';
+            }
 
-        document.querySelectorAll('.toc-container').forEach(tc => {
-            if(tc.children.length === 0) tc.remove();
+            mainToc.appendChild(a);
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO (Com Prevenção de Título Órfão e Páginas Vazias)
+    // 2. MOTOR DE REFLUXO AVANÇADO (Corta texto para evitar que invada o rodapé)
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -101,7 +125,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                 let overflowIndex = -1;
                 let tocOverflowIndex = -1;
 
-                // Identifica onde ocorreu o primeiro estouro da margem
                 for(let j=0; j < childNodes.length; j++) {
                     let node = childNodes[j];
                     if (node.classList.contains('toc-container')) {
@@ -130,7 +153,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                     let nodesToMove = [];
                     
                     if (node.classList.contains('toc-container') && tocOverflowIndex !== -1) {
-                        // Corta e move apenas os links excedentes do índice
                         let tocItems = Array.from(node.children);
                         let movedTocItems = tocItems.slice(tocOverflowIndex);
                         let nextContainer = node.cloneNode(false);
@@ -139,7 +161,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                         nodesToMove = childNodes.slice(overflowIndex + 1);
                         nodesToMove.unshift(nextContainer);
                     } else {
-                        // SISTEMA ANTI-ÓRFÃO: Se o elemento que sobrou no fundo da página for um Título, ele PULA pra página seguinte
+                        // ANTI-ÓRFÃO: Puxa o título se ele ficar sozinho no final
                         while (overflowIndex > 0) {
                             let prevNode = childNodes[overflowIndex - 1];
                             if (prevNode.tagName.match(/^H[1-6]$/i) || prevNode.classList.contains('subtopic-title')) {
@@ -149,7 +171,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                             }
                         }
                         
-                        // Trava de segurança para loop infinito caso um elemento seja gigante
                         if (overflowIndex === 0 && childNodes.length > 1) {
                             overflowIndex = 1;
                         }
@@ -361,7 +382,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL (SÓ A4)
+  // CONFIGURAÇÕES DE DESIGN GERAL (A4 Travado)
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -449,8 +470,8 @@ export default function Home() {
       return clean.trim();
   }
 
+  // Focado apenas em A4
   function getEstilosFormato() {
-      // Formato A4 blindado
       return { width: '210mm', height: '297mm', padding: '32mm 20mm 25mm 20mm' }; 
   }
 
@@ -534,8 +555,8 @@ body {
 .cap-img-pura { background-size: cover !important; background-position: center !important; }
 
 /* IMAGEM HORIZONTAL E TÍTULO PRINCIPAL */
-.chapter-banner-img { width: 100%; height: 360px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.5rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-.chapter-title-inline { text-align: center; font-size: 2.6rem; margin-top: 0; margin-bottom: 1.5rem; color: var(--color-primary); font-weight: 800; line-height: 1.1; }
+.chapter-banner-img { width: 100%; height: 300px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.2rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
 /* TÍTULOS DE TÓPICOS DENTRO DO CAPÍTULO (H3) */
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 0.8rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
@@ -558,6 +579,7 @@ h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; mar
 }
 .page-number::after { content: counter(ebook-page); }
 
+/* NÚMERO DA PÁGINA EM CÍRCULO COLORIDO */
 .page-number.circulo { 
     display: inline-flex; justify-content: center; align-items: center;
     width: 26px; height: 26px; border-radius: 50%; 
@@ -581,14 +603,14 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) COM A MESMA PROPORÇÃO DO MIOLO */
+/* ÍNDICE CEGO (TOC) COM A MESMA PROPORÇÃO DO MIOLO E RECUOS DINÂMICOS */
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
-.toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; font-weight: 500 !important; line-height: var(--line-spacing) !important; padding: 6px 0; cursor: pointer; margin-bottom: 0.2rem; }
+.toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; padding: 6px 0; cursor: pointer; margin-bottom: 0.2rem; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR - LAYOUT CORRIGIDO PARA FLUTUAR TEXTO */
+/* SEÇÃO DO AUTOR - LAYOUT PARA FLUTUAR TEXTO SOB A FOTO */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
@@ -892,14 +914,15 @@ ${ebookStyles}
       const regrasComuns = `
       DIRETRIZES ESTRITAS DE VOLUME E ESTRUTURA (LEIA COM ATENÇÃO MÁXIMA):
       1. REGRA DE OPERAÇÃO: ${regraModo}
-      2. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Você DEVE colocar TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. O meu sistema fará o "Reflow" automático para quebrar as páginas na medida certa!
-      3. TÍTULOS COM OBRIGAÇÃO NUMÉRICA: Todo título de capítulo DEVE OBRIGATORIAMENTE começar com a palavra "Capítulo" e o número. Exemplo: <h2 id="cap-1" class="chapter-title-inline">Capítulo 1: O Início</h2>
-      4. TÓPICOS E SUBTÍTULOS OBRIGATÓRIOS: NUNCA crie uma parede de texto gigante sem divisões. OBRIGATORIAMENTE dívida os conteúdos longos criando subtópicos com a tag <h3 class="subtopic-title">Nome do Tópico</h3>. Os tópicos organizam os parágrafos.
-      5. ELEMENTOS VISUAIS E ILUSTRAÇÃO: Para quebrar blocos longos de texto, use obrigatoriamente as tags <blockquote class="highlight-box"> para citações inspiradoras e <div class="highlight-box"> para quadros de resumo no decorrer dos capítulos.
-      6. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="toc-container"></div>. O meu sistema criará os links automaticamente.
-      7. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do livro profissional. NUNCA gere tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva os parágrafos em sequência.
-      8. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS UMA VEZ no início dos CAPÍTULOS NUMERADOS. É TOTALMENTE PROIBIDO inserir imagens na Introdução e na Conclusão. Use APENAS URLs de fotos REAIS do Unsplash.
-      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA <div class="page-container"> que você criar, insira no topo o <div class="page-header"> e no final o <div class="page-footer">${regraRodape}</div>.
+      2. REGRA DE VOLUME EXTREMO (MUITO IMPORTANTE): Cada capítulo DEVE ser LONGO, PROFUNDO e DENSO. É terminantemente PROIBIDO criar capítulos curtos. Você DEVE gerar NO MÍNIMO de 8 a 12 parágrafos longos por capítulo para preencher múltiplas páginas perfeitamente.
+      3. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Você DEVE colocar TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. O meu sistema fará o "Reflow" automático para quebrar as páginas na medida certa!
+      4. TÍTULOS COM OBRIGAÇÃO NUMÉRICA: Todo título de capítulo DEVE OBRIGATORIAMENTE começar com a palavra "Capítulo" e o número. Exemplo: <h2 id="cap-1" class="chapter-title-inline">Capítulo 1: O Início</h2>
+      5. TÓPICOS E SUBTÍTULOS OBRIGATÓRIOS: NUNCA crie uma parede de texto gigante sem divisões. OBRIGATORIAMENTE dívida os conteúdos longos criando subtópicos com a tag <h3 class="subtopic-title">Nome do Tópico</h3>. Os tópicos organizam os parágrafos.
+      6. ELEMENTOS VISUAIS E ILUSTRAÇÃO: Para quebrar blocos longos de texto, use obrigatoriamente as tags <blockquote class="highlight-box"> para citações inspiradoras e <div class="highlight-box"> para quadros de resumo no decorrer dos capítulos.
+      7. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="toc-container"></div>. O meu sistema criará os links automaticamente.
+      8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do livro profissional. NUNCA gere tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva em sequência.
+      9. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS UMA VEZ no início dos CAPÍTULOS NUMERADOS. É TOTALMENTE PROIBIDO inserir imagens na Introdução e na Conclusão. Use APENAS URLs de fotos REAIS do Unsplash.
+      10. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA <div class="page-container"> que você criar, insira no topo o <div class="page-header"> e no final o <div class="page-footer">${regraRodape}</div>.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -917,7 +940,7 @@ ${ebookStyles}
     - Gere a Capa: ${regraCapaHtml}
     - Gere o Índice: Crie apenas a <div class="toc-container"></div>. O sistema fará o resto.
     
-    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS E UM ÚNICO CONTAINER. GERE PARÁGRAFOS LONGOS: 
+    - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS E UM ÚNICO CONTAINER. GERE NO MÍNIMO 8 PARÁGRAFOS LONGOS: 
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
