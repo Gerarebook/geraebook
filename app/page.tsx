@@ -21,8 +21,93 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // Função de Ouro: Calcula e atualiza os números das páginas no Índice automaticamente
+    // Função Avançada de Repaginação: Impede que qualquer texto, imagem ou índice vaze para fora da folha
+    function aplicarRefluxoDePagina() {
+        const pages = document.querySelectorAll('.page-container');
+        let repaginou = false;
+
+        pages.forEach(page => {
+            // Ignora capas e contra-capas puras
+            if(page.classList.contains('page-cover-pura') || page.classList.contains('page-cover-img')) return;
+
+            // Pega todos os filhos diretos que não são header, footer ou background
+            const childNodes = Array.from(page.children).filter(el => 
+                !el.classList.contains('page-header') && 
+                !el.classList.contains('page-footer') && 
+                el.tagName !== 'STYLE'
+            );
+
+            // Altura segura = Altura total - padding top - padding bottom (espaço do rodapé)
+            // Fixamos a detecção de vazamento se o conteudo passar de 85% do clientHeight
+            let heightLimit = page.clientHeight * 0.85; 
+            let currentHeight = 0;
+            let nodesToMove = [];
+
+            // A lógica percorre do topo para baixo. Se estourar o limite, joga o resto pra próxima página.
+            childNodes.forEach(node => {
+                if(nodesToMove.length > 0) {
+                    nodesToMove.push(node);
+                } else {
+                    let nodeHeight = node.offsetHeight || 0;
+                    let style = window.getComputedStyle(node);
+                    let margins = parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+                    
+                    // Tratamento especial para blocos do índice (TOC) para não cortar no meio
+                    if(node.classList.contains('toc-container')) {
+                        let tocItems = Array.from(node.children);
+                        let tocContainerLimit = currentHeight;
+                        let movedTocItems = [];
+                        
+                        tocItems.forEach(item => {
+                            let itemHeight = item.offsetHeight + parseFloat(window.getComputedStyle(item).marginBottom);
+                            if(tocContainerLimit + itemHeight > heightLimit) {
+                                movedTocItems.push(item);
+                            } else {
+                                tocContainerLimit += itemHeight;
+                            }
+                        });
+                        
+                        if(movedTocItems.length > 0) {
+                            let nextContainer = node.cloneNode(false); // Container vazio
+                            movedTocItems.forEach(i => nextContainer.appendChild(i));
+                            nodesToMove.push(nextContainer);
+                        }
+                        currentHeight = tocContainerLimit;
+                        return;
+                    }
+
+                    if (currentHeight + nodeHeight + margins > heightLimit) {
+                        nodesToMove.push(node);
+                    } else {
+                        currentHeight += (nodeHeight + margins);
+                    }
+                }
+            });
+
+            // Se achou elementos vazando, cria uma página nova imediatamente abaixo e move eles
+            if (nodesToMove.length > 0) {
+                let newPage = document.createElement('div');
+                newPage.className = page.className;
+                
+                let header = page.querySelector('.page-header');
+                let footer = page.querySelector('.page-footer');
+                
+                if(header) newPage.appendChild(header.cloneNode(true));
+                nodesToMove.forEach(n => newPage.appendChild(n));
+                if(footer) newPage.appendChild(footer.cloneNode(true));
+                
+                page.parentNode.insertBefore(newPage, page.nextSibling);
+                repaginou = true;
+            }
+        });
+        
+        return repaginou;
+    }
+
     function autoUpdatePages() {
+        // Roda o refluxo para garantir que nada vaze antes de contar as páginas
+        aplicarRefluxoDePagina();
+
         const pages = Array.from(document.querySelectorAll('.page-container'));
         const tocItems = document.querySelectorAll('.toc-item');
         tocItems.forEach(item => {
@@ -35,7 +120,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                     const pageIndex = pages.indexOf(page) + 1;
                     const spans = item.querySelectorAll('span');
                     if(spans.length >= 3) {
-                        spans[2].innerText = pageIndex; // Substitui o 'X' pelo número real da página
+                        spans[2].innerText = pageIndex;
                     }
                 }
             }
@@ -169,12 +254,13 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
             e.stopPropagation();
             selectElement(e.target);
         } else {
+            // Garante que o clique nos links funcione na Leitura
             let targetLink = e.target.closest('a');
             if (targetLink && targetLink.getAttribute('href')?.startsWith('#')) {
                 e.preventDefault();
                 let targetId = targetLink.getAttribute('href').substring(1);
                 let targetEl = document.getElementById(targetId);
-                if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
+                if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
     }, true); 
@@ -231,8 +317,18 @@ export default function Home() {
     verificarAcesso();
   }, []);
 
+  // LÓGICA DE AUTO-AJUSTE PARA LIVRO IMPRESSO
+  function handleFormatChange(val: string) {
+      setFormatoLivro(val as any);
+      if (val === '15x21' || val === '14x21') {
+          setTamanhoFonteBase('12pt');
+      } else {
+          setTamanhoFonteBase('14pt');
+      }
+  }
+
   // ==========================================
-  // FUNÇÕES DE ESTRUTURA BLINDADAS
+  // FUNÇÕES DE ESTRUTURA BLINDADAS 
   // ==========================================
 
   function getPaletaObj() {
@@ -249,7 +345,6 @@ export default function Home() {
 
   function purificarHTML(rawHtml: string) {
       let clean = rawHtml;
-      
       const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
       if (markdownMatch) clean = markdownMatch[1];
       clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
@@ -271,22 +366,24 @@ export default function Home() {
       clean = clean.replace(/<\/a>\s*<\/p>/gi, '</a>');
       clean = clean.replace(/<p>\s*<div class="toc-container"/gi, '<div class="toc-container"');
       clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
-
       clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
       return clean.trim();
   }
 
   function getEstilosFormato(formato: string) {
-      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '42mm 18mm 22mm 18mm' }; 
-      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '42mm 18mm 22mm 18mm' };
-      return { width: '210mm', height: '297mm', padding: '42mm 18mm 22mm 18mm' }; 
+      // Ajuste de paddings. Subimos o top para 32mm para colar o titulo melhor, e bottom ajustado para nao vazar.
+      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' }; 
+      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' };
+      return { width: '210mm', height: '297mm', padding: '32mm 18mm 25mm 18mm' }; 
   }
 
   function moldarApresentacaoHtml(rawHtml: string) {
       let clean = purificarHTML(rawHtml);
       const conf = getEstilosFormato(formatoLivro);
       const paleta = getPaletaObj();
+      
+      const isPrinted = formatoLivro === '15x21' || formatoLivro === '14x21';
       
       const ebookStyles = `<style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -322,7 +419,7 @@ body {
     margin: 0 auto 20px auto;
     box-sizing: border-box;
     position: relative;
-    overflow: hidden;
+    overflow: hidden; /* BLINDA O VAZAMENTO VISUAL */
     page-break-after: always;
     break-after: page;
     page-break-inside: avoid;
@@ -345,7 +442,15 @@ body {
     display: none;
 }
 
-/* CAPAS INICIAIS */
+/* COMPORTAMENTO DINÂMICO PARA LIVROS IMPRESSOS (FOLHA DE ROSTO AUTOMÁTICA) */
+${isPrinted ? `
+.page-cover-img, .page-cover-pura { background: none !important; background-color: var(--color-bg) !important; color: var(--color-text) !important; justify-content: center; }
+.page-cover-img h1, .page-cover-pura h1 { color: var(--color-primary) !important; text-shadow: none !important; font-size: 2.5rem; }
+.page-cover-img p { color: var(--color-text) !important; font-size: 1.2rem !important; }
+.chapter-banner-img { height: 140px !important; }
+` : ''}
+
+/* CAPAS INICIAIS A4 Padrão */
 .page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; box-sizing: border-box; }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -363,13 +468,13 @@ body {
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; }
 
-/* IMAGEM HORIZONTAL AJUSTADA */
-.chapter-banner-img { width: 100%; height: 360px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.5rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-.chapter-title-inline { text-align: center; font-size: 2.6rem; margin-top: 0; margin-bottom: 1.5rem; color: var(--color-primary); }
+/* IMAGEM HORIZONTAL E TITULO ALINHADO E MAIOR */
+.chapter-banner-img { width: 100%; height: 320px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.5rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+.chapter-title-inline { text-align: center; font-size: 2.6rem; margin-top: 0; margin-bottom: 1rem; color: var(--color-primary); font-weight: 800; }
 
-/* CABEÇALHOS E RODAPÉS */
+/* CABEÇALHOS E RODAPÉS - MARGENS CORRIGIDAS */
 .page-header { 
-    position: absolute; top: 16mm; left: 18mm; right: 18mm; 
+    position: absolute; top: 15mm; left: 18mm; right: 18mm; 
     display: flex; justify-content: space-between; align-items: flex-end;
     font-size: 8pt; color: var(--color-primary); opacity: 0.8;
     border-bottom: 1px solid rgba(0,0,0, 0.1); padding-bottom: 5px; 
@@ -378,14 +483,14 @@ body {
 .page-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%; }
 
 .page-footer { 
-    position: absolute; bottom: 10mm; left: 18mm; right: 18mm; 
+    position: absolute; bottom: 12mm; left: 18mm; right: 18mm; 
     font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8;
     ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'}
     ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid rgba(0,0,0, 0.1); padding-top: 8px;' : ''}
 }
 .page-number::after { content: counter(ebook-page); }
 
-/* NOVO: NÚMERO DA PÁGINA EM CÍRCULO COLORIDO */
+/* NOVO: NÚMERO DA PÁGINA EM CÍRCULO COLORIDO DA MESMA COR DA BORDA */
 .page-number.circulo { 
     display: inline-flex; justify-content: center; align-items: center;
     width: 26px; height: 26px; border-radius: 50%; 
@@ -394,11 +499,11 @@ body {
 }
 .page-number.circulo::after { color: #ffffff !important; }
 
-/* CONTEÚDO BASE */
+/* CONTEÚDO BASE E ESPAÇAMENTOS ESTRITOS */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 
-/* REGRA DE ESPAÇAMENTO DE 1 LINHA APÓS TÍTULOS */
+/* REGRA DE ESPAÇAMENTO DE 1 LINHA APÓS TÍTULOS E SUBTITULOS */
 h2 { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 h3 { font-weight: 700; font-size: 1.4rem; margin-top: 1.2rem; margin-bottom: 1.2rem; }
 
@@ -411,13 +516,13 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) COM FONTE EXATAMENTE IGUAL AO MIOLO */
-.toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; }
-.toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; font-weight: 500 !important; line-height: var(--line-spacing) !important; padding: 4px 0; }
+/* ÍNDICE CEGO (TOC) COM FONTE EXATAMENTE IGUAL AO MIOLO E CLICÁVEL */
+.toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
+.toc-item { display: flex; align-items: baseline; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; font-weight: 500 !important; line-height: var(--line-spacing) !important; padding: 4px 0; cursor: pointer; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 
-/* SEÇÃO DO AUTOR - TOPO ALIGN */
+/* SEÇÃO DO AUTOR */
 .page-container.author-page { display: block; }
 .author-section { display: flex; align-items: flex-start; gap: 30px; width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { flex-direction: column; text-align: center; align-items: center; }
@@ -631,7 +736,7 @@ ${ebookStyles}
       return data;
     } catch (err: any) {
       let errorMsg = err.message;
-      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Limite excedido (Quota)."; }
+      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Limite excedido (Quota). O sistema não gerou por falta de saldo/cota na API."; }
       (window as any).showNotification(errorMsg, 'error'); return null;
     } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
   }
@@ -701,15 +806,15 @@ ${ebookStyles}
 
       const regrasComuns = `
       DIRETRIZES ESTRITAS DE FORMATAÇÃO E PAGINAÇÃO:
-      1. LIMITE RIGOROSO POR PÁGINA (TEXTO): O texto NUNCA pode vazar pelo fundo da página e sobrepor o rodapé. Você DEVE colocar no máximo de 4 a 5 parágrafos por <div class="page-container">. Se o conteúdo continuar, FECHE a div atual e ABRA uma nova <div class="page-container"> com cabeçalho e rodapé idênticos para dar continuidade ao capítulo.
-      2. LIMITE RIGOROSO DO ÍNDICE: Se o índice possuir muitos capítulos (mais de 12 a 15 linhas), ele NÃO caberá em uma única página. Você DEVE dividir o índice, fechando a <div class="page-container"> e criando uma NOVA página apenas para continuar os itens restantes do índice.
-      3. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos imediatamente um após o outro.
-      4. REGRAS DE IMAGEM: A imagem horizontal do capítulo DEVE aparecer APENAS na primeira página de cada capítulo. Nunca insira imagens nas páginas de continuação do mesmo capítulo.
-      5. NATUREZA DAS IMAGENS: Use APENAS fotografias humanas e reais do Unsplash. É estritamente proibido usar desenhos, animações ou elementos de tecnologia/sci-fi.
-      6. ESPAÇAMENTO DOS TÓPICOS: Respeite rigorosamente a margem configurada no CSS, garantindo exatamente o espaço de 1 linha de respiro entre os subtítulos de tópicos (h3) e o texto seguinte.
-      7. CONTEÚDO NARRATIVO: Toda a história biográfica do autor deve ser consolidada apenas no Capítulo 1. Os demais capítulos deverão ser focados puramente em dicas práticas.
+      1. GERAÇÃO COMPLETA OBRIGATÓRIA: Você é OBRIGADO a devolver o HTML completo até o final do conteúdo solicitado. NUNCA resuma ou oculte código para poupar tokens. NUNCA responda "aqui está uma parte, o resto é igual". Devolva todas as páginas criadas até o fim da narrativa!
+      2. LIMITE RIGOROSO POR PÁGINA (TEXTO): O texto NUNCA pode vazar pelo fundo da página e sobrepor o rodapé. Coloque no máximo de 4 a 5 parágrafos por <div class="page-container">. Se o conteúdo continuar, FECHE a div atual e ABRA uma nova <div class="page-container"> com cabeçalho e rodapé idênticos para dar continuidade.
+      3. LIMITE RIGOROSO DO ÍNDICE: Se o índice possuir muitos capítulos (mais de 12 a 15 linhas), ele NÃO caberá em uma única página. Você DEVE fechar a <div class="page-container"> e criar uma NOVA página apenas para continuar os itens restantes do índice.
+      4. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos imediatamente um após o outro, sem pular linhas vazias.
+      5. REGRAS DE IMAGEM: A imagem horizontal do capítulo DEVE aparecer APENAS na primeira página de cada capítulo. NUNCA insira imagens nas páginas de continuação do mesmo capítulo. Use APENAS URLs de fotografias reais do Unsplash (nada de sci-fi ou desenhos).
+      6. ESPAÇAMENTO DOS TÓPICOS: Respeite rigorosamente a margem configurada no CSS, garantindo exatamente o espaço de 1 linha de respiro entre os subtítulos (h3) e os parágrafos.
+      7. CONTEÚDO NARRATIVO: Toda a história biográfica e pessoal do autor deve ser consolidada apenas no Capítulo 1. Os demais capítulos deverão ser focados puramente em dicas práticas e aplicáveis.
       8. MODO GERADOR CÓDIGO PURO: Retorne APENAS HTML. Nenhuma palavra a mais, sem saudações.
-      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA PÁGINA gerada, use EXATAMENTE a estrutura de <div class="page-header"> e <div class="page-footer"> correspondente.
+      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA PÁGINA gerada, use EXATAMENTE a estrutura de <div class="page-header"> e <div class="page-footer"> correspondente: <div class="page-footer">${regraRodape}</div>.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -737,7 +842,7 @@ ${ebookStyles}
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados aplicando as regras de quebra de página.
+    - Gere TODOS os capítulos solicitados aplicando as regras de quebra de página se exceder 5 parágrafos.
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <div class="page-container">
@@ -1111,7 +1216,7 @@ ${ebookStyles}
                           <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
                               <div>
                                   <label className="input-label mb-2">Tamanho do Livro</label>
-                                  <select value={formatoLivro} onChange={(e) => setFormatoLivro(e.target.value as any)} className="input-standard font-bold text-indigo-700 bg-indigo-50">
+                                  <select value={formatoLivro} onChange={(e) => handleFormatChange(e.target.value)} className="input-standard font-bold text-indigo-700 bg-indigo-50">
                                       <option value="A4">A4 (Digital Clássico)</option>
                                       <option value="15x21">15x21cm (Padrão Impresso)</option>
                                       <option value="14x21">14x21cm (Livro de Bolso)</option>
