@@ -21,8 +21,7 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // Função de Refluxo Estilo jsPDF: Calcula as alturas, quebra as páginas se estourar a margem 
-    // e atualiza os números do índice perfeitamente.
+    // Função de Refluxo Absoluto: Usa coordenadas de pixel para garantir que nada passe do rodapé
     function aplicarRefluxoDePagina() {
         const pages = document.querySelectorAll('.page-container');
         let repaginou = false;
@@ -36,31 +35,31 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                 el.tagName !== 'STYLE'
             );
 
-            // A margem inferior de segurança (evita sobrepor o rodapé)
-            let heightLimit = page.clientHeight * 0.85; 
-            let currentHeight = 0;
+            // Calcula o limite EXATO antes de tocar na área de padding inferior (rodapé)
+            let computedStyle = window.getComputedStyle(page);
+            let paddingBottom = parseFloat(computedStyle.paddingBottom);
+            let pageRect = page.getBoundingClientRect();
+            let limitY = pageRect.bottom - paddingBottom;
+            
             let nodesToMove = [];
 
             childNodes.forEach(node => {
                 if(nodesToMove.length > 0) {
                     nodesToMove.push(node);
                 } else {
-                    let nodeHeight = node.offsetHeight || 0;
-                    let style = window.getComputedStyle(node);
-                    let margins = parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+                    let nodeRect = node.getBoundingClientRect();
+                    let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom);
                     
-                    // Tratamento do Índice (Corta o índice no meio se ele for gigante)
+                    // Tratamento Milimétrico do Índice (Corta as linhas excedentes)
                     if(node.classList.contains('toc-container')) {
                         let tocItems = Array.from(node.children);
-                        let tocContainerLimit = currentHeight;
                         let movedTocItems = [];
                         
                         tocItems.forEach(item => {
-                            let itemHeight = item.offsetHeight + parseFloat(window.getComputedStyle(item).marginBottom);
-                            if(tocContainerLimit + itemHeight > heightLimit) {
+                            let itemRect = item.getBoundingClientRect();
+                            let itemBottom = itemRect.bottom + parseFloat(window.getComputedStyle(item).marginBottom);
+                            if(itemBottom > limitY) {
                                 movedTocItems.push(item);
-                            } else {
-                                tocContainerLimit += itemHeight;
                             }
                         });
                         
@@ -69,19 +68,15 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
                             movedTocItems.forEach(i => nextContainer.appendChild(i));
                             nodesToMove.push(nextContainer);
                         }
-                        currentHeight = tocContainerLimit;
                         return;
                     }
 
-                    if (currentHeight + nodeHeight + margins > heightLimit) {
+                    if (nodeBottom > limitY) {
                         nodesToMove.push(node);
-                    } else {
-                        currentHeight += (nodeHeight + margins);
                     }
                 }
             });
 
-            // Se algo estourou a altura, criamos uma nova página instantaneamente
             if (nodesToMove.length > 0) {
                 let newPage = document.createElement('div');
                 newPage.className = page.className;
@@ -102,22 +97,27 @@ const SCRIPT_PREVIEW = `<script id="editor-magic-script">
     }
 
     function autoUpdatePages() {
-        // Primeiro repagina, depois conta os números (Senão os números ficam errados)
+        // Roda a repaginação geométrica
         aplicarRefluxoDePagina();
 
+        // Conta e distribui os números atualizados nas páginas e no índice
         const pages = Array.from(document.querySelectorAll('.page-container'));
         const tocItems = document.querySelectorAll('.toc-item');
         tocItems.forEach(item => {
             const href = item.getAttribute('href');
             if(!href || !href.startsWith('#')) return;
-            const target = document.getElementById(href.substring(1));
+            
+            const targetId = href.substring(1);
+            let target = document.getElementById(targetId);
+            
             if(target) {
                 const page = target.closest('.page-container');
                 if(page) {
                     const pageIndex = pages.indexOf(page) + 1;
-                    const pageNumberSpan = item.querySelector('.toc-page-num');
-                    if(pageNumberSpan) {
-                        pageNumberSpan.innerText = pageIndex; 
+                    const spans = item.querySelectorAll('span');
+                    if (spans.length >= 3) {
+                        // Sempre pega o último span para blindar a numeração da IA
+                        spans[spans.length - 1].innerText = pageIndex;
                     }
                 }
             }
@@ -313,7 +313,7 @@ export default function Home() {
     verificarAcesso();
   }, []);
 
-  // LÓGICA DE AUTO-AJUSTE PARA LIVRO IMPRESSO (Ajusta a fonte automaticamente)
+  // LÓGICA DE AUTO-AJUSTE PARA LIVRO IMPRESSO
   function handleFormatChange(val: string) {
       setFormatoLivro(val as any);
       if (val === '15x21' || val === '14x21') {
@@ -368,11 +368,11 @@ export default function Home() {
       return clean.trim();
   }
 
-  // MARGENS INSPIRADAS NO jsPDF DO GERADOR GIGANTE (Métrica exata)
+  // MARGENS BALANCEADAS (Calculadas para não invadir o topo nem o rodapé)
   function getEstilosFormato(formato: string) {
-      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '25mm 15mm 20mm 15mm' }; 
-      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '25mm 15mm 20mm 15mm' };
-      return { width: '210mm', height: '297mm', padding: '30mm 20mm 25mm 20mm' }; 
+      if(formato === '15x21') return { width: '150mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' }; 
+      if(formato === '14x21') return { width: '140mm', height: '210mm', padding: '32mm 18mm 25mm 18mm' };
+      return { width: '210mm', height: '297mm', padding: '32mm 18mm 25mm 18mm' }; 
   }
 
   function moldarApresentacaoHtml(rawHtml: string) {
@@ -444,7 +444,7 @@ ${isPrinted ? `
 .page-cover-img, .page-cover-pura { background: none !important; background-color: var(--color-bg) !important; color: var(--color-text) !important; justify-content: center; }
 .page-cover-img h1, .page-cover-pura h1 { color: var(--color-primary) !important; text-shadow: none !important; font-size: 2.5rem; }
 .page-cover-img p { color: var(--color-text) !important; font-size: 1.2rem !important; }
-.chapter-banner-img { height: 140px !important; margin-top: 0 !important; }
+.chapter-banner-img { height: 200px !important; margin-top: 0 !important; }
 ` : ''}
 
 /* CAPAS INICIAIS (A4 Normal) */
@@ -471,7 +471,7 @@ ${isPrinted ? `
 /* TÍTULO DO CAPÍTULO (AJUSTADO PARA COLAR NO TOPO) */
 .chapter-title-inline { text-align: center; font-size: 2.6rem; margin-top: 0; margin-bottom: 1.5rem; color: var(--color-primary); font-weight: 800; line-height: 1.1; }
 
-/* CABEÇALHOS E RODAPÉS (Calculados via Top e Bottom) */
+/* CABEÇALHOS E RODAPÉS */
 .page-header { 
     position: absolute; top: 12mm; left: 18mm; right: 18mm; 
     display: flex; justify-content: space-between; align-items: flex-end;
@@ -489,7 +489,7 @@ ${isPrinted ? `
 }
 .page-number::after { content: counter(ebook-page); }
 
-/* NÚMERO DA PÁGINA EM CÍRCULO COLORIDO DA MESMA COR DA BORDA */
+/* NÚMERO DA PÁGINA EM CÍRCULO COLORIDO */
 .page-number.circulo { 
     display: inline-flex; justify-content: center; align-items: center;
     width: 26px; height: 26px; border-radius: 50%; 
@@ -780,7 +780,10 @@ ${ebookStyles}
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">NOME DO CAPÍTULO AQUI</h2>
               <img src="URL_DA_IMAGEM_UNSPLASH" class="chapter-banner-img" alt="Ilustração do Capítulo" />
-              <p>[Seu primeiro parágrafo aqui...]</p>
+              <p>[Parágrafo 1...]</p>
+              <p>[Parágrafo 2...]</p>
+              <p>[Parágrafo 3...]</p>
+              <p>[Parágrafo 4...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>`;
       } else {
@@ -789,7 +792,11 @@ ${ebookStyles}
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">NOME DO CAPÍTULO AQUI</h2>
-              <p>[Seu primeiro parágrafo aqui...]</p>
+              <p>[Parágrafo 1...]</p>
+              <p>[Parágrafo 2...]</p>
+              <p>[Parágrafo 3...]</p>
+              <p>[Parágrafo 4...]</p>
+              <p>[Parágrafo 5...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>`;
       }
@@ -807,17 +814,22 @@ ${ebookStyles}
       }
 
       const regrasComuns = `
-      DIRETRIZES ESTRITAS DE FORMATAÇÃO:
-      1. GERAÇÃO COMPLETA OBRIGATÓRIA: Você é OBRIGADO a devolver o HTML completo até o final do conteúdo. NUNCA resuma ou oculte código para poupar tokens. Devolva todas as páginas criadas até o fim da narrativa!
-      2. LIMITE RIGOROSO POR PÁGINA: Você DEVE colocar no máximo de 4 a 5 parágrafos por <div class="page-container">. Se o conteúdo continuar, FECHE a div atual e ABRA uma nova <div class="page-container"> com cabeçalho e rodapé idênticos.
-      3. ÍNDICE DINÂMICO E CLICÁVEL: Use o molde abaixo para cada item do índice. NÃO use a letra 'X', use a classe <span class="toc-page-num"></span> vazia para que o JavaScript calcule e imprima o número correto da página alinhado a direita.
-         Exemplo: <a class="toc-item" href="#cap-1"><span>1. Título do Capítulo</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
-      4. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos imediatamente um após o outro.
-      5. REGRAS DE IMAGEM: A imagem horizontal do capítulo DEVE aparecer APENAS na primeira página de cada capítulo. Use APENAS URLs de fotografias reais do Unsplash (nada de sci-fi ou desenhos).
-      6. ESPAÇAMENTO DOS TÓPICOS: Respeite rigorosamente a margem configurada no CSS, garantindo exatamente o espaço de 1 linha de respiro entre os subtítulos (h3) e os parágrafos.
-      7. CONTEÚDO NARRATIVO: Toda a história biográfica do autor deve ser consolidada apenas no Capítulo 1. Os demais capítulos deverão ser focados puramente em dicas práticas.
+      DIRETRIZES ESTRITAS DE FORMATAÇÃO E VOLUME:
+      1. GERAÇÃO COMPLETA OBRIGATÓRIA: Devolva TODO o conteúdo solicitado até o fim da narrativa sem resumir ou cortar código!
+      2. DENSIDADE OBRIGATÓRIA (MÍNIMO DE PARÁGRAFOS): 
+         - Nas páginas normais de texto contínuo, você DEVE escrever EXATAMENTE de 4 a 5 parágrafos médios/longos por <div class="page-container"> para preencher todo o espaço do livro impresso.
+         - Na PRIMEIRA página de um capítulo (a que possui a imagem de banner), você DEVE escrever EXATAMENTE de 3 a 4 parágrafos abaixo da imagem.
+         - Sempre que a página encher o limite de 5 parágrafos, FECHE a div atual e ABRA uma nova <div class="page-container"> com o cabeçalho e rodapé idênticos.
+      3. ÍNDICE DINÂMICO E CLICÁVEL: Use RIGOROSAMENTE este formato cego para o índice:
+         <a class="toc-item" href="#cap-1"><span>1. Título do Capítulo</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
+         E OBRIGATORIAMENTE o mesmo ID nos títulos dos capítulos gerados:
+         <h2 id="cap-1" class="chapter-title-inline">1. Título do Capítulo</h2>
+      4. PROIBIDO PARÁGRAFOS VAZIOS: NUNCA gere as tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos em sequência direta.
+      5. REGRAS DE IMAGEM: A imagem horizontal <img class="chapter-banner-img"...> DEVE aparecer APENAS na primeira página de cada capítulo. Use APENAS URLs de fotos reais do Unsplash. Sem sci-fi.
+      6. ESPAÇAMENTO DOS TÓPICOS: Respeite a margem garantindo 1 linha de respiro entre subtítulos (h3) e parágrafos.
+      7. CONTEÚDO NARRATIVO: A história biográfica entra apenas no Capítulo 1. Os demais capítulos são focados puramente em dicas práticas.
       8. MODO GERADOR CÓDIGO PURO: Retorne APENAS HTML.
-      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA PÁGINA gerada, use EXATAMENTE a estrutura de <div class="page-header"> e <div class="page-footer"> correspondente: <div class="page-footer">${regraRodape}</div>.
+      9. CABEÇALHOS/RODAPÉS OBRIGATÓRIOS: Em CADA PÁGINA gerada, insira o <div class="page-header"> e o <div class="page-footer">${regraRodape}</div>.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -833,7 +845,7 @@ ${ebookStyles}
     ${regrasComuns}
     OBRIGAÇÕES DESTE MODO (COMPLETO):
     - Gere a Capa: ${regraCapaHtml}
-    - Gere o Índice: Crie a <div class="toc-container">. Insira os links: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
+    - Gere o Índice: Crie a <div class="toc-container">. Insira os links cegos: <a class="toc-item" href="#cap-1"><span>1. Título</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>
       GARANTA que o último link seja para o autor: <a class="toc-item" href="#sobre-o-autor"><span>Sobre o Autor</span><span class="toc-dots"></span><span class="toc-page-num"></span></a>.
     
     - A INTRODUÇÃO DEVE USAR EXATAMENTE O MESMO FORMATO DOS CAPÍTULOS (ESTILO INLINE): 
@@ -842,16 +854,18 @@ ${ebookStyles}
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
           <p>[Parágrafo 1...]</p>
           <p>[Parágrafo 2...]</p>
+          <p>[Parágrafo 3...]</p>
+          <p>[Parágrafo 4...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados aplicando as regras de quebra de página se exceder 5 parágrafos.
+    - Gere TODOS os capítulos solicitados aplicando as regras de quebra de página se exceder 5 parágrafos e inserindo a imagem de capa apenas na página 1 do capítulo.
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h1 id="conclusao">Conclusão</h1>
-          <p>[Escreva a conclusão...]</p>
+          <p>[Escreva a conclusão com 4 a 5 parágrafos densos...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -887,11 +901,11 @@ ${ebookStyles}
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <p>[Seu texto de introdução aqui...]</p>
+            <p>[Seu texto de introdução aqui: gere EXATAMENTE de 4 a 5 parágrafos para preencher a página...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
-      4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO (ou após a página 2 da introdução). NÃO escreva o Capítulo 1.
+      4. ORDEM MÁXIMA DE PARADA: PARE IMEDIATAMENTE APÓS A INTRODUÇÃO. NÃO escreva o Capítulo 1 ainda.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
@@ -911,17 +925,17 @@ ${ebookStyles}
       const instrucao = `Atue como Especialista Editorial. Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES DESTE MODO (PASSO 2 - MEIO):
-      1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML atual (fornecido abaixo).
+      1. LEIA O ÍNDICE EXISTENTE: Analise o código HTML atual para saber a sequência exata de hrefs e IDs.
       2. IDENTIFIQUE DE ONDE CONTINUAR: Procure no final do código HTML qual foi o ÚLTIMO capítulo escrito.
       3. GERE OS PRÓXIMOS CAPÍTULOS: Escreva APENAS os próximos 2 ou 3 capítulos exatos da sequência do índice.
-      4. APLIQUE O ESTILO DEFINIDO: 
+      4. APLIQUE O ESTILO DEFINIDO E FORÇA DE VOLUME (MÍNIMO 4 A 5 PARÁGRAFOS POR PÁGINA): 
          ${regraEstiloCapitulos}
-      5. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO das páginas geradas. NÃO DEVOLVA RESPOSTAS VAZIAS OU CORTADAS.
+      5. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO das páginas geradas sem cortar ou omitir marcações.
       `;
 
       const data = await chamarMotorIA(instrucao, [
-          { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU):\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos capítulos aplicando quebras de páginas quando o texto exceder 5 parágrafos.'}\n"""` }
+          { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU E QUAIS IDs USAR):\n"""\n${currentHtml}\n"""` },
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Siga a lista do índice fielmente e gere os próximos capítulos aplicando quebras de páginas.'}\n"""` }
       ], false);
       
       if (data && data.html) aplicarHtmlNovo(data.html, true);
@@ -943,7 +957,7 @@ ${ebookStyles}
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h1 id="conclusao">Conclusão</h1>
-          <p>[Escreva a conclusão respeitando o limite de parágrafos. Crie mais de uma página se necessário...]</p>
+          <p>[Escreva a conclusão com 4 a 5 parágrafos. Crie mais de uma página se necessário para preencher o volume...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
