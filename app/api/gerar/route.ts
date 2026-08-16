@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 // =====================================================================
 // 🎛️ PAINEL DE CONTROLE MESTRE DA INTELIGÊNCIA ARTIFICIAL
 // =====================================================================
+// Para escolher a IA de textos, altere o valor abaixo para: 
+// 'gemini' | 'groq' | 'together' | 'nvidia'
 const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
 
+// Configuração caso use o Gemini (Rodízio de Modelos de TEXTO)
 const REQUISICOES_POR_MODELO = 9999; 
 const MODELOS_GEMINI = [
-  "gemini-3.7-flash", 
+  "gemini-3.5-flash-lite", 
 ];
 
 let contadorRequisicoes = 0;
@@ -15,6 +19,29 @@ let indiceModeloAtual = 0;
 
 export async function POST(req: Request) {
   try {
+    // =====================================================================
+    // 🛡️ BLINDAGEM DE SEGURANÇA MÁXIMA (ANTI-HACKER / ANTI-CUSTOS)
+    // =====================================================================
+    // 1. Verifica se a requisição trouxe o Token de Autorização (Crachá)
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+        return NextResponse.json({ success: false, error: "Acesso Negado. Você não tem permissão para usar esta API." }, { status: 401 });
+    }
+
+    // 2. Extrai o Token e conecta com o Supabase para validar
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    // 3. Se o Token for falso, inválido ou expirado, bloqueia o acesso
+    if (authError || !user) {
+        return NextResponse.json({ success: false, error: "Sessão inválida ou expirada. Faça login na plataforma." }, { status: 401 });
+    }
+    // =====================================================================
+
     const body = await req.json();
     
     // Extraímos a flag secreta 'isImageGeneration' que o frontend envia
@@ -37,7 +64,7 @@ export async function POST(req: Request) {
       }
 
       try {
-        // A API oficial do Google AI Studio para GERAR imagens usa a arquitetura Imagen-3
+        // A API oficial do Google AI Studio para gerar imagens usa a arquitetura Imagen-3
         const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${geminiApiKey}`;
         
         const response = await fetch(imagenUrl, {
@@ -52,11 +79,10 @@ export async function POST(req: Request) {
         const data = await response.json();
         
         if (!response.ok) {
-            console.error("Erro Google Imagen:", data);
             throw new Error(data.error?.message || "Erro na geração de imagem pelo Google.");
         }
 
-        // O Imagen 3 retorna a imagem nesta exata estrutura de bytes (Base64)
+        // Extraímos os dados binários da imagem (base64) gerada pela IA
         const imageBase64 = data.predictions?.[0]?.bytesBase64Encoded;
         
         if (!imageBase64) {
