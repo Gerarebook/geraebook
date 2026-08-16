@@ -25,7 +25,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
 
     // 1. SINCRONIZADOR DE ÍNDICE MESTRE E CURA DE DUPLICIDADES
     function sincronizarIndice() {
-        // Remove parágrafos vazios criados pela IA que quebram o layout
         document.querySelectorAll('p').forEach(p => {
             if(p.innerHTML.trim() === '' || p.innerHTML.trim() === '&nbsp;') p.remove();
         });
@@ -35,20 +34,17 @@ function getScriptPreview(indexShowSubtopics: boolean) {
 
         const mainToc = allTocs[0];
         
-        // Deleta índices duplicados gerados acidentalmente pela IA
         for(let i = 1; i < allTocs.length; i++) {
             allTocs[i].remove();
         }
 
-        // Remove títulos "Índice" e "Introdução" duplicados
         const indexTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => el.innerText.trim().toLowerCase() === 'índice' || el.innerText.trim().toLowerCase() === 'sumário');
         for(let i = 1; i < indexTitles.length; i++) indexTitles[i].closest('.page-container')?.remove();
 
         const introTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => el.innerText.trim().toLowerCase() === 'introdução');
         for(let i = 1; i < introTitles.length; i++) introTitles[i].closest('.page-container')?.remove();
 
-        // Constrói o Índice Real
-        const selector = ${indexShowSubtopics ? "'h2.chapter-title-inline, h3.subtopic-title'" : "'h2.chapter-title-inline'"};
+        const selector = ${indexShowSubtopics ? "'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'" : "'h1.chapter-title-exclusive, h2.chapter-title-inline'"};
         const titles = document.querySelectorAll(selector);
         
         mainToc.innerHTML = '';
@@ -64,7 +60,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             const a = document.createElement('a');
             a.className = 'toc-item';
             
-            if (titleEl.tagName === 'H2') {
+            if (titleEl.tagName === 'H2' || titleEl.tagName === 'H1') {
                 a.style.fontWeight = ${indexShowSubtopics ? "'700'" : "'400'"};
                 a.style.color = 'var(--color-primary)';
             } else if (titleEl.tagName === 'H3') {
@@ -172,11 +168,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                                 break;
                             }
                         }
-                        
-                        if (overflowIndex === 0 && childNodes.length > 1) {
-                            overflowIndex = 1;
-                        }
-                        
+                        if (overflowIndex === 0 && childNodes.length > 1) { overflowIndex = 1; }
                         nodesToMove = childNodes.slice(overflowIndex);
                     }
 
@@ -199,7 +191,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             }
         }
 
-        // LIMPADOR DE PÁGINAS FANTASMAS
         document.querySelectorAll('.page-container').forEach(page => {
             const contentNodes = Array.from(page.children).filter(el => 
                 !el.classList.contains('page-header') && 
@@ -227,13 +218,13 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             sincronizarIndice(); 
             aplicarRefluxoDePagina(); 
             
-            const pages = Array.from(document.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura'));
+            const pages = Array.from(document.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura'));
             document.querySelectorAll('.toc-item').forEach(item => {
                 const href = item.getAttribute('href');
                 if(!href || !href.startsWith('#')) return;
                 const target = document.getElementById(href.substring(1));
                 if(target) {
-                    const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura');
+                    const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
                     if(page) {
                         const pageIndex = pages.indexOf(page) + 1;
                         const pageNumberSpan = item.querySelector('.toc-page-num');
@@ -407,7 +398,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                 
                 if (targetEl) {
                     if (window.getComputedStyle(targetEl).display === 'none') {
-                        let parentPage = targetEl.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura');
+                        let parentPage = targetEl.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
                         if (parentPage) parentPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     } else {
                         targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -426,7 +417,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL (Apenas A4)
+  // CONFIGURAÇÕES DE DESIGN GERAL - TEXTO MOVIDO PARA CIMA (Paddings reajustados)
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -438,14 +429,12 @@ export default function Home() {
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
   const [htmlTemplate, setHtmlTemplate] = useState('');
 
-  // CORES MANUAIS
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
   const [corManualSec, setCorManualSec] = useState('#3b82f6');
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
 
-  // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline-imagem' | 'inline'>('inline-imagem');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
@@ -453,7 +442,6 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
-  // DADOS DO PROJETO E OPÇÕES DO ÍNDICE
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
@@ -469,10 +457,6 @@ export default function Home() {
     };
     verificarAcesso();
   }, []);
-
-  // ==========================================
-  // FUNÇÕES DE ESTRUTURA BLINDADAS 
-  // ==========================================
 
   function getPaletaObj() {
       if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: '#e5e7eb' };
@@ -513,9 +497,9 @@ export default function Home() {
       return clean.trim();
   }
 
-  // Focado apenas em A4
+  // Focado apenas em A4 - Top Padding ajustado para 25mm para o texto subir
   function getEstilosFormato() {
-      return { width: '210mm', height: '297mm', padding: '32mm 20mm 25mm 20mm' }; 
+      return { width: '210mm', height: '297mm', padding: '25mm 20mm 25mm 20mm' }; 
   }
 
   function moldarApresentacaoHtml(rawHtml: string) {
@@ -547,13 +531,15 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
-/* Aplicado para todas as páginas normais e de Capa garantindo o tamanho A4 BLINDADO */
+/* Aplicado para todas as páginas garantindo o tamanho A4 BLINDADO */
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, 
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
     background-color: var(--color-bg);
     width: ${conf.width} !important;
     height: ${conf.height} !important;
+    min-width: ${conf.width} !important;
     min-height: ${conf.height} !important;
+    max-width: ${conf.width} !important;
     max-height: ${conf.height} !important;
     flex-shrink: 0 !important;
     padding: ${conf.padding}; 
@@ -571,7 +557,8 @@ body {
     counter-increment: ebook-page;
 }
 
-.page-container::after, .page-cover-img::after, .page-cover-pura::after, .page-cover-text::after {
+.page-container::after, .page-cover-img::after, .page-cover-pura::after, .page-cover-text::after,
+.cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
     content: '';
     position: absolute;
     top: 6mm; left: 6mm; right: 6mm; bottom: 6mm;
@@ -579,18 +566,21 @@ body {
     border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : tipoBorda === 'double-thin' ? '3px double var(--color-primary)' : 'none'};
 }
 
+/* Oculta a borda se a opção de borda for 'none' OU se for uma página inteira de imagem */
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
     display: none !important;
 }
 
+/* CLASSE ESPECIAL DO TÍTULO NAS PÁGINAS EXCLUSIVAS (Capturada pelo Índice) */
+h1.chapter-title-exclusive { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); z-index: 10; position: relative; text-align: center; width: 100%; }
+
 /* BLINDAGEM DO DISPLAY PARA EXCLUSIVAS (Força a centralizar dentro do A4) */
 .cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; color: #ffffff; }
-.cap-img-overlay h1 { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); z-index: 10; position: relative; }
 .cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
 
 .cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); z-index: 10; position: relative; }
-.cap-box-inner h1 { margin:0; font-size: 2.2rem; color: var(--color-primary); }
+.cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: var(--color-primary); text-shadow: none; }
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
 
@@ -601,16 +591,16 @@ body {
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-/* IMAGEM HORIZONTAL E TÍTULO PRINCIPAL (Ajuste de Altura para dar espaço ao texto) */
+/* IMAGEM HORIZONTAL E TÍTULO PRINCIPAL */
 .chapter-banner-img { width: 100%; height: 300px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.2rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
 .chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
 /* TÍTULOS DE TÓPICOS DENTRO DO CAPÍTULO (H3) */
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 0.8rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
 
-/* CABEÇALHOS E RODAPÉS */
+/* CABEÇALHOS E RODAPÉS - Topo ajustado para 10mm */
 .page-header { 
-    position: absolute; top: 12mm; left: 18mm; right: 18mm; 
+    position: absolute; top: 10mm; left: 18mm; right: 18mm; 
     display: flex; justify-content: space-between; align-items: flex-end;
     font-size: 8pt; color: var(--color-primary); opacity: 0.8;
     border-bottom: 1px solid rgba(0,0,0, 0.1); padding-bottom: 5px; 
@@ -656,7 +646,7 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR */
+/* SEÇÃO DO AUTOR - LAYOUT PARA FLUTUAR TEXTO SOB A FOTO */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
@@ -767,20 +757,52 @@ ${ebookStyles}
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
-  async function buscarImagemIAInspetor() {
+  // BUSCADOR UNSPLASH ORIGINAL
+  async function buscarImagemUnsplash() {
       if (!elementoSelecionado) return;
-      (window as any).showNotification("Buscando imagem com IA...", "info");
+      (window as any).showNotification("Buscando no Unsplash...", "info");
       
       const instrucao = "Retorne APENAS 2 palavras-chave em inglês, separadas por vírgula, que representem visualmente este texto. Nenhuma palavra a mais.";
       const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
       
       if (data && data.html) {
-          const keywords = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[\n\r]/g, ' ').replace(/\s+/g, '%20');
-          // Utiliza Pollinations.ai que sempre gera uma imagem nova baseada no prompt, resolvendo o bug do Unsplash travado
-          const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(keywords)}?width=1200&height=800&nologo=true`;
+          const keywords = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[\n\r]/g, ' ').replace(/\s+/g, ',');
+          const url = `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=${keywords}`;
           let isBg = elementoSelecionado.tagName !== 'img';
           atualizarElemento(isBg ? 'bgImage' : 'src', url);
-          (window as any).showNotification("Imagem criada pela IA com sucesso!", "success");
+          (window as any).showNotification("Imagem do Unsplash adicionada!", "success");
+      }
+  }
+
+  // GERADOR GEMINI IA DEDICADO
+  async function gerarImagemGemini() {
+      if (!elementoSelecionado) return;
+      setStatusApis({ texto: 'Gerando com Gemini AI...', processing: true });
+      try {
+          const promptParaGemini = `Crie uma imagem limpa e profissional com base nisto: ${elementoSelecionado.text || 'capa de livro'}`;
+          const response = await fetch('/api/gerar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  systemInstruction: '',
+                  promptParts: [{ text: promptParaGemini }],
+                  isImageGeneration: true // Essa tag avisa seu backend para usar o modelo de imagem
+              })
+          });
+          
+          const data = await response.json();
+          if(data.success && data.image) {
+              const base64Url = `data:image/jpeg;base64,${data.image}`;
+              let isBg = elementoSelecionado.tagName !== 'img';
+              atualizarElemento(isBg ? 'bgImage' : 'src', base64Url);
+              (window as any).showNotification("Imagem Gemini gerada!", "success");
+          } else {
+              (window as any).showNotification("Erro ao gerar imagem pela IA.", "error");
+          }
+      } catch (err) {
+          (window as any).showNotification("Falha na API do Gemini Image.", "error");
+      } finally {
+          setStatusApis({ texto: 'Aguardando', processing: false });
       }
   }
 
@@ -915,7 +937,7 @@ ${ebookStyles}
     } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
   }
 
-  // ==== INSTRUÇÕES DO PROMPT (Totalmente Isoladas) ====
+  // ==== INSTRUÇÕES DO PROMPT ====
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
@@ -926,25 +948,25 @@ ${ebookStyles}
       if (estiloCapitulos === 'padrao') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a usar EXATAMENTE este bloco HTML (Página Exclusiva do Capítulo):
-          <div class="page-container cap-img-overlay" style="background-image: url('https://image.pollinations.ai/prompt/capitulo%20NOME_DO_CAPITULO_AQUI?width=1200&height=800&nologo=true');">
+          <div class="page-container cap-img-overlay" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
               <div class="cap-icon"><i class="fas fa-book-open"></i></div>
-              <h1 id="ID_DO_CAPITULO">Capítulo X: NOME DO CAPÍTULO AQUI</h1>
+              <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1>
           </div>
-          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
-          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo. NUNCA insira um título ou imagem dentro dessa segunda página de texto.`;
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema do capítulo. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo.`;
       } else if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a usar EXATAMENTE este bloco HTML (Página Exclusiva do Capítulo):
-          <div class="page-container cap-box-rounded" style="background-image: url('https://image.pollinations.ai/prompt/capitulo%20NOME_DO_CAPITULO_AQUI?width=1200&height=800&nologo=true');">
-              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" style="margin:0; font-size: 2.2rem;">Capítulo X: NOME DO CAPÍTULO AQUI</h1></div>
+          <div class="page-container cap-box-rounded" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
+              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1></div>
           </div>
-          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
-          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo. NUNCA insira um título ou imagem dentro dessa segunda página de texto.`;
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo.`;
       } else if (estiloCapitulos === 'imagem-pura') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a criar UMA PÁGINA EXCLUSIVA apenas com a imagem de fundo:
-          <div class="page-container cap-img-pura" style="background-image: url('https://image.pollinations.ai/prompt/fundo%20bonito%20NOME_DO_CAPITULO_AQUI?width=1200&height=800&nologo=true');"></div>
-          NÃO INCLUA nenhum texto ou título nesta div!
+          <div class="page-container cap-img-pura" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');"></div>
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash. NÃO INCLUA nenhum texto ou título nesta div!
           Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2> no topo e então inicie os parágrafos do capítulo.`;
       } else if (estiloCapitulos === 'inline-imagem') {
           regraEstiloCapitulos = `
@@ -952,11 +974,11 @@ ${ebookStyles}
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
-              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80" class="chapter-banner-img" alt="Ilustração do Capítulo" />
+              <img src="URL_DA_IMAGEM_UNSPLASH_AQUI" class="chapter-banner-img" alt="Ilustração do Capítulo" />
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          Nunca crie imagens de fundo de página inteira neste modo.`;
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=tema+do+capitulo). Nunca crie imagens de fundo de página inteira neste modo.`;
       } else {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva e NÃO use imagens. O capítulo deve iniciar como texto contínuo:
@@ -983,17 +1005,19 @@ ${ebookStyles}
           : `MODO EXPANDIDO (CRIATIVO): O usuário forneceu um tema ou rascunho. Atue como um autor best-seller e EXPANDA esse texto gerando um e-book muito profundo, detalhado e rico.`;
 
       const regrasComuns = `
-      DIRETRIZES ESTRITAS DE VOLUME E ESTRUTURA (LEIA COM ATENÇÃO MÁXIMA):
+      DIRETRIZES ESTRITAS DE VOLUME, ESTRUTURA E ÍNDICE (LEIA COM ATENÇÃO MÁXIMA):
       1. REGRA DE OPERAÇÃO: ${regraModo}
-      2. REGRA DO LAYOUT DE CAPÍTULOS: VOCÊ ESTÁ PROIBIDO de misturar estilos de capítulos. Use EXATAMENTE a estrutura definida abaixo na regra de estilo e não adicione divs ou imagens extras.
-      3. REGRA DO INÍCIO DE CAPÍTULO (TEXTO E IMAGEM): Se houver uma imagem no início do capítulo, OBRIGATORIAMENTE escreva EXATAMENTE 1 parágrafo longo e 1 parágrafo curto logo abaixo dessa imagem antes de criar qualquer subtópico com <h3>. Isso serve para preencher o resto da página inicial perfeitamente.
-      4. REGRA DE VOLUME EXTREMO (MUITO IMPORTANTE): Cada capítulo DEVE ser LONGO e DENSO. Após o início, insira os subtópicos <h3 class="subtopic-title">Nome do Tópico</h3>. Gere NO MÍNIMO de 8 a 12 parágrafos no decorrer de cada capítulo.
+      2. REGRA DE NOMENCLATURA (ÍNDICE): NUNCA omita a palavra "Capítulo". O título de cada capítulo DEVE OBRIGATORIAMENTE começar com "Capítulo X: " (Ex: Capítulo 1: O Despertar).
+      3. REGRA DE PREENCHIMENTO DE PÁGINA (MUITO IMPORTANTE):
+         - Se for uma PÁGINA DE TEXTO PURO (como a Introdução, Conclusão ou capítulo sem imagem), PREENCHA A PÁGINA INTEIRA. Escreva de 4 a 6 parágrafos médios logo no início, ANTES de colocar qualquer subtópico <h3>, para não deixar a primeira página em branco.
+         - Se for um CAPÍTULO COM IMAGEM NO TOPO (Inline), a imagem ocupa muito espaço. Portanto, escreva EXATAMENTE 1 parágrafo normal e 1 parágrafo menor logo abaixo da imagem, para que caiba na folha sem empurrar o resto da página para baixo em branco.
+      4. REGRA DE FLUIDEZ (CORTE A4): Crie parágrafos de tamanho médio (3 a 5 linhas). Evite parágrafos gigantescos para que o sistema consiga dividir o texto fluentemente nas folhas A4 sem deixar grandes lacunas brancas no fundo das páginas.
       5. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Coloque TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. Meu sistema cortará as páginas automaticamente!
       6. ELEMENTOS VISUAIS: Para quebrar blocos de texto, use <blockquote class="highlight-box"> para citações e <div class="highlight-box"> para quadros de resumo.
       7. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>. O meu sistema fará os links.
-      8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do CSS. NUNCA gere tags <br> ou <p>&nbsp;</p> ou <p></p>. Escreva os parágrafos diretos.
-      9. REGRAS DE IMAGEM: A imagem de capa ou background do capítulo DEVE usar a URL automática do Pollinations que passei na regra, trocando as palavras-chave pelo nome real do seu capítulo em inglês sem espaços. Exemplo: https://image.pollinations.ai/prompt/mindset?width=1200&height=800&nologo=true
-      10. CONTINUAÇÃO DE HTML (SE APLICÁVEL): Se o usuário fornecer um código HTML incompleto de livro, NÃO crie Índice, Capa ou Introdução novamente. Encontre o último capítulo no HTML e continue gerando a partir do PRÓXIMO capítulo.
+      8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do CSS. NUNCA gere tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos diretos.
+      9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash para as imagens exclusivas (ex: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=CHAVE-DO-CAPITULO). Substitua 'CHAVE-DO-CAPITULO' pelo termo em inglês.
+      10. CONTINUAÇÃO DE HTML E PROTEÇÃO DE AUTOR: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e OBRIGATORIAMENTE gere o bloco de "Sobre o Autor" no final se for o último capítulo.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -1018,28 +1042,31 @@ ${ebookStyles}
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - A INTRODUÇÃO DEVE USAR UM ÚNICO CONTAINER. GERE NO MÍNIMO 8 PARÁGRAFOS: 
+    - A INTRODUÇÃO DEVE USAR UM ÚNICO CONTAINER. PREENCHA O ESPAÇO PARA NÃO FICAR EM BRANCO ANTES DO <h3>: 
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-          <p>[Parágrafo denso 1...]</p>
-          <p>[Parágrafo denso 2...]</p>
+          <p>[Parágrafo denso 1 para preencher espaço...]</p>
+          <p>[Parágrafo denso 2 para preencher espaço...]</p>
+          <p>[Parágrafo denso 3 para preencher espaço...]</p>
+          <p>[Parágrafo denso 4 para preencher a página antes de quebrar assunto...]</p>
           <h3 class="subtopic-title">O Começo da Jornada</h3>
-          <p>[Parágrafo denso 3...]</p>
-          ... (Gere de 8 a 12 parágrafos no total, SEM NENHUMA IMAGEM)
+          <p>[Parágrafo médio...]</p>
+          ... (Gere no mínimo de 8 a 12 parágrafos no total, SEM NENHUMA IMAGEM)
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados aplicando RIGOROSAMENTE A ESTRUTURA ABAIXO PARA CADA CAPÍTULO (Não esqueça de colocar os 2 parágrafos após a imagem antes do h3):
+    - Gere TODOS os capítulos solicitados aplicando RIGOROSAMENTE A ESTRUTURA ABAIXO PARA CADA CAPÍTULO:
       ${regraEstiloCapitulos}
+      (Se houver imagem, lembre da regra de usar apenas 1 parágrafo normal e 1 menor abaixo dela para caber na folha).
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com vários parágrafos dentro desta única div, SEM NENHUMA IMAGEM...]</p>
+          <p>[Escreva a conclusão densa com 4 a 6 parágrafos preenchendo a folha dentro desta única div, SEM NENHUMA IMAGEM...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -1084,13 +1111,15 @@ ${ebookStyles}
             <div class="page-footer">${regraRodape}</div>
          </div>
       
-      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO: 
+      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO. PREENCHA A PÁGINA: 
          <!-- PROIBIDO USAR TAG IMG AQUI -->
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <p>[Primeiro parágrafo longo e denso...]</p>
-            <p>[Segundo parágrafo curto, fechando a ideia inicial...]</p>
+            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
+            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
+            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
+            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
             <h3 class="subtopic-title">Visão Geral</h3>
             <p>[Continue gerando de 8 a 12 parágrafos no total, SEM IMAGENS...]</p>
             <div class="page-footer">${regraRodape}</div>
@@ -1122,12 +1151,12 @@ ${ebookStyles}
       2. IDENTIFIQUE DE ONDE CONTINUAR: Leia o HTML atual para saber em qual capítulo parou e comece pelo próximo (ex: se parou no 2, faça o 3 e 4).
       3. APLIQUE O ESTILO DEFINIDO E A REGRA DE CONTEINER ÚNICO POR CAPÍTULO: 
          ${regraEstiloCapitulos}
-      4. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO. NÃO pule os IDs, use o prefixo "Capítulo X:" no título e NÃO corte a resposta no meio.
+      4. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO. NÃO pule os IDs, use o prefixo "Capítulo X:" no título.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU E QUAIS IDs USAR):\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Gere os próximos capítulos garantindo o formato exato solicitado. Lembre-se dos 2 parágrafos sob a imagem.'}\n"""` }
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Gere os próximos capítulos garantindo o formato exato solicitado.'}\n"""` }
       ], false);
       
       if (data && data.html) {
@@ -1152,7 +1181,10 @@ ${ebookStyles}
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com vários parágrafos ricos dentro desta mesma div, SEM IMAGENS...]</p>
+          <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
+          <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
+          <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
+          <p>[Escreva a conclusão densa com vários parágrafos preenchendo o espaço dentro desta mesma div, SEM IMAGENS...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
       <div class="page-container author-page">
@@ -1318,7 +1350,7 @@ ${ebookStyles}
                                       <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
                                       <div className="flex gap-2">
                                           {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
-                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Trocar Fundo</button>
+                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Upload PC</button>
                                           )}
                                           <button onClick={() => {
                                               let el = document.getElementById('previewFrame') as HTMLIFrameElement;
@@ -1334,15 +1366,27 @@ ${ebookStyles}
                                       <button onClick={aplicarModificacaoLocal} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wide py-2 rounded-lg transition shadow-sm">Aplicar IA no Selecionado</button>
                                   </div>
 
-                                  {elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage || elementoSelecionado.isBgTarget ? (
+                                  {/* PAINEL DE IMAGENS */}
+                                  {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
                                       <div className="space-y-3 pt-3 border-t border-slate-100">
                                           <div>
-                                              <label className="input-label mb-1">Buscar Imagem (Unsplash) / Gerar por IA</label>
-                                              <div className="flex gap-2">
-                                                <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-xs flex-1" />
-                                                <button onClick={buscarImagemIAInspetor} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 rounded shadow-sm" title="A IA lerá o texto para buscar a melhor imagem"><i className="fas fa-magic text-[10px]"></i></button>
+                                              <label className="input-label mb-2 text-indigo-800">🖼️ Controles de Imagem</label>
+                                              
+                                              {/* BOTÕES DE BUSCA E GERAÇÃO */}
+                                              <div className="grid grid-cols-2 gap-2 mb-3">
+                                                  <button onClick={buscarImagemUnsplash} className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[9px] uppercase py-2 rounded shadow-sm transition">
+                                                      <i className="fas fa-search mr-1"></i> Buscar Unsplash
+                                                  </button>
+                                                  <button onClick={gerarImagemGemini} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] uppercase py-2 rounded shadow-sm transition">
+                                                      <i className="fas fa-magic mr-1"></i> Gerar IA (Gemini)
+                                                  </button>
                                               </div>
+
+                                              {/* CAMPO DE URL MANUAL */}
+                                              <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-[10px] mb-2 font-mono text-slate-500" placeholder="URL da imagem (cole aqui)..." />
                                           </div>
+
+                                          {/* CONTROLES ESPECÍFICOS DE DIMENSÃO */}
                                           {elementoSelecionado.tagName === 'img' && (
                                               <div className="grid grid-cols-2 gap-2 mt-2">
                                                   <div>
@@ -1355,9 +1399,11 @@ ${ebookStyles}
                                                   </div>
                                               </div>
                                           )}
+
+                                          {/* OPACIDADE DE FUNDO */}
                                           {(elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
                                               <div className="mt-3 pt-3 border-t border-slate-100">
-                                                  <label className="input-label mb-1">Escurecimento do Fundo (Opacidade)</label>
+                                                  <label className="input-label mb-1">Escurecer Fundo (Opacidade para Leitura)</label>
                                                   <div className="flex items-center gap-2">
                                                       <span className="text-[10px] text-slate-500 font-bold">0%</span>
                                                       <input 
@@ -1378,30 +1424,34 @@ ${ebookStyles}
                                               </div>
                                           )}
                                       </div>
-                                  ) : null}
+                                  )}
 
-                                  {!elementoSelecionado.isBgTarget && (
+                                  {/* EDIÇÃO DE TEXTO */}
+                                  {(!elementoSelecionado.isBgTarget && isTextElement) && (
                                       <div className="pt-3 border-t border-slate-100">
-                                          {isTextElement ? (
-                                              <>
-                                                  <label className="input-label mb-2">Edição Manual de Texto</label>
-                                                  <textarea rows={5} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
-                                                  
-                                                  <div className="mt-3 flex gap-2">
-                                                      <button onClick={() => transformarEmNode('blockquote')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition"><i className="fas fa-quote-right mr-1"></i> Virar Citação</button>
-                                                      <button onClick={() => transformarEmNode('div', 'highlight-box')} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-bold text-[9px] uppercase py-2 rounded border border-yellow-200 transition"><i className="fas fa-highlighter mr-1"></i> Destacar Fundo</button>
-                                                  </div>
-                                              </>
-                                          ) : (
-                                              <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
-                                                  <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
-                                                  <strong>Container Estrutural</strong><br/>
-                                                  A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
-                                              </div>
-                                          )}
+                                          <label className="input-label mb-2">Edição Manual de Texto</label>
+                                          <textarea rows={5} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
+                                          
+                                          <div className="mt-3 flex gap-2">
+                                              <button onClick={() => transformarEmNode('blockquote')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition"><i className="fas fa-quote-right mr-1"></i> Virar Citação</button>
+                                              <button onClick={() => transformarEmNode('div', 'highlight-box')} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-bold text-[9px] uppercase py-2 rounded border border-yellow-200 transition"><i className="fas fa-highlighter mr-1"></i> Destacar Fundo</button>
+                                          </div>
                                       </div>
                                   )}
-                                </div>
+
+                                  {(!elementoSelecionado.isBgTarget && !isTextElement && elementoSelecionado.tagName !== 'img') && (
+                                      <div className="pt-3 border-t border-slate-100">
+                                          <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
+                                              <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
+                                              <strong>Container Estrutural</strong><br/>
+                                              A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
+                                          </div>
+                                      </div>
+                                  )}
+
+                              </div> {/* FECHAMENTO DA CAIXA PRINCIPAL DO INSPETOR */}
+
+                              {/* PAINEL DE CORES E FONTES */}
                               {elementoSelecionado.tagName !== 'img' && (
                                   <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100 mt-3">
                                       <div>
@@ -1422,7 +1472,7 @@ ${ebookStyles}
                                   </div>
                               )}
                               
-                              {/* ALINHAMENTO FIXADO COM CONTRASTE */}
+                              {/* ALINHAMENTO */}
                               {elementoSelecionado.tagName !== 'img' && (
                                 <div className="panel-section border-t border-slate-100">
                                     <label className="input-label mb-2 text-[9px]">Alinhamento</label>
