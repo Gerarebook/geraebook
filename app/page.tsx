@@ -415,7 +415,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL
+  // CONFIGURAÇÕES DE DESIGN GERAL - Top Padding ajustado para 25mm
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -771,10 +771,16 @@ ${ebookStyles}
       if (!elementoSelecionado) return;
       setStatusApis({ texto: 'Gerando com Gemini AI...', processing: true });
       try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token || '';
+
           const promptParaGemini = `A highly detailed, professional illustration or photography representing: ${elementoSelecionado.text || 'book cover'}. Clean, cinematic lighting, no text, no watermarks.`;
           const response = await fetch('/api/gerar', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}` 
+              },
               body: JSON.stringify({
                   systemInstruction: '',
                   promptParts: [{ text: promptParaGemini }],
@@ -906,9 +912,15 @@ ${ebookStyles}
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+
       const response = await fetch('/api/gerar', { 
           method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
+          headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}` 
+          }, 
           body: JSON.stringify({ 
               systemInstruction: systemInstructionText, 
               promptParts, 
@@ -1065,20 +1077,6 @@ ${ebookStyles}
           <p>[Escreva a conclusão densa com 4 a 6 parágrafos preenchendo a folha dentro desta única div, SEM NENHUMA IMAGEM...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
-      
-      <!-- OBRIGATÓRIO: Crie também a página de autor com este exato código abaixo para finalizar. NUNCA INVENTE O NOME NA BIO, USE ESTE TEXTO CONGELADO -->
-      <div class="page-container author-page">
-          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
-          <div class="author-section layout-${autorPosicao}">
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Sua Foto">
-              <div class="author-bio">
-                  <h2>Sobre o Autor</h2>
-                  <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional...</p>
-              </div>
-          </div>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
 
       AVISO DE LIMITE DE TOKENS: Se o limite for alcançado, priorize fechar a <div class="page-container"> atual.
     `;
@@ -1183,20 +1181,6 @@ ${ebookStyles}
           <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
           <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
           <p>[Escreva a conclusão densa com vários parágrafos preenchendo o espaço dentro desta mesma div, SEM IMAGENS...]</p>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
-      
-      <!-- OBRIGATÓRIO: Cole exatamente este bloco de autor sem inventar nomes ou mudar a foto -->
-      <div class="page-container author-page">
-          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
-          <div class="author-section layout-${autorPosicao}">
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Sua Foto">
-              <div class="author-bio">
-                  <h2>Sobre o Autor</h2>
-                  <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional...</p>
-              </div>
-          </div>
           <div class="page-footer">${regraRodape}</div>
       </div>
       `;
