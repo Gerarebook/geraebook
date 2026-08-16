@@ -3,11 +3,8 @@ import { NextResponse } from 'next/server';
 // =====================================================================
 // 🎛️ PAINEL DE CONTROLE MESTRE DA INTELIGÊNCIA ARTIFICIAL
 // =====================================================================
-// Para escolher a IA de textos, altere o valor abaixo para: 
-// 'gemini' | 'groq' | 'together' | 'nvidia'
 const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
 
-// Configuração caso use o Gemini (Rodízio de Modelos de TEXTO)
 const REQUISICOES_POR_MODELO = 9999; 
 const MODELOS_GEMINI = [
   "gemini-3.6-flash", 
@@ -30,7 +27,7 @@ export async function POST(req: Request) {
     const textoUsuario = promptParts[0].text;
 
     // =====================================================================
-    // 🖼️ VIA EXPRESSA: GERAÇÃO DE IMAGENS (gemini-3.1-flash-lite-image)
+    // 🖼️ VIA EXPRESSA: GERAÇÃO DE IMAGENS (Sempre usa Imagen 3 do Google)
     // =====================================================================
     if (isImageGeneration) {
       const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -40,32 +37,27 @@ export async function POST(req: Request) {
       }
 
       try {
-        // Chamada oficial para o modelo de geração de imagens do Flash Lite
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent?key=${geminiApiKey}`;
+        // A API oficial do Google AI Studio para GERAR imagens usa a arquitetura Imagen-3
+        const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${geminiApiKey}`;
         
-        const response = await fetch(geminiUrl, {
+        const response = await fetch(imagenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: textoUsuario }] }]
+                instances: [{ prompt: textoUsuario }],
+                parameters: { sampleCount: 1, aspectRatio: "16:9" }
             })
         });
 
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.error?.message || "Erro na geração de imagem pelo Gemini.");
+            console.error("Erro Google Imagen:", data);
+            throw new Error(data.error?.message || "Erro na geração de imagem pelo Google.");
         }
 
-        // O modelo image do Gemini retorna a imagem empacotada no inlineData
-        let imageBase64 = null;
-        const parts = data.candidates?.[0]?.content?.parts || [];
-        for (const part of parts) {
-            if (part.inlineData && part.inlineData.data) {
-                imageBase64 = part.inlineData.data;
-                break;
-            }
-        }
+        // O Imagen 3 retorna a imagem nesta exata estrutura de bytes (Base64)
+        const imageBase64 = data.predictions?.[0]?.bytesBase64Encoded;
         
         if (!imageBase64) {
             throw new Error("A API não retornou a imagem em base64.");

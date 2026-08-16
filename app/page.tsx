@@ -464,10 +464,6 @@ export default function Home() {
     verificarAcesso();
   }, []);
 
-  // ==========================================
-  // FUNÇÕES DE ESTRUTURA BLINDADAS 
-  // ==========================================
-
   function getPaletaObj() {
       if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: '#e5e7eb' };
       if (htmlTemplate.trim() && paletaCores === 'personalizado') return { bg: 'var(--template-bg, #ffffff)', text: 'var(--template-text, #111827)', pri: 'var(--template-pri, #3b82f6)', sec: 'var(--template-sec, #60a5fa)', borda: 'var(--template-border, #e5e7eb)' };
@@ -656,7 +652,7 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR */
+/* SEÇÃO DO AUTOR - LAYOUT PARA FLUTUAR TEXTO SOB A FOTO */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
@@ -704,10 +700,6 @@ ${ebookStyles}
 </body>
 </html>`;
   }
-
-  // ==========================================
-  // FUNÇÕES DE BOTÃO E EVENTOS
-  // ==========================================
 
   function handleImageUploadBtn(e: React.ChangeEvent<HTMLInputElement>) {
       const file = e.target.files?.[0];
@@ -779,7 +771,7 @@ ${ebookStyles}
           <div class="page-header"><span>${livroTitulo || 'Título do Livro'}</span><span>SOBRE O AUTOR</span></div>
           <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
           <div class="author-section layout-${autorPosicao}">
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Sua Foto">
               <div class="author-bio">
                   <h2>Sobre o Autor</h2>
                   <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional...</p>
@@ -802,7 +794,6 @@ ${ebookStyles}
       
       if (data && data.html) {
           const keywords = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[\n\r]/g, ' ').replace(/\s+/g, ',');
-          // O Parâmetro random e o timestamp garantem que a imagem seja nova toda vez
           const url = `https://source.unsplash.com/random/1200x800/?${encodeURIComponent(keywords)}&sig=${Math.floor(Math.random() * 1000)}`;
           let isBg = elementoSelecionado.tagName !== 'img';
           atualizarElemento(isBg ? 'bgImage' : 'src', url);
@@ -815,14 +806,14 @@ ${ebookStyles}
       if (!elementoSelecionado) return;
       setStatusApis({ texto: 'Gerando com Gemini AI...', processing: true });
       try {
-          const promptParaGemini = `Crie uma imagem limpa e profissional com base nisto: ${elementoSelecionado.text || 'capa de livro'}`;
+          const promptParaGemini = `A highly detailed, professional illustration or photography representing: ${elementoSelecionado.text || 'book cover'}. Clean, cinematic lighting, no text, no watermarks.`;
           const response = await fetch('/api/gerar', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                   systemInstruction: '',
                   promptParts: [{ text: promptParaGemini }],
-                  isImageGeneration: true // Essa flag aciona a rota dedicada de imagem no route.ts
+                  isImageGeneration: true // Flag que aciona a rota (Imagen 3) no route.ts
               })
           });
           
@@ -988,22 +979,25 @@ ${ebookStyles}
               <div class="cap-icon"><i class="fas fa-book-open"></i></div>
               <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema do capítulo. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
-          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo.`;
+          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé. 
+          OBRIGATÓRIO: A primeira linha de conteúdo dessa nova página DEVE ser um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a usar EXATAMENTE este bloco HTML (Página Exclusiva do Capítulo):
           <div class="page-container cap-box-rounded" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
               <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1></div>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
-          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé para começar os parágrafos do texto do capítulo.`;
+          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé. 
+          OBRIGATÓRIO: A primeira linha de conteúdo dessa nova página DEVE ser um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'imagem-pura') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a criar UMA PÁGINA EXCLUSIVA apenas com a imagem de fundo:
           <div class="page-container cap-img-pura" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');"></div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash. NÃO INCLUA nenhum texto ou título nesta div!
-          Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2> no topo e então inicie os parágrafos do capítulo.`;
+          NÃO INCLUA nenhum texto ou título nesta div!
+          Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2> no topo. 
+          OBRIGATÓRIO: Logo abaixo do h2, inicie com um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'inline-imagem') {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva de fundo. Para abrir o capítulo, USE UM ÚNICO CONTAINER com a Imagem no topo:
@@ -1011,20 +1005,23 @@ ${ebookStyles}
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
               <img src="URL_DA_IMAGEM_UNSPLASH_AQUI" class="chapter-banner-img" alt="Ilustração do Capítulo" />
+              <h3 class="subtopic-title">Nome do Tópico</h3>
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://source.unsplash.com/random/1200x800/?keyword). Nunca crie imagens de fundo de página inteira neste modo.`;
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash. 
+          OBRIGATÓRIO: Sempre inicie o texto abaixo da imagem com um Título de Tópico (h3). E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva e NÃO use imagens. O capítulo deve iniciar como texto contínuo:
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
+              <h3 class="subtopic-title">Nome do Tópico</h3>
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          Nunca use a tag <img> neste modo de capítulo.`;
+          OBRIGATÓRIO: Sempre inicie o texto abaixo do h2 com um Título de Tópico (h3). E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       }
 
       let regraCapaHtml = "";
@@ -1044,16 +1041,14 @@ ${ebookStyles}
       DIRETRIZES ESTRITAS DE VOLUME, ESTRUTURA E ÍNDICE (LEIA COM ATENÇÃO MÁXIMA):
       1. REGRA DE OPERAÇÃO: ${regraModo}
       2. REGRA DE NOMENCLATURA (ÍNDICE): NUNCA omita a palavra "Capítulo". O título de cada capítulo DEVE OBRIGATORIAMENTE começar com "Capítulo X: " (Ex: Capítulo 1: O Despertar).
-      3. REGRA DE PREENCHIMENTO DE PÁGINA (MUITO IMPORTANTE):
-         - Se for uma PÁGINA DE TEXTO PURO (como a Introdução, Conclusão ou capítulo sem imagem), PREENCHA A PÁGINA INTEIRA. Escreva de 4 a 6 parágrafos médios logo no início, ANTES de colocar qualquer subtópico <h3>, para não deixar a primeira página em branco.
-         - Se for um CAPÍTULO COM IMAGEM NO TOPO (Inline), a imagem ocupa muito espaço. Portanto, escreva EXATAMENTE 1 parágrafo normal e 1 parágrafo menor logo abaixo da imagem, para que caiba na folha sem empurrar o resto da página para baixo em branco.
+      3. REGRA DOS TÓPICOS (H3): É OBRIGATÓRIO inserir Títulos de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) no início de CADA novo conteúdo de capítulo (logo após a página exclusiva ou logo após a imagem inline). Além disso, crie diversos outros títulos de tópicos (<h3>) ao longo do capítulo para dividir os assuntos.
       4. REGRA DE FLUIDEZ (CORTE A4): Crie parágrafos de tamanho médio (3 a 5 linhas). Evite parágrafos gigantescos para que o sistema consiga dividir o texto fluentemente nas folhas A4 sem deixar grandes lacunas brancas no fundo das páginas.
       5. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Coloque TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. Meu sistema cortará as páginas automaticamente!
       6. ELEMENTOS VISUAIS: Para quebrar blocos de texto, use <blockquote class="highlight-box"> para citações e <div class="highlight-box"> para quadros de resumo.
       7. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>. O meu sistema fará os links.
       8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do CSS. NUNCA gere tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos diretos.
       9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash (ex: https://source.unsplash.com/random/1200x800/?CHAVE). Substitua 'CHAVE' pelo termo em inglês.
-      10. CONTINUAÇÃO DE HTML: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e preserve os estilos já aplicados.
+      10. CONTINUAÇÃO DE HTML E PROTEÇÃO DE AUTOR: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e preserve os estilos já aplicados.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -1078,7 +1073,7 @@ ${ebookStyles}
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - A INTRODUÇÃO DEVE USAR UM ÚNICO CONTAINER. PREENCHA O ESPAÇO PARA NÃO FICAR EM BRANCO ANTES DO <h3>: 
+    - A INTRODUÇÃO DEVE USAR UM ÚNICO CONTAINER. PREENCHA O ESPAÇO: 
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
@@ -1095,7 +1090,6 @@ ${ebookStyles}
     
     - Gere TODOS os capítulos solicitados aplicando RIGOROSAMENTE A ESTRUTURA ABAIXO PARA CADA CAPÍTULO:
       ${regraEstiloCapitulos}
-      (Se houver imagem, lembre da regra de usar apenas 1 parágrafo normal e 1 menor abaixo dela para caber na folha).
     
     - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <!-- PROIBIDO USAR TAG IMG AQUI -->
