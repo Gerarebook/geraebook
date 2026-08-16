@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const textoUsuario = promptParts[0].text;
 
     // =====================================================================
-    // 🖼️ VIA EXPRESSA: GERAÇÃO DE IMAGENS (Sempre usa a chave Google)
+    // 🖼️ VIA EXPRESSA: GERAÇÃO DE IMAGENS (gemini-3.1-flash-lite-image)
     // =====================================================================
     if (isImageGeneration) {
       const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -40,26 +40,32 @@ export async function POST(req: Request) {
       }
 
       try {
-        // A API oficial do Google AI Studio para gerar imagens usa a arquitetura Imagen-3
-        const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${geminiApiKey}`;
+        // Chamada oficial para o modelo de geração de imagens do Flash Lite
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent?key=${geminiApiKey}`;
         
-        const response = await fetch(imagenUrl, {
+        const response = await fetch(geminiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                instances: [{ prompt: textoUsuario }],
-                parameters: { sampleCount: 1 }
+                contents: [{ parts: [{ text: textoUsuario }] }]
             })
         });
 
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.error?.message || "Erro na geração de imagem pelo Google.");
+            throw new Error(data.error?.message || "Erro na geração de imagem pelo Gemini.");
         }
 
-        // Extraímos os dados binários da imagem (base64) gerada pela IA
-        const imageBase64 = data.predictions?.[0]?.bytesBase64Encoded;
+        // O modelo image do Gemini retorna a imagem empacotada no inlineData
+        let imageBase64 = null;
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        for (const part of parts) {
+            if (part.inlineData && part.inlineData.data) {
+                imageBase64 = part.inlineData.data;
+                break;
+            }
+        }
         
         if (!imageBase64) {
             throw new Error("A API não retornou a imagem em base64.");
