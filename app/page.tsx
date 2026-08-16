@@ -952,7 +952,7 @@ ${ebookStyles}
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
-              <img src="https://image.pollinations.ai/prompt/NOME_DO_CAPITULO_AQUI?width=1200&height=800&nologo=true" class="chapter-banner-img" alt="Ilustração do Capítulo" />
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80" class="chapter-banner-img" alt="Ilustração do Capítulo" />
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
