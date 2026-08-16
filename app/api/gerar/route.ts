@@ -3,15 +3,14 @@ import { NextResponse } from 'next/server';
 // =====================================================================
 // 🎛️ PAINEL DE CONTROLE MESTRE DA INTELIGÊNCIA ARTIFICIAL
 // =====================================================================
-// Para escolher a IA, altere o valor abaixo para: 
+// Para escolher a IA de textos, altere o valor abaixo para: 
 // 'gemini' | 'groq' | 'together' | 'nvidia'
 const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
 
-// Configuração caso use o Gemini (Rodízio de Modelos)
+// Configuração caso use o Gemini (Rodízio de Modelos de TEXTO)
 const REQUISICOES_POR_MODELO = 9999; 
 const MODELOS_GEMINI = [
   "gemini-3.6-flash", 
-  // "gemini-3.1-flash-lite-image", // Descomente caso queira testar o modelo de imagem dedicado via API
 ];
 
 let contadorRequisicoes = 0;
@@ -20,7 +19,9 @@ let indiceModeloAtual = 0;
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { systemInstruction, promptParts } = body;
+    
+    // Extraímos a flag secreta 'isImageGeneration' que o frontend envia
+    const { systemInstruction, promptParts, isImageGeneration } = body;
 
     if (!promptParts || !promptParts[0] || !promptParts[0].text) {
       return NextResponse.json({ success: false, error: "Nenhum texto de prompt fornecido." }, { status: 400 });
@@ -29,7 +30,51 @@ export async function POST(req: Request) {
     const textoUsuario = promptParts[0].text;
 
     // =====================================================================
-    // 🚀 1. SE O PROVEDOR ATIVO FOR O GROQ
+    // 🖼️ VIA EXPRESSA: GERAÇÃO DE IMAGENS (Sempre usa a chave Google)
+    // =====================================================================
+    if (isImageGeneration) {
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      
+      if (!geminiApiKey) {
+        return NextResponse.json({ success: false, error: "Chave da API do Gemini necessária para gerar imagens." }, { status: 500 });
+      }
+
+      try {
+        // A API oficial do Google AI Studio para gerar imagens usa a arquitetura Imagen-3
+        const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${geminiApiKey}`;
+        
+        const response = await fetch(imagenUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                instances: [{ prompt: textoUsuario }],
+                parameters: { sampleCount: 1 }
+            })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error?.message || "Erro na geração de imagem pelo Google.");
+        }
+
+        // Extraímos os dados binários da imagem (base64) gerada pela IA
+        const imageBase64 = data.predictions?.[0]?.bytesBase64Encoded;
+        
+        if (!imageBase64) {
+            throw new Error("A API não retornou a imagem em base64.");
+        }
+
+        return NextResponse.json({ success: true, image: imageBase64 });
+
+      } catch (err: any) {
+          console.error("Erro na API de Imagem:", err);
+          return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+      }
+    }
+
+    // =====================================================================
+    // 🚀 1. SE O PROVEDOR ATIVO FOR O GROQ (Textos)
     // =====================================================================
     if (PROVEDOR_ATIVO === 'groq') {
       const groqApiKey = process.env.GROQ_API_KEY;
@@ -66,7 +111,7 @@ export async function POST(req: Request) {
     }
 
     // =====================================================================
-    // 🌐 2. SE O PROVEDOR ATIVO FOR A TOGETHER.AI
+    // 🌐 2. SE O PROVEDOR ATIVO FOR A TOGETHER.AI (Textos)
     // =====================================================================
     if (PROVEDOR_ATIVO === 'together') {
       const togetherApiKey = process.env.TOGETHER_API_KEY;
@@ -103,7 +148,7 @@ export async function POST(req: Request) {
     }
 
     // =====================================================================
-    // 🟢 3. SE O PROVEDOR ATIVO FOR A NVIDIA (NIM)
+    // 🟢 3. SE O PROVEDOR ATIVO FOR A NVIDIA (NIM) (Textos)
     // =====================================================================
     if (PROVEDOR_ATIVO === 'nvidia') {
       const nvidiaApiKey = process.env.NVIDIA_API_KEY;
@@ -140,7 +185,7 @@ export async function POST(req: Request) {
     }
 
     // =====================================================================
-    // 💎 4. SE O PROVEDOR ATIVO FOR O GEMINI
+    // 💎 4. SE O PROVEDOR ATIVO FOR O GEMINI (Textos)
     // =====================================================================
     if (PROVEDOR_ATIVO === 'gemini') {
       const geminiApiKey = process.env.GEMINI_API_KEY;
