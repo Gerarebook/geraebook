@@ -10,7 +10,7 @@ const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
 // Configuração caso use o Gemini (Rodízio de Modelos)
 const REQUISICOES_POR_MODELO = 9999; 
 const MODELOS_GEMINI = [
-  "gemini-3.1-flash-lite", 
+  "gemini-3.7-flash", 
   // "gemini-3.1-flash-lite-image", // Descomente caso queira testar o modelo de imagem dedicado via API
 ];
 
