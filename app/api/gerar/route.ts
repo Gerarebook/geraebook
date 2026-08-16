@@ -7,7 +7,7 @@ const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
 
 const REQUISICOES_POR_MODELO = 9999; 
 const MODELOS_GEMINI = [
-  "gemini-3.6-flash", 
+  "gemini-3.7-flash", 
 ];
 
 let contadorRequisicoes = 0;
