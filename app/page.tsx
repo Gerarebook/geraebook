@@ -90,7 +90,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO CORRIGIDO (Evita Vácuo e Otimiza Preenchimento)
+    // 2. MOTOR DE REFLUXO AVANÇADO CORRIGIDO
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -161,7 +161,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                         nodesToMove = childNodes.slice(overflowIndex + 1);
                         nodesToMove.unshift(nextContainer);
                     } else {
-                        // Anti-órfão brando
                         let safeBreak = overflowIndex;
                         if (safeBreak > 0) {
                             let prevNode = childNodes[safeBreak - 1];
@@ -310,8 +309,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             src: elSelecionado.src || '',
             bgImage: bgImgUrl,
             isBgTarget: isBgTarget,
-            width: elSelecionado.style.width || elSelecionado.width || '',
-            height: elSelecionado.style.height || elSelecionado.height || '',
             className: elSelecionado.className,
             textColor: rgbToHex(compStyle.color),
             bgColor: rgbToHex(compStyle.backgroundColor),
@@ -349,8 +346,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                     el.innerText = event.data.text;
                 }
                 if(event.data.src !== undefined) el.src = event.data.src;
-                if(event.data.width !== undefined) el.style.width = event.data.width;
-                if(event.data.height !== undefined) el.style.height = event.data.height;
                 if(event.data.textColor !== undefined) el.style.setProperty('color', event.data.textColor, 'important');
                 if(event.data.bgColor !== undefined) el.style.setProperty('background-color', event.data.bgColor, 'important');
                 
@@ -748,12 +743,12 @@ ${ebookStyles}
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
-  // BUSCADOR UNSPLASH ORIGINAL À PROVA DE FALHAS (Com Timestamp para sempre gerar nova)
+  // BUSCADOR UNSPLASH ORIGINAL À PROVA DE FALHAS
   async function buscarImagemUnsplash() {
       if (!elementoSelecionado) return;
       (window as any).showNotification("Buscando no Unsplash...", "info");
       
-      let keywords = "abstract"; // Palavra padrão de segurança
+      let keywords = "abstract"; 
       try {
           const instrucao = "Retorne APENAS 2 palavras-chave em inglês, separadas por vírgula, que representem visualmente este texto. Nenhuma palavra a mais.";
           const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
@@ -765,7 +760,6 @@ ${ebookStyles}
           console.error("Falha ao ler palavras-chave via Gemini, usando padrão.");
       }
 
-      // O carimbo de tempo '&t=' garante que o navegador NÃO puxe a imagem antiga do cache
       const url = `https://source.unsplash.com/1200x800/?${encodeURIComponent(keywords)}&t=${new Date().getTime()}`;
       let isBg = elementoSelecionado.tagName !== 'img';
       atualizarElemento(isBg ? 'bgImage' : 'src', url);
@@ -981,7 +975,7 @@ ${ebookStyles}
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://source.unsplash.com/1200x800/?keyword). Nunca crie imagens de fundo de página inteira neste modo. 
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://source.unsplash.com/random/1200x800/?keyword). Nunca crie imagens de fundo de página inteira neste modo. 
           OBRIGATÓRIO: Sempre inicie o texto abaixo da imagem com um Título de Tópico (h3). E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else {
           regraEstiloCapitulos = `
@@ -1019,7 +1013,7 @@ ${ebookStyles}
       6. ELEMENTOS VISUAIS: Para quebrar blocos de texto, use <blockquote class="highlight-box"> para citações e <div class="highlight-box"> para quadros de resumo.
       7. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>. O meu sistema fará os links.
       8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do CSS. NUNCA gere tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos diretos.
-      9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash (ex: https://source.unsplash.com/1200x800/?CHAVE). Substitua 'CHAVE' pelo termo em inglês.
+      9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash (ex: https://source.unsplash.com/random/1200x800/?CHAVE). Substitua 'CHAVE' pelo termo em inglês.
       10. CONTINUAÇÃO DE HTML E PROTEÇÃO DE AUTOR: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e cole o bloco de autor no final apenas se for OBRIGADO pelo modo de conclusão.
       `;
 
@@ -1391,20 +1385,6 @@ ${ebookStyles}
                                               {/* CAMPO DE URL MANUAL */}
                                               <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-[10px] mb-2 font-mono text-slate-500" placeholder="URL da imagem (cole aqui)..." />
                                           </div>
-
-                                          {/* CONTROLES ESPECÍFICOS DE DIMENSÃO */}
-                                          {elementoSelecionado.tagName === 'img' && (
-                                              <div className="grid grid-cols-2 gap-2 mt-2">
-                                                  <div>
-                                                      <label className="input-label mb-1">Largura</label>
-                                                      <input type="text" value={elementoSelecionado.width || ''} placeholder="Ex: 100%" onChange={(e) => atualizarElemento('width', e.target.value)} className="input-standard text-xs" />
-                                                  </div>
-                                                  <div>
-                                                      <label className="input-label mb-1">Altura</label>
-                                                      <input type="text" value={elementoSelecionado.height || ''} placeholder="Ex: auto" onChange={(e) => atualizarElemento('height', e.target.value)} className="input-standard text-xs" />
-                                                  </div>
-                                              </div>
-                                          )}
 
                                           {/* OPACIDADE DE FUNDO */}
                                           {(elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
