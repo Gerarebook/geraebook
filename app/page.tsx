@@ -38,10 +38,10 @@ function getScriptPreview(indexShowSubtopics: boolean) {
             allTocs[i].remove();
         }
 
-        const indexTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => el.innerText.trim().toLowerCase() === 'índice' || el.innerText.trim().toLowerCase() === 'sumário');
+        const indexTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => (el.textContent || '').trim().toLowerCase() === 'índice' || (el.textContent || '').trim().toLowerCase() === 'sumário');
         for(let i = 1; i < indexTitles.length; i++) indexTitles[i].closest('.page-container')?.remove();
 
-        const introTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => el.innerText.trim().toLowerCase() === 'introdução');
+        const introTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => (el.textContent || '').trim().toLowerCase() === 'introdução');
         for(let i = 1; i < introTitles.length; i++) introTitles[i].closest('.page-container')?.remove();
 
         const selector = ${indexShowSubtopics ? "'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'" : "'h1.chapter-title-exclusive, h2.chapter-title-inline'"};
@@ -51,7 +51,8 @@ function getScriptPreview(indexShowSubtopics: boolean) {
 
         titles.forEach((titleEl) => {
             if (titleEl.tagName === 'H1' && !titleEl.id && titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
-            if (titleEl.innerText.trim().toLowerCase() === 'índice' || titleEl.innerText.trim().toLowerCase() === 'sumário') return;
+            const textContent = (titleEl.textContent || '').trim().toLowerCase();
+            if (textContent === 'índice' || textContent === 'sumário') return;
 
             if (!titleEl.id) {
                 titleEl.id = 'sec-auto-' + Math.random().toString(36).substr(2, 9);
@@ -89,7 +90,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO (Corte Milimétrico no A4)
+    // 2. MOTOR DE REFLUXO AVANÇADO CORRIGIDO (Evita Vácuo e Otimiza Preenchimento)
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -160,16 +161,18 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                         nodesToMove = childNodes.slice(overflowIndex + 1);
                         nodesToMove.unshift(nextContainer);
                     } else {
-                        while (overflowIndex > 0) {
-                            let prevNode = childNodes[overflowIndex - 1];
+                        // Anti-órfão brando para evitar que a página inteira suba e deixe vácuo
+                        let safeBreak = overflowIndex;
+                        if (safeBreak > 0) {
+                            let prevNode = childNodes[safeBreak - 1];
                             if (prevNode.tagName.match(/^H[1-6]$/i) || prevNode.classList.contains('subtopic-title')) {
-                                overflowIndex--;
-                            } else {
-                                break;
+                                safeBreak--;
                             }
                         }
-                        if (overflowIndex === 0 && childNodes.length > 1) { overflowIndex = 1; }
-                        nodesToMove = childNodes.slice(overflowIndex);
+                        if (safeBreak === 0 && childNodes.length > 1) {
+                            safeBreak = 1; 
+                        }
+                        nodesToMove = childNodes.slice(safeBreak);
                     }
 
                     if (nodesToMove.length > 0) {
@@ -417,7 +420,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL - TEXTO MOVIDO PARA CIMA (Paddings reajustados)
+  // CONFIGURAÇÕES DE DESIGN GERAL - Top Padding ajustado para 25mm
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -429,12 +432,14 @@ export default function Home() {
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
   const [htmlTemplate, setHtmlTemplate] = useState('');
 
+  // CORES MANUAIS
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
   const [corManualSec, setCorManualSec] = useState('#3b82f6');
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
 
+  // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline-imagem' | 'inline'>('inline-imagem');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
@@ -442,6 +447,7 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
+  // DADOS DO PROJETO E OPÇÕES DO ÍNDICE
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
@@ -457,6 +463,10 @@ export default function Home() {
     };
     verificarAcesso();
   }, []);
+
+  // ==========================================
+  // FUNÇÕES DE ESTRUTURA BLINDADAS 
+  // ==========================================
 
   function getPaletaObj() {
       if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: '#e5e7eb' };
@@ -646,7 +656,7 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR - LAYOUT PARA FLUTUAR TEXTO SOB A FOTO */
+/* SEÇÃO DO AUTOR */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
@@ -757,7 +767,32 @@ ${ebookStyles}
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
-  // BUSCADOR UNSPLASH ORIGINAL
+  // BOTÃO DE INSERÇÃO MANUAL DO AUTOR
+  function adicionarPaginaAutor() {
+      let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
+      let regraRodape = "";
+      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { regraRodape = `<span>${livroAutores}</span>${numSpan}`; } 
+      else { regraRodape = `${numSpan}`; }
+
+      const htmlAutor = `
+      <div class="page-container author-page">
+          <div class="page-header"><span>${livroTitulo || 'Título do Livro'}</span><span>SOBRE O AUTOR</span></div>
+          <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
+          <div class="author-section layout-${autorPosicao}">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
+              <div class="author-bio">
+                  <h2>Sobre o Autor</h2>
+                  <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional...</p>
+              </div>
+          </div>
+          <div class="page-footer">${regraRodape}</div>
+      </div>`;
+      
+      aplicarHtmlNovo(htmlAutor, true);
+      (window as any).showNotification("Página de Autor inserida no final!", "success");
+  }
+
+  // BUSCADOR UNSPLASH ORIGINAL (Dinâmico)
   async function buscarImagemUnsplash() {
       if (!elementoSelecionado) return;
       (window as any).showNotification("Buscando no Unsplash...", "info");
@@ -767,7 +802,8 @@ ${ebookStyles}
       
       if (data && data.html) {
           const keywords = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[\n\r]/g, ' ').replace(/\s+/g, ',');
-          const url = `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=${keywords}`;
+          // O Parâmetro random e o timestamp garantem que a imagem seja nova toda vez
+          const url = `https://source.unsplash.com/random/1200x800/?${encodeURIComponent(keywords)}&sig=${Math.floor(Math.random() * 1000)}`;
           let isBg = elementoSelecionado.tagName !== 'img';
           atualizarElemento(isBg ? 'bgImage' : 'src', url);
           (window as any).showNotification("Imagem do Unsplash adicionada!", "success");
@@ -786,7 +822,7 @@ ${ebookStyles}
               body: JSON.stringify({
                   systemInstruction: '',
                   promptParts: [{ text: promptParaGemini }],
-                  isImageGeneration: true // Essa tag avisa seu backend para usar o modelo de imagem
+                  isImageGeneration: true // Essa flag aciona a rota dedicada de imagem no route.ts
               })
           });
           
@@ -978,7 +1014,7 @@ ${ebookStyles}
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=tema+do+capitulo). Nunca crie imagens de fundo de página inteira neste modo.`;
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://source.unsplash.com/random/1200x800/?keyword). Nunca crie imagens de fundo de página inteira neste modo.`;
       } else {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva e NÃO use imagens. O capítulo deve iniciar como texto contínuo:
@@ -1016,8 +1052,8 @@ ${ebookStyles}
       6. ELEMENTOS VISUAIS: Para quebrar blocos de texto, use <blockquote class="highlight-box"> para citações e <div class="highlight-box"> para quadros de resumo.
       7. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>. O meu sistema fará os links.
       8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do CSS. NUNCA gere tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos diretos.
-      9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash para as imagens exclusivas (ex: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=CHAVE-DO-CAPITULO). Substitua 'CHAVE-DO-CAPITULO' pelo termo em inglês.
-      10. CONTINUAÇÃO DE HTML E PROTEÇÃO DE AUTOR: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e OBRIGATORIAMENTE gere o bloco de "Sobre o Autor" no final se for o último capítulo.
+      9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash (ex: https://source.unsplash.com/random/1200x800/?CHAVE). Substitua 'CHAVE' pelo termo em inglês.
+      10. CONTINUAÇÃO DE HTML: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e preserve os estilos já aplicados.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -1069,18 +1105,6 @@ ${ebookStyles}
           <p>[Escreva a conclusão densa com 4 a 6 parágrafos preenchendo a folha dentro desta única div, SEM NENHUMA IMAGEM...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
-      <div class="page-container author-page">
-          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" class="chapter-title-inline" style="display:none;">Sobre o Autor</h2>
-          <div class="author-section layout-${autorPosicao}">
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
-              <div class="author-bio">
-                  <h2>Sobre o Autor</h2>
-                  <p>[Escreva a biografia de ${livroAutores}...]</p>
-              </div>
-          </div>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
 
       AVISO DE LIMITE DE TOKENS: Se o limite for alcançado, priorize fechar a <div class="page-container"> atual.
     `;
@@ -1116,10 +1140,10 @@ ${ebookStyles}
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
-            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
-            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
-            <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
+            <p>[Parágrafo longo e denso 1 para preencher espaço...]</p>
+            <p>[Parágrafo longo e denso 2 para preencher espaço...]</p>
+            <p>[Parágrafo longo e denso 3 para preencher espaço...]</p>
+            <p>[Parágrafo longo e denso 4 para preencher espaço...]</p>
             <h3 class="subtopic-title">Visão Geral</h3>
             <p>[Continue gerando de 8 a 12 parágrafos no total, SEM IMAGENS...]</p>
             <div class="page-footer">${regraRodape}</div>
@@ -1185,18 +1209,6 @@ ${ebookStyles}
           <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
           <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
           <p>[Escreva a conclusão densa com vários parágrafos preenchendo o espaço dentro desta mesma div, SEM IMAGENS...]</p>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
-      <div class="page-container author-page">
-          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" class="chapter-title-inline" style="display:none;">Sobre o Autor</h2>
-          <div class="author-section layout-${autorPosicao}">
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Autor">
-              <div class="author-bio">
-                  <h2>Sobre o Autor</h2>
-                  <p>[Escreva a biografia do autor ${livroAutores} aqui...]</p>
-              </div>
-          </div>
           <div class="page-footer">${regraRodape}</div>
       </div>
       `;
@@ -1407,7 +1419,7 @@ ${ebookStyles}
                                                   <div className="flex items-center gap-2">
                                                       <span className="text-[10px] text-slate-500 font-bold">0%</span>
                                                       <input 
-                                                          type="range" min="0" max="0.9" step="0.1" defaultValue="0" 
+                                                          type="range" min="0" max="1" step="0.05" defaultValue="0" 
                                                           onChange={(e) => {
                                                               const val = e.target.value;
                                                               const newBg = val === "0" 
@@ -1418,7 +1430,7 @@ ${ebookStyles}
                                                           }} 
                                                           className="flex-1 accent-indigo-600 cursor-pointer" 
                                                       />
-                                                      <span className="text-[10px] text-slate-500 font-bold">90%</span>
+                                                      <span className="text-[10px] text-slate-500 font-bold">100%</span>
                                                   </div>
                                                   <button onClick={() => atualizarElemento('bgImage', '')} className="w-full mt-3 bg-orange-50 border border-orange-200 text-orange-700 font-bold text-[9px] uppercase py-2 rounded transition hover:bg-orange-100"><i className="fas fa-times-circle mr-1"></i> Remover Imagem de Fundo</button>
                                               </div>
@@ -1472,7 +1484,7 @@ ${ebookStyles}
                                   </div>
                               )}
                               
-                              {/* ALINHAMENTO */}
+                              {/* ALINHAMENTO FIXADO COM CONTRASTE */}
                               {elementoSelecionado.tagName !== 'img' && (
                                 <div className="panel-section border-t border-slate-100">
                                     <label className="input-label mb-2 text-[9px]">Alinhamento</label>
@@ -1627,6 +1639,12 @@ ${ebookStyles}
                                       </select>
                                   </div>
                               </div>
+
+                              <div className="pt-3 border-t border-slate-100 mt-2">
+                                  <button onClick={adicionarPaginaAutor} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] uppercase py-2.5 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
+                                      <i className="fas fa-user-circle"></i> Inserir Página de Autor Manualmente
+                                  </button>
+                              </div>
                           </div>
                       </div>
 
@@ -1746,7 +1764,7 @@ ${ebookStyles}
                                   </button>
 
                                   <button onClick={() => finalizarEbookEtapas()} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-amber-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
-                                      <i className="fas fa-flag-checkered text-white"></i> 3. Finalizar (Conclusão e Autor)
+                                      <i className="fas fa-flag-checkered text-white"></i> 3. Finalizar (Conclusão)
                                   </button>
                               </div>
                           </div>
