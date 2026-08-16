@@ -90,7 +90,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO CORRIGIDO
+    // 2. MOTOR DE REFLUXO AVANÇADO
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -415,7 +415,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL - Top Padding ajustado para 25mm
+  // CONFIGURAÇÕES DE DESIGN GERAL
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -457,6 +457,17 @@ export default function Home() {
       if (!session) { window.location.href = '/login'; }
     };
     verificarAcesso();
+
+    // ==========================================
+    // 💾 SALVAMENTO AUTOMÁTICO - Recuperar
+    // ==========================================
+    const savedHtml = localStorage.getItem('ebook_draft_html');
+    if (savedHtml) {
+        const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+        const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
+        if (codEl) codEl.value = savedHtml;
+        if (prevEl) prevEl.srcdoc = savedHtml + getScriptPreview(indexShowSubtopics);
+    }
   }, []);
 
   function getPaletaObj() {
@@ -531,7 +542,6 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 
-/* Aplicado para todas as páginas garantindo o tamanho A4 BLINDADO */
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, 
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
     background-color: var(--color-bg);
@@ -737,7 +747,11 @@ ${ebookStyles}
     setHistoricoCodigo(novoHistorico);
     const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
     const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-    if (codEl) codEl.value = estadoAnterior || '';
+    if (codEl) {
+        codEl.value = estadoAnterior || '';
+        // 💾 SALVA no localStorage ao desfazer
+        localStorage.setItem('ebook_draft_html', estadoAnterior || ''); 
+    }
     if (prevEl) prevEl.srcdoc = (estadoAnterior || '') + getScriptPreview(indexShowSubtopics); 
     setElementoSelecionado(null);
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
@@ -827,6 +841,10 @@ ${ebookStyles}
           
           setHistoricoCodigo((prev) => [...prev, codEl.value]); 
           codEl.value = htmlFinal; 
+          
+          // 💾 SALVA no localStorage
+          localStorage.setItem('ebook_draft_html', htmlFinal);
+          
           if (prevEl) prevEl.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics); 
           
           if(input) input.value = '';
@@ -905,7 +923,12 @@ ${ebookStyles}
           htmlFinal = moldarApresentacaoHtml(novoConteudo);
       }
 
-      if (codEl) { setHistoricoCodigo((prev) => [...prev, codEl.value]); codEl.value = htmlFinal; }
+      if (codEl) { 
+          setHistoricoCodigo((prev) => [...prev, codEl.value]); 
+          codEl.value = htmlFinal; 
+          // 💾 SALVA no localStorage sempre que a IA aplica texto novo
+          localStorage.setItem('ebook_draft_html', htmlFinal);
+      }
       if (prevEl) prevEl.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics); 
   }
 
@@ -942,6 +965,28 @@ ${ebookStyles}
     } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
   }
 
+  // ==== GERADOR DO BLOCO DO AUTOR NATIVO ====
+  function obterBlocoAutorHtml() {
+      let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
+      let regraRodape = "";
+      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { regraRodape = `<span>${livroAutores}</span>${numSpan}`; } 
+      else { regraRodape = `${numSpan}`; }
+
+      return `
+      <div class="page-container author-page">
+          <div class="page-header"><span>${livroTitulo || 'Título do Livro'}</span><span>SOBRE O AUTOR</span></div>
+          <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
+          <div class="author-section layout-${autorPosicao}">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Sua Foto">
+              <div class="author-bio">
+                  <h2>Sobre o Autor</h2>
+                  <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional. Este espaço é dedicado a apresentar quem você é para o leitor.</p>
+              </div>
+          </div>
+          <div class="page-footer">${regraRodape}</div>
+      </div>`;
+  }
+
   // ==== INSTRUÇÕES DO PROMPT ====
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
@@ -955,18 +1000,18 @@ ${ebookStyles}
           Para ABRIR um novo capítulo, você é OBRIGADO a usar EXATAMENTE este bloco HTML (Página Exclusiva do Capítulo):
           <div class="page-container cap-img-overlay" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
               <div class="cap-icon"><i class="fas fa-book-open"></i></div>
-              <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1>
+              <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo Deste Capítulo</h1>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema do capítulo. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          ATENÇÃO: Substitua 'Nome Exclusivo Deste Capítulo' pelo título real do capítulo. NUNCA repita o título do livro todo aí. Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema do capítulo. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
           Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé. 
           OBRIGATÓRIO: A primeira linha de conteúdo dessa nova página DEVE ser um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a usar EXATAMENTE este bloco HTML (Página Exclusiva do Capítulo):
           <div class="page-container cap-box-rounded" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
-              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1></div>
+              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo Deste Capítulo</h1></div>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          ATENÇÃO: Substitua 'Nome Exclusivo Deste Capítulo' pelo título real do capítulo. NUNCA repita o título do livro todo aí. Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
           Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé. 
           OBRIGATÓRIO: A primeira linha de conteúdo dessa nova página DEVE ser um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'imagem-pura') {
@@ -974,27 +1019,27 @@ ${ebookStyles}
           Para ABRIR um novo capítulo, você é OBRIGADO a criar UMA PÁGINA EXCLUSIVA apenas com a imagem de fundo:
           <div class="page-container cap-img-pura" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');"></div>
           ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash. NÃO INCLUA nenhum texto ou título nesta div!
-          Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2> no topo. 
+          Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo Deste Capítulo</h2> no topo. 
           OBRIGATÓRIO: Logo abaixo do h2, inicie com um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'inline-imagem') {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva de fundo. Para abrir o capítulo, USE UM ÚNICO CONTAINER com a Imagem no topo:
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
+              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo Deste Capítulo</h2>
               <img src="URL_DA_IMAGEM_UNSPLASH_AQUI" class="chapter-banner-img" alt="Ilustração do Capítulo" />
               <h3 class="subtopic-title">Nome do Tópico</h3>
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://source.unsplash.com/random/1200x800/?keyword). Nunca crie imagens de fundo de página inteira neste modo. 
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://source.unsplash.com/random/1200x800/?keyword). Nunca crie imagens de fundo de página inteira neste modo. Nunca use o nome do livro no lugar do nome do capitulo. 
           OBRIGATÓRIO: Sempre inicie o texto abaixo da imagem com um Título de Tópico (h3). E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else {
           regraEstiloCapitulos = `
           NÃO crie página de capa exclusiva e NÃO use imagens. O capítulo deve iniciar como texto contínuo:
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2>
+              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo Deste Capítulo</h2>
               <h3 class="subtopic-title">Nome do Tópico</h3>
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
@@ -1018,15 +1063,15 @@ ${ebookStyles}
       const regrasComuns = `
       DIRETRIZES ESTRITAS DE VOLUME, ESTRUTURA E ÍNDICE (LEIA COM ATENÇÃO MÁXIMA):
       1. REGRA DE OPERAÇÃO: ${regraModo}
-      2. REGRA DE NOMENCLATURA (ÍNDICE): NUNCA omita a palavra "Capítulo". O título de cada capítulo DEVE OBRIGATORIAMENTE começar com "Capítulo X: " (Ex: Capítulo 1: O Despertar).
-      3. REGRA DOS TÓPICOS (H3): É OBRIGATÓRIO inserir Títulos de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) no início de CADA novo conteúdo de capítulo (logo após a página exclusiva ou logo após a imagem inline). Além disso, crie diversos outros títulos de tópicos (<h3>) ao longo do capítulo para dividir os assuntos.
-      4. REGRA DE FLUIDEZ (CORTE A4): Crie parágrafos de tamanho médio (3 a 5 linhas). Evite parágrafos gigantescos para que o sistema consiga dividir o texto fluentemente nas folhas A4 sem deixar grandes lacunas brancas no fundo das páginas.
+      2. REGRA DE NOMENCLATURA (ÍNDICE E TÍTULOS): NUNCA omita a palavra "Capítulo". O título de cada capítulo DEVE OBRIGATORIAMENTE começar com "Capítulo X: " (Ex: Capítulo 1: O Despertar). NUNCA repita o nome do livro como nome do capítulo.
+      3. REGRA DOS TÓPICOS (H3): É OBRIGATÓRIO inserir Títulos de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) no início de CADA novo conteúdo de capítulo. Além disso, crie diversos outros títulos de tópicos (<h3>) ao longo do capítulo para dividir os assuntos.
+      4. REGRA DE FLUIDEZ E VOLUME EXTREMO (MÍNIMO 2 PÁGINAS): Cada capítulo deve ter NO MÍNIMO 15 a 25 parágrafos extensos. O objetivo é preencher no mínimo 2 a 3 páginas inteiras de conteúdo denso por capítulo. Divida esses textos em vários subtópicos (<h3>). Crie parágrafos de tamanho médio (3 a 5 linhas). Nunca crie capítulos curtos.
       5. ESTRUTURA ÚNICA POR CAPÍTULO: NUNCA quebre a página manualmente no meio do capítulo! Coloque TODOS OS PARÁGRAFOS de um capítulo inteiro dentro de UMA ÚNICA <div class="page-container">. Meu sistema cortará as páginas automaticamente!
       6. ELEMENTOS VISUAIS: Para quebrar blocos de texto, use <blockquote class="highlight-box"> para citações e <div class="highlight-box"> para quadros de resumo.
       7. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>. O meu sistema fará os links.
-      8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do CSS. NUNCA gere tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos diretos.
+      8. PROIBIDO PARÁGRAFOS VAZIOS E PAGINA DE AUTOR: NUNCA gere a página de "Sobre o Autor" (Meu sistema fará isso automaticamente). NUNCA gere tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos diretos.
       9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash (ex: https://source.unsplash.com/random/1200x800/?CHAVE). Substitua 'CHAVE' pelo termo em inglês.
-      10. CONTINUAÇÃO DE HTML E PROTEÇÃO DE AUTOR: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e cole o bloco de autor no final apenas se for OBRIGADO pelo modo de conclusão.
+      10. CONTINUAÇÃO DE HTML: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e preserve os estilos já aplicados.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -1051,7 +1096,7 @@ ${ebookStyles}
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - A INTRODUÇÃO DEVE USAR UM ÚNICO CONTAINER. PREENCHA O ESPAÇO: 
+    - A INTRODUÇÃO DEVE USAR UM ÚNICO CONTAINER. PREENCHA BEM O ESPAÇO: 
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
@@ -1062,28 +1107,30 @@ ${ebookStyles}
           <p>[Parágrafo denso 4 para preencher a página antes de quebrar assunto...]</p>
           <h3 class="subtopic-title">O Começo da Jornada</h3>
           <p>[Parágrafo médio...]</p>
-          ... (Gere no mínimo de 8 a 12 parágrafos no total, SEM NENHUMA IMAGEM)
+          ... (Gere no mínimo de 10 a 15 parágrafos no total, SEM NENHUMA IMAGEM)
           <div class="page-footer">${regraRodape}</div>
       </div>
     
     - Gere TODOS os capítulos solicitados aplicando RIGOROSAMENTE A ESTRUTURA ABAIXO PARA CADA CAPÍTULO:
       ${regraEstiloCapitulos}
     
-    - OBRIGATÓRIO (MOLDE FINAL): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
+    - OBRIGATÓRIO (MOLDE FINAL DA IA): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <p>[Escreva a conclusão densa com 4 a 6 parágrafos preenchendo a folha dentro desta única div, SEM NENHUMA IMAGEM...]</p>
+          <p>[Escreva a conclusão densa com 6 a 8 parágrafos longos preenchendo as folhas dentro desta única div, SEM NENHUMA IMAGEM...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
 
-      AVISO DE LIMITE DE TOKENS: Se o limite for alcançado, priorize fechar a <div class="page-container"> atual.
+      AVISO DE LIMITE DE TOKENS E AUTOR: NUNCA crie a página de autor. O sistema fará isso nativamente. Apenas termine a div da Conclusão. Se o limite for alcançado no meio do livro, priorize fechar a <div class="page-container"> atual de forma correta.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE:\n"""\n${content}\n"""` }], false);
     if (data && data.html) {
-        aplicarHtmlNovo(data.html, false);
+        // INJEÇÃO NATIVA DA PÁGINA DO AUTOR
+        let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
+        aplicarHtmlNovo(htmlFinal, false);
         (window as any).showNotification("E-book completo gerado com sucesso!", "success");
     }
   }
@@ -1107,7 +1154,7 @@ ${ebookStyles}
             <div class="page-footer">${regraRodape}</div>
          </div>
       
-      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO. PREENCHA A PÁGINA: 
+      3. A INTRODUÇÃO DEVE USAR APENAS UMA DIV ÚNICA E TEXTO DENSO. PREENCHA BEM O ESPAÇO: 
          <!-- PROIBIDO USAR TAG IMG AQUI -->
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
@@ -1117,7 +1164,7 @@ ${ebookStyles}
             <p>[Parágrafo longo e denso 3 para preencher espaço...]</p>
             <p>[Parágrafo longo e denso 4 para preencher espaço...]</p>
             <h3 class="subtopic-title">Visão Geral</h3>
-            <p>[Continue gerando de 8 a 12 parágrafos no total, SEM IMAGENS...]</p>
+            <p>[Continue gerando de 10 a 15 parágrafos no total, SEM IMAGENS...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
@@ -1152,7 +1199,7 @@ ${ebookStyles}
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO (LEIA PARA SABER ONDE PAROU E QUAIS IDs USAR):\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Gere os próximos capítulos garantindo o formato exato solicitado.'}\n"""` }
+          { text: `INSTRUÇÕES EXTRAS:\n"""\n${content || 'Gere os próximos capítulos garantindo o formato exato solicitado. Cada capitulo deve ter volume extenso de textos (15+ parágrafos).'}\n"""` }
       ], false);
       
       if (data && data.html) {
@@ -1183,11 +1230,15 @@ ${ebookStyles}
           <p>[Escreva a conclusão densa com vários parágrafos preenchendo o espaço dentro desta mesma div, SEM IMAGENS...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
+
+      NUNCA INVENTE A PÁGINA DO AUTOR. Termine apenas fechando a div de Conclusão.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
       if (data && data.html) {
-          aplicarHtmlNovo(data.html, true);
+          // INJEÇÃO NATIVA DA PÁGINA DO AUTOR
+          let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
+          aplicarHtmlNovo(htmlFinal, true);
           (window as any).showNotification("Passo 3 Concluído! E-book finalizado com sucesso.", "success");
       }
   }
@@ -1249,7 +1300,9 @@ ${ebookStyles}
                     if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
                     return [...prev, codEl.value]; 
                 });
-                codEl.value = htmlLimpo; 
+                codEl.value = htmlLimpo;
+                // 💾 SALVA no localStorage ao sincronizar texto no editor visual
+                localStorage.setItem('ebook_draft_html', htmlLimpo);
             }
         }
     };
@@ -1268,499 +1321,511 @@ ${ebookStyles}
   const isTextElement = elementoSelecionado ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(elementoSelecionado.tagName.toLowerCase()) : false;
 
   return (
-    <div className="h-screen overflow-hidden flex relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-      <style dangerouslySetInnerHTML={{__html: `
-        .input-standard { width: 100%; padding: 0.6rem 0.8rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; background-color: #f8fafc; font-size: 0.75rem; outline: none; color: #334155; transition: all 0.2s; font-weight: 500;}
-        .input-standard:focus { border-color: #6366f1; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-        .input-label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; display: block; }
-        .panel-section { padding: 1.2rem; border-bottom: 1px solid #f1f5f9; }
-        #previewFrame, #codigoContainer { display: none; }
-        #previewFrame.active, #codigoContainer.active { display: block; }
-        ::-webkit-scrollbar { width: 6px; height: 6px;}
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-      `}} />
+    <>
+      {/* 📱 AVISO MOBILE: Impede a edição ruim no celular */}
+      <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
+          <i className="fas fa-desktop text-6xl mb-6 text-indigo-400"></i>
+          <h2 className="text-2xl font-black mb-3">Acesso Restrito ao Computador</h2>
+          <p className="text-base text-slate-300">Para garantir uma experiência de nível profissional na edição e diagramação do seu E-book, o painel do E-bookPro deve ser acessado por uma tela maior.</p>
+      </div>
 
-      <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
+      {/* 💻 APP DESKTOP */}
+      <div className="hidden md:flex h-screen overflow-hidden relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+        <style dangerouslySetInnerHTML={{__html: `
+          .input-standard { width: 100%; padding: 0.6rem 0.8rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; background-color: #f8fafc; font-size: 0.75rem; outline: none; color: #334155; transition: all 0.2s; font-weight: 500;}
+          .input-standard:focus { border-color: #6366f1; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+          .input-label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; display: block; }
+          .panel-section { padding: 1.2rem; border-bottom: 1px solid #f1f5f9; }
+          #previewFrame, #codigoContainer { display: none; }
+          #previewFrame.active, #codigoContainer.active { display: block; }
+          ::-webkit-scrollbar { width: 6px; height: 6px;}
+          ::-webkit-scrollbar-track { background: transparent; }
+          ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        `}} />
 
-      {statusApis.processing && (
-          <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
-              <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-5"></div>
-              <p className="text-slate-800 font-black text-xl tracking-tight mb-2">{statusApis.texto}</p>
-              <p className="text-slate-500 font-medium text-sm">Organizando estrutura e conteúdo editorial...</p>
-          </div>
-      )}
+        <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
 
-      {/* PAINEL LATERAL ESQUERDO */}
-      <aside className="w-[380px] bg-white border-r border-slate-200 flex flex-col h-full z-10 flex-shrink-0 shadow-sm">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <h1 className="text-xl font-black tracking-tight text-slate-800 flex items-center">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center mr-2.5 text-white shadow-md shadow-indigo-200"><i className="fas fa-book-open text-xs"></i></div>
-                  E-book<span className="text-indigo-600">Pro</span>
-              </h1>
-              <button onClick={toggleInspetor} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${modoInspetor ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
-                  <i className={`fas fa-pen-nib ${modoInspetor ? 'animate-pulse text-yellow-300' : ''}`}></i> {modoInspetor ? 'Editor Inteligente' : 'Modo Editor'}
-              </button>
-          </div>
+        {statusApis.processing && (
+            <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
+                <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-5"></div>
+                <p className="text-slate-800 font-black text-xl tracking-tight mb-2">{statusApis.texto}</p>
+                <p className="text-slate-500 font-medium text-sm">Organizando estrutura e conteúdo editorial...</p>
+            </div>
+        )}
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
-              {modoInspetor ? (
-                  <div className="animate-[fadeIn_0.2s_ease]">
-                      <div className="bg-indigo-600 text-white p-4 text-[11px] font-black tracking-widest uppercase flex justify-between items-center shadow-inner">
-                          <span>Mestre Editorial (IA)</span>
-                          <i className="fas fa-magic text-indigo-300"></i>
-                      </div>
+        {/* PAINEL LATERAL ESQUERDO */}
+        <aside className="w-[380px] bg-white border-r border-slate-200 flex flex-col h-full z-10 flex-shrink-0 shadow-sm">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h1 className="text-xl font-black tracking-tight text-slate-800 flex items-center">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center mr-2.5 text-white shadow-md shadow-indigo-200"><i className="fas fa-book-open text-xs"></i></div>
+                    E-book<span className="text-indigo-600">Pro</span>
+                </h1>
+                <button onClick={toggleInspetor} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${modoInspetor ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                    <i className={`fas fa-pen-nib ${modoInspetor ? 'animate-pulse text-yellow-300' : ''}`}></i> {modoInspetor ? 'Editor Inteligente' : 'Modo Editor'}
+                </button>
+            </div>
 
-                      {/* COMANDO GLOBAL */}
-                      <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
-                          <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
-                          <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Adicionar um quadro em todo final de capítulo."></textarea>
-                          <button onClick={aplicarModificacaoGlobal} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wide py-2.5 rounded-lg transition shadow-sm">Aplicar no Livro Inteiro</button>
-                      </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+                {modoInspetor ? (
+                    <div className="animate-[fadeIn_0.2s_ease]">
+                        <div className="bg-indigo-600 text-white p-4 text-[11px] font-black tracking-widest uppercase flex justify-between items-center shadow-inner">
+                            <span>Mestre Editorial (IA)</span>
+                            <i className="fas fa-magic text-indigo-300"></i>
+                        </div>
 
-                      {!elementoSelecionado ? (
-                          <div className="flex flex-col items-center justify-center p-14 text-center text-slate-400">
-                              <div className="w-16 h-16 rounded-full bg-white border-2 border-dashed border-slate-200 flex items-center justify-center mb-4 shadow-sm">
-                                  <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
-                              </div>
-                              <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                              <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
-                          </div>
-                      ) : (
-                          <div className="pb-10 bg-white">
-                              <div className="panel-section bg-slate-50/50">
-                                  <div className="flex justify-between items-center mb-3">
-                                      <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
-                                      <div className="flex gap-2">
-                                          {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
-                                              <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Upload PC</button>
-                                          )}
-                                          <button onClick={() => {
-                                              let el = document.getElementById('previewFrame') as HTMLIFrameElement;
-                                              el.contentWindow?.postMessage({ type: 'DELETE_ELEMENT', id: elementoSelecionado.id }, '*');
-                                          }} className="text-[9px] font-bold text-red-500 hover:text-red-700 transition flex items-center bg-red-50 border border-red-200 hover:border-red-400 px-2 py-1 rounded shadow-sm"><i className="fas fa-trash-alt mr-1"></i> Apagar</button>
+                        {/* COMANDO GLOBAL */}
+                        <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
+                            <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
+                            <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Adicionar um quadro em todo final de capítulo."></textarea>
+                            <button onClick={aplicarModificacaoGlobal} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wide py-2.5 rounded-lg transition shadow-sm">Aplicar no Livro Inteiro</button>
+                        </div>
+
+                        {!elementoSelecionado ? (
+                            <div className="flex flex-col items-center justify-center p-14 text-center text-slate-400">
+                                <div className="w-16 h-16 rounded-full bg-white border-2 border-dashed border-slate-200 flex items-center justify-center mb-4 shadow-sm">
+                                    <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
+                                </div>
+                                <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
+                                <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
+                            </div>
+                        ) : (
+                            <div className="pb-10 bg-white">
+                                <div className="panel-section bg-slate-50/50">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
+                                        <div className="flex gap-2">
+                                            {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
+                                                <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Upload PC</button>
+                                            )}
+                                            <button onClick={() => {
+                                                let el = document.getElementById('previewFrame') as HTMLIFrameElement;
+                                                el.contentWindow?.postMessage({ type: 'DELETE_ELEMENT', id: elementoSelecionado.id }, '*');
+                                            }} className="text-[9px] font-bold text-red-500 hover:text-red-700 transition flex items-center bg-red-50 border border-red-200 hover:border-red-400 px-2 py-1 rounded shadow-sm"><i className="fas fa-trash-alt mr-1"></i> Apagar</button>
+                                        </div>
+                                    </div>
+
+                                    {/* NOVA ÁREA: IA PARA O ELEMENTO SELECIONADO */}
+                                    <div className="mt-2 mb-4">
+                                        <label className="input-label mb-2 text-indigo-700 flex items-center gap-1"><i className="fas fa-magic text-yellow-500"></i> Editar este trecho com IA</label>
+                                        <textarea id="ai_prompt_local" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva este parágrafo em um tom mais persuasivo..."></textarea>
+                                        <button onClick={aplicarModificacaoLocal} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wide py-2 rounded-lg transition shadow-sm">Aplicar IA no Selecionado</button>
+                                    </div>
+
+                                    {/* PAINEL DE IMAGENS */}
+                                    {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
+                                        <div className="space-y-3 pt-3 border-t border-slate-100">
+                                            <div>
+                                                <label className="input-label mb-2 text-indigo-800">🖼️ Controles de Imagem</label>
+                                                
+                                                {/* BOTÕES DE BUSCA E GERAÇÃO */}
+                                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                                    <button onClick={buscarImagemUnsplash} className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[9px] uppercase py-2 rounded shadow-sm transition">
+                                                        <i className="fas fa-search mr-1"></i> Buscar Unsplash
+                                                    </button>
+                                                    <button onClick={gerarImagemGemini} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] uppercase py-2 rounded shadow-sm transition">
+                                                        <i className="fas fa-magic mr-1"></i> Gerar IA (Gemini)
+                                                    </button>
+                                                </div>
+
+                                                {/* CAMPO DE URL MANUAL */}
+                                                <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-[10px] mb-2 font-mono text-slate-500" placeholder="URL da imagem (cole aqui)..." />
+                                            </div>
+
+                                            {/* OPACIDADE DE FUNDO */}
+                                            {(elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
+                                                <div className="mt-3 pt-3 border-t border-slate-100">
+                                                    <label className="input-label mb-1">Escurecer Fundo (Opacidade para Leitura)</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-slate-500 font-bold">0%</span>
+                                                        <input 
+                                                            type="range" min="0" max="1" step="0.05" defaultValue="0" 
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                const newBg = val === "0" 
+                                                                    ? `url('${elementoSelecionado.bgImage}')` 
+                                                                    : `linear-gradient(rgba(0,0,0,${val}), rgba(0,0,0,${val})), url('${elementoSelecionado.bgImage}')`;
+                                                                const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+                                                                iframe.contentWindow?.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, rawBgImage: newBg }, '*');
+                                                            }} 
+                                                            className="flex-1 accent-indigo-600 cursor-pointer" 
+                                                        />
+                                                        <span className="text-[10px] text-slate-500 font-bold">100%</span>
+                                                    </div>
+                                                    <button onClick={() => atualizarElemento('bgImage', '')} className="w-full mt-3 bg-orange-50 border border-orange-200 text-orange-700 font-bold text-[9px] uppercase py-2 rounded transition hover:bg-orange-100"><i className="fas fa-times-circle mr-1"></i> Remover Imagem de Fundo</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* EDIÇÃO DE TEXTO */}
+                                    {(!elementoSelecionado.isBgTarget && isTextElement) && (
+                                        <div className="pt-3 border-t border-slate-100">
+                                            <label className="input-label mb-2">Edição Manual de Texto</label>
+                                            <textarea rows={5} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
+                                            
+                                            <div className="mt-3 flex gap-2">
+                                                <button onClick={() => transformarEmNode('blockquote')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition"><i className="fas fa-quote-right mr-1"></i> Virar Citação</button>
+                                                <button onClick={() => transformarEmNode('div', 'highlight-box')} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-bold text-[9px] uppercase py-2 rounded border border-yellow-200 transition"><i className="fas fa-highlighter mr-1"></i> Destacar Fundo</button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(!elementoSelecionado.isBgTarget && !isTextElement && elementoSelecionado.tagName !== 'img') && (
+                                        <div className="pt-3 border-t border-slate-100">
+                                            <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
+                                                <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
+                                                <strong>Container Estrutural</strong><br/>
+                                                A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
+                                            </div>
+                                        </div>
+                                    )}
+
+                                </div> {/* FECHAMENTO DA CAIXA PRINCIPAL DO INSPETOR */}
+
+                                {/* PAINEL DE CORES E FONTES */}
+                                {elementoSelecionado.tagName !== 'img' && (
+                                    <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100 mt-3">
+                                        <div>
+                                            <label className="input-label mb-2 text-[9px]">Cor do Texto</label>
+                                            <input type="color" value={elementoSelecionado.textColor || '#1e1914'} onChange={(e) => atualizarElemento('textColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                        </div>
+                                        <div>
+                                            <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
+                                            <input type="color" value={elementoSelecionado.bgColor || '#ffffff'} onChange={(e) => atualizarElemento('bgColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="input-label mb-0 text-[9px]">Tamanho Fonte</label>
+                                                <span className="text-[10px] font-bold text-indigo-600">{elementoSelecionado.fontSize || 16}px</span>
+                                            </div>
+                                            <input type="range" min="10" max="60" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* ALINHAMENTO FIXADO COM CONTRASTE */}
+                                {elementoSelecionado.tagName !== 'img' && (
+                                  <div className="panel-section border-t border-slate-100">
+                                      <label className="input-label mb-2 text-[9px]">Alinhamento</label>
+                                      <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1">
+                                          <button onClick={() => atualizarElemento('textAlign', 'text-left')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-left' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-left"></i></button>
+                                          <button onClick={() => atualizarElemento('textAlign', 'text-center')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-center' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-center"></i></button>
+                                          <button onClick={() => atualizarElemento('textAlign', 'text-right')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-right' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-right"></i></button>
+                                          <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-justify' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-justify"></i></button>
                                       </div>
                                   </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="p-5 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+                        {/* CONFIGURAÇÕES DE DESIGN GERAL */}
+                        <div>
+                            <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Capa & Design Geral</h3>
+                            <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                                
+                                <div className="pt-3 border-t border-slate-100">
+                                    <label className="input-label mb-2">Paleta de Cores</label>
+                                    <select value={paletaCores} onChange={(e) => setPaletaCores(e.target.value as any)} className="input-standard font-medium text-slate-800">
+                                        <option value="classico">Clássico (Branco & Marrom)</option>
+                                        <option value="moderno">Moderno (Branco & Azul Vivo)</option>
+                                        <option value="sepia">Sépia Literário (Creme & Marrom)</option>
+                                        <option value="dark">Dark Elegante (Grafite & Roxo)</option>
+                                        <option value="manual">Cores Manuais (Escolha as cores)</option>
+                                        <option value="personalizado">Extrair HTML (Template)</option>
+                                    </select>
+                                </div>
 
-                                  {/* NOVA ÁREA: IA PARA O ELEMENTO SELECIONADO */}
-                                  <div className="mt-2 mb-4">
-                                      <label className="input-label mb-2 text-indigo-700 flex items-center gap-1"><i className="fas fa-magic text-yellow-500"></i> Editar este trecho com IA</label>
-                                      <textarea id="ai_prompt_local" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Reescreva este parágrafo em um tom mais persuasivo..."></textarea>
-                                      <button onClick={aplicarModificacaoLocal} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wide py-2 rounded-lg transition shadow-sm">Aplicar IA no Selecionado</button>
-                                  </div>
+                                {paletaCores === 'manual' && (
+                                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                        <div>
+                                            <label className="input-label mb-2 text-[9px]">Cor Primária (Títulos)</label>
+                                            <input type="color" value={corManualPri} onChange={(e) => setCorManualPri(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                        </div>
+                                        <div>
+                                            <label className="input-label mb-2 text-[9px]">Cor Secundária (Quotes)</label>
+                                            <input type="color" value={corManualSec} onChange={(e) => setCorManualSec(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                        </div>
+                                        <div>
+                                            <label className="input-label mb-2 text-[9px]">Cor do Texto</label>
+                                            <input type="color" value={corManualText} onChange={(e) => setCorManualText(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                        </div>
+                                        <div>
+                                            <label className="input-label mb-2 text-[9px]">Cor Fundo da Folha</label>
+                                            <input type="color" value={corManualBg} onChange={(e) => setCorManualBg(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
+                                        </div>
+                                    </div>
+                                )}
 
-                                  {/* PAINEL DE IMAGENS */}
-                                  {(elementoSelecionado.tagName === 'img' || elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
-                                      <div className="space-y-3 pt-3 border-t border-slate-100">
-                                          <div>
-                                              <label className="input-label mb-2 text-indigo-800">🖼️ Controles de Imagem</label>
-                                              
-                                              {/* BOTÕES DE BUSCA E GERAÇÃO */}
-                                              <div className="grid grid-cols-2 gap-2 mb-3">
-                                                  <button onClick={buscarImagemUnsplash} className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[9px] uppercase py-2 rounded shadow-sm transition">
-                                                      <i className="fas fa-search mr-1"></i> Buscar Unsplash
-                                                  </button>
-                                                  <button onClick={gerarImagemGemini} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] uppercase py-2 rounded shadow-sm transition">
-                                                      <i className="fas fa-magic mr-1"></i> Gerar IA (Gemini)
-                                                  </button>
-                                              </div>
+                                {paletaCores === 'personalizado' && (
+                                    <div className="pt-3 border-t border-slate-100">
+                                        <label className="input-label mb-2 text-indigo-600"><i className="fas fa-magic mr-1"></i> Template de Inspiração (Cole HTML/CSS)</label>
+                                        <textarea 
+                                            value={htmlTemplate} 
+                                            onChange={(e) => setHtmlTemplate(e.target.value)} 
+                                            className="input-standard h-24 resize-y text-[10px] font-mono border-indigo-200 shadow-inner" 
+                                            placeholder="Cole o código-fonte de um site aqui. A IA extrairá as cores e replicará elementos como quadros e círculos (ignorando o texto original)..."
+                                        ></textarea>
+                                    </div>
+                                )}
 
-                                              {/* CAMPO DE URL MANUAL */}
-                                              <input type="text" value={elementoSelecionado.src || elementoSelecionado.bgImage} onChange={(e) => atualizarElemento(elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage', e.target.value)} className="input-standard text-[10px] mb-2 font-mono text-slate-500" placeholder="URL da imagem (cole aqui)..." />
-                                          </div>
-
-                                          {/* OPACIDADE DE FUNDO */}
-                                          {(elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
-                                              <div className="mt-3 pt-3 border-t border-slate-100">
-                                                  <label className="input-label mb-1">Escurecer Fundo (Opacidade para Leitura)</label>
-                                                  <div className="flex items-center gap-2">
-                                                      <span className="text-[10px] text-slate-500 font-bold">0%</span>
-                                                      <input 
-                                                          type="range" min="0" max="1" step="0.05" defaultValue="0" 
-                                                          onChange={(e) => {
-                                                              const val = e.target.value;
-                                                              const newBg = val === "0" 
-                                                                  ? `url('${elementoSelecionado.bgImage}')` 
-                                                                  : `linear-gradient(rgba(0,0,0,${val}), rgba(0,0,0,${val})), url('${elementoSelecionado.bgImage}')`;
-                                                              const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-                                                              iframe.contentWindow?.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, rawBgImage: newBg }, '*');
-                                                          }} 
-                                                          className="flex-1 accent-indigo-600 cursor-pointer" 
-                                                      />
-                                                      <span className="text-[10px] text-slate-500 font-bold">100%</span>
-                                                  </div>
-                                                  <button onClick={() => atualizarElemento('bgImage', '')} className="w-full mt-3 bg-orange-50 border border-orange-200 text-orange-700 font-bold text-[9px] uppercase py-2 rounded transition hover:bg-orange-100"><i className="fas fa-times-circle mr-1"></i> Remover Imagem de Fundo</button>
-                                              </div>
-                                          )}
-                                      </div>
-                                  )}
-
-                                  {/* EDIÇÃO DE TEXTO */}
-                                  {(!elementoSelecionado.isBgTarget && isTextElement) && (
-                                      <div className="pt-3 border-t border-slate-100">
-                                          <label className="input-label mb-2">Edição Manual de Texto</label>
-                                          <textarea rows={5} value={elementoSelecionado.text} onChange={(e) => atualizarElemento('text', e.target.value, true)} className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"></textarea>
-                                          
-                                          <div className="mt-3 flex gap-2">
-                                              <button onClick={() => transformarEmNode('blockquote')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition"><i className="fas fa-quote-right mr-1"></i> Virar Citação</button>
-                                              <button onClick={() => transformarEmNode('div', 'highlight-box')} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-bold text-[9px] uppercase py-2 rounded border border-yellow-200 transition"><i className="fas fa-highlighter mr-1"></i> Destacar Fundo</button>
-                                          </div>
-                                      </div>
-                                  )}
-
-                                  {(!elementoSelecionado.isBgTarget && !isTextElement && elementoSelecionado.tagName !== 'img') && (
-                                      <div className="pt-3 border-t border-slate-100">
-                                          <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
-                                              <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
-                                              <strong>Container Estrutural</strong><br/>
-                                              A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
-                                          </div>
-                                      </div>
-                                  )}
-
-                              </div> {/* FECHAMENTO DA CAIXA PRINCIPAL DO INSPETOR */}
-
-                              {/* PAINEL DE CORES E FONTES */}
-                              {elementoSelecionado.tagName !== 'img' && (
-                                  <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100 mt-3">
-                                      <div>
-                                          <label className="input-label mb-2 text-[9px]">Cor do Texto</label>
-                                          <input type="color" value={elementoSelecionado.textColor || '#1e1914'} onChange={(e) => atualizarElemento('textColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
-                                      </div>
-                                      <div>
-                                          <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
-                                          <input type="color" value={elementoSelecionado.bgColor || '#ffffff'} onChange={(e) => atualizarElemento('bgColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
-                                      </div>
-                                      <div className="col-span-2">
-                                          <div className="flex justify-between items-center mb-2">
-                                              <label className="input-label mb-0 text-[9px]">Tamanho Fonte</label>
-                                              <span className="text-[10px] font-bold text-indigo-600">{elementoSelecionado.fontSize || 16}px</span>
-                                          </div>
-                                          <input type="range" min="10" max="60" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
-                                      </div>
-                                  </div>
-                              )}
-                              
-                              {/* ALINHAMENTO FIXADO COM CONTRASTE */}
-                              {elementoSelecionado.tagName !== 'img' && (
-                                <div className="panel-section border-t border-slate-100">
-                                    <label className="input-label mb-2 text-[9px]">Alinhamento</label>
-                                    <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1">
-                                        <button onClick={() => atualizarElemento('textAlign', 'text-left')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-left' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-left"></i></button>
-                                        <button onClick={() => atualizarElemento('textAlign', 'text-center')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-center' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-center"></i></button>
-                                        <button onClick={() => atualizarElemento('textAlign', 'text-right')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-right' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-right"></i></button>
-                                        <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-justify' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-justify"></i></button>
+                                <div className="pt-3 border-t border-slate-100">
+                                    <label className="input-label mb-2">Buscar Imagem por Termo (Unsplash)</label>
+                                    <div className="flex gap-2">
+                                        <input type="text" id="termoBuscaImg" placeholder="Ex: business, nature..." className="input-standard text-xs" />
+                                        <button onClick={() => {
+                                            const termo = (document.getElementById('termoBuscaImg') as HTMLInputElement).value || 'abstract';
+                                            setImagemCapaUrl(`https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=${termo}`);
+                                            (window as any).showNotification("Nova imagem buscada!", "success");
+                                        }} className="bg-indigo-600 text-white font-bold text-xs px-3 py-2 rounded-lg"><i className="fas fa-search"></i></button>
                                     </div>
                                 </div>
-                              )}
-                          </div>
-                      )}
-                  </div>
-              ) : (
-                  <div className="p-5 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-                      {/* CONFIGURAÇÕES DE DESIGN GERAL */}
-                      <div>
-                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Capa & Design Geral</h3>
-                          <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                              
-                              <div className="pt-3 border-t border-slate-100">
-                                  <label className="input-label mb-2">Paleta de Cores</label>
-                                  <select value={paletaCores} onChange={(e) => setPaletaCores(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                      <option value="classico">Clássico (Branco & Marrom)</option>
-                                      <option value="moderno">Moderno (Branco & Azul Vivo)</option>
-                                      <option value="sepia">Sépia Literário (Creme & Marrom)</option>
-                                      <option value="dark">Dark Elegante (Grafite & Roxo)</option>
-                                      <option value="manual">Cores Manuais (Escolha as cores)</option>
-                                      <option value="personalizado">Extrair HTML (Template)</option>
-                                  </select>
-                              </div>
 
-                              {paletaCores === 'manual' && (
-                                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                      <div>
-                                          <label className="input-label mb-2 text-[9px]">Cor Primária (Títulos)</label>
-                                          <input type="color" value={corManualPri} onChange={(e) => setCorManualPri(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
-                                      </div>
-                                      <div>
-                                          <label className="input-label mb-2 text-[9px]">Cor Secundária (Quotes)</label>
-                                          <input type="color" value={corManualSec} onChange={(e) => setCorManualSec(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
-                                      </div>
-                                      <div>
-                                          <label className="input-label mb-2 text-[9px]">Cor do Texto</label>
-                                          <input type="color" value={corManualText} onChange={(e) => setCorManualText(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
-                                      </div>
-                                      <div>
-                                          <label className="input-label mb-2 text-[9px]">Cor Fundo da Folha</label>
-                                          <input type="color" value={corManualBg} onChange={(e) => setCorManualBg(e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
-                                      </div>
-                                  </div>
-                              )}
+                                {(tipoCapa === 'imagem-texto' || tipoCapa === 'imagem-pura') && (
+                                    <div className="pt-3 border-t border-slate-100">
+                                        <label className="input-label mb-2">Imagem de Capa</label>
+                                        <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Carregar do PC</button>
+                                    </div>
+                                )}
 
-                              {paletaCores === 'personalizado' && (
-                                  <div className="pt-3 border-t border-slate-100">
-                                      <label className="input-label mb-2 text-indigo-600"><i className="fas fa-magic mr-1"></i> Template de Inspiração (Cole HTML/CSS)</label>
-                                      <textarea 
-                                          value={htmlTemplate} 
-                                          onChange={(e) => setHtmlTemplate(e.target.value)} 
-                                          className="input-standard h-24 resize-y text-[10px] font-mono border-indigo-200 shadow-inner" 
-                                          placeholder="Cole o código-fonte de um site aqui. A IA extrairá as cores e replicará elementos como quadros e círculos (ignorando o texto original)..."
-                                      ></textarea>
-                                  </div>
-                              )}
+                                <div className="pt-3 border-t border-slate-100">
+                                    <label className="input-label mb-2">Bordas das Páginas</label>
+                                    <select value={tipoBorda} onChange={(e) => setTipoBorda(e.target.value as any)} className="input-standard font-medium text-slate-800">
+                                        <option value="none">Sem Borda (Clean)</option>
+                                        <option value="single">Borda Simples (Elegante)</option>
+                                        <option value="double">Borda Dupla (Clássico Premium)</option>
+                                        <option value="double-thin">Borda Dupla Fina</option>
+                                    </select>
+                                </div>
 
-                              <div className="pt-3 border-t border-slate-100">
-                                  <label className="input-label mb-2">Buscar Imagem por Termo (Unsplash)</label>
-                                  <div className="flex gap-2">
-                                      <input type="text" id="termoBuscaImg" placeholder="Ex: business, nature..." className="input-standard text-xs" />
-                                      <button onClick={() => {
-                                          const termo = (document.getElementById('termoBuscaImg') as HTMLInputElement).value || 'abstract';
-                                          setImagemCapaUrl(`https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80&query=${termo}`);
-                                          (window as any).showNotification("Nova imagem buscada!", "success");
-                                      }} className="bg-indigo-600 text-white font-bold text-xs px-3 py-2 rounded-lg"><i className="fas fa-search"></i></button>
-                                  </div>
-                              </div>
+                                <div className="pt-3 border-t border-slate-100">
+                                    <label className="input-label mb-2">Estilo do Rodapé</label>
+                                    <select value={estiloRodape} onChange={(e) => setEstiloRodape(e.target.value as any)} className="input-standard font-medium text-slate-800">
+                                        <option value="simples">Simples (Autor esq. | Número dir.)</option>
+                                        <option value="simples-circulo">Simples + Número no Círculo Colorido</option>
+                                        <option value="linha-superior">Com Linha Superior de Divisão</option>
+                                        <option value="centralizado">Minimalista Centralizado</option>
+                                        <option value="centralizado-circulo">Centralizado + Número no Círculo Colorido</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
 
-                              {(tipoCapa === 'imagem-texto' || tipoCapa === 'imagem-pura') && (
-                                  <div className="pt-3 border-t border-slate-100">
-                                      <label className="input-label mb-2">Imagem de Capa</label>
-                                      <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition">Carregar do PC</button>
-                                  </div>
-                              )}
+                        {/* LAYOUT DE CAPITULOS E AUTOR */}
+                        <div>
+                            <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">2</span> Capítulos & Autor</h3>
+                            <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                                <div>
+                                    <label className="input-label mb-2">Títulos de Capítulo</label>
+                                    <select value={estiloCapitulos} onChange={(e) => setEstiloCapitulos(e.target.value as any)} className="input-standard font-medium text-slate-800">
+                                        <option value="padrao">Página Exclusiva (Imagem Fundo + Texto + Ícone)</option>
+                                        <option value="box-arredondado">Página Exclusiva (Imagem + Box Branco Arredondado)</option>
+                                        <option value="imagem-pura">Página Exclusiva (Apenas a Imagem s/ texto)</option>
+                                        <option value="inline-imagem">Texto Contínuo com Imagem Abaixo do Título</option>
+                                        <option value="inline">Texto Contínuo (Sem página exclusiva)</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Alinhamento do Título</label>
+                                        <select value={alinhamentoCapitulo} onChange={(e) => setAlinhamentoCapitulo(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
+                                            <option value="flex-start">Topo</option>
+                                            <option value="center">Centro</option>
+                                            <option value="flex-end">Base</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Cor Fundo (Box Arredondado)</label>
+                                        <input type="color" value={corBoxCapitulo === 'rgba(255, 255, 255, 0.95)' ? '#ffffff' : corBoxCapitulo} onChange={(e) => setCorBoxCapitulo(e.target.value)} className="w-full h-8 rounded border-none cursor-pointer" />
+                                    </div>
+                                </div>
 
-                              <div className="pt-3 border-t border-slate-100">
-                                  <label className="input-label mb-2">Bordas das Páginas</label>
-                                  <select value={tipoBorda} onChange={(e) => setTipoBorda(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                      <option value="none">Sem Borda (Clean)</option>
-                                      <option value="single">Borda Simples (Elegante)</option>
-                                      <option value="double">Borda Dupla (Clássico Premium)</option>
-                                      <option value="double-thin">Borda Dupla Fina</option>
-                                  </select>
-                              </div>
+                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Posição (Foto do Autor)</label>
+                                        <select value={autorPosicao} onChange={(e) => setAutorPosicao(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
+                                            <option value="esquerda">Lateral Esquerda</option>
+                                            <option value="topo">No Topo (Centro)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Formato (Foto Autor)</label>
+                                        <select value={autorFormato} onChange={(e) => setAutorFormato(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
+                                            <option value="circulo">Círculo</option>
+                                            <option value="retangulo">Retângulo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                              <div className="pt-3 border-t border-slate-100">
-                                  <label className="input-label mb-2">Estilo do Rodapé</label>
-                                  <select value={estiloRodape} onChange={(e) => setEstiloRodape(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                      <option value="simples">Simples (Autor esq. | Número dir.)</option>
-                                      <option value="simples-circulo">Simples + Número no Círculo Colorido</option>
-                                      <option value="linha-superior">Com Linha Superior de Divisão</option>
-                                      <option value="centralizado">Minimalista Centralizado</option>
-                                      <option value="centralizado-circulo">Centralizado + Número no Círculo Colorido</option>
-                                  </select>
-                              </div>
-                          </div>
-                      </div>
+                        {/* TIPOGRAFIA E ESPAÇAMENTOS */}
+                        <div>
+                            <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">3</span> Tipografia e Índice</h3>
+                            <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                                <div>
+                                    <label className="input-label mb-2">Fonte do Livro</label>
+                                    <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard font-medium text-slate-800">
+                                        <option value="Lato">Lato (Moderna/Versátil)</option>
+                                        <option value="Arial">Arial (Padrão e Limpa)</option>
+                                        <option value="Verdana">Verdana (Muito Legível)</option>
+                                        <option value="Poppins">Poppins (Moderna e Arredondada)</option>
+                                        <option value="Merriweather">Merriweather (Leitura Longa)</option>
+                                        <option value="EB Garamond">EB Garamond (Clássico)</option>
+                                    </select>
+                                </div>
 
-                      {/* LAYOUT DE CAPITULOS E AUTOR */}
-                      <div>
-                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">2</span> Capítulos & Autor</h3>
-                          <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                              <div>
-                                  <label className="input-label mb-2">Títulos de Capítulo</label>
-                                  <select value={estiloCapitulos} onChange={(e) => setEstiloCapitulos(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                      <option value="padrao">Página Exclusiva (Imagem Fundo + Texto + Ícone)</option>
-                                      <option value="box-arredondado">Página Exclusiva (Imagem + Box Branco Arredondado)</option>
-                                      <option value="imagem-pura">Página Exclusiva (Apenas a Imagem s/ texto)</option>
-                                      <option value="inline-imagem">Texto Contínuo com Imagem Abaixo do Título</option>
-                                      <option value="inline">Texto Contínuo (Sem página exclusiva)</option>
-                                  </select>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Alinhamento do Título</label>
-                                      <select value={alinhamentoCapitulo} onChange={(e) => setAlinhamentoCapitulo(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="flex-start">Topo</option>
-                                          <option value="center">Centro</option>
-                                          <option value="flex-end">Base</option>
-                                      </select>
-                                  </div>
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Cor Fundo (Box Arredondado)</label>
-                                      <input type="color" value={corBoxCapitulo === 'rgba(255, 255, 255, 0.95)' ? '#ffffff' : corBoxCapitulo} onChange={(e) => setCorBoxCapitulo(e.target.value)} className="w-full h-8 rounded border-none cursor-pointer" />
-                                  </div>
-                              </div>
+                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Tamanho Fonte Base</label>
+                                        <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
+                                            <option value="11pt">11pt</option><option value="12pt">12pt</option><option value="14pt">14pt</option><option value="16pt">16pt</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Entrelinhas</label>
+                                        <select value={espacamentoLinhas} onChange={(e) => setEspacamentoLinhas(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
+                                            <option value="1.0">Simples (1.0)</option>
+                                            <option value="1.15">Justo (1.15)</option>
+                                            <option value="1.5">Padrão (1.5)</option>
+                                            <option value="2.0">Duplo (2.0)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Espaço (Fim Parágrafo)</label>
+                                        <select value={espacamentoParagrafo} onChange={(e) => setEspacamentoParagrafo(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
+                                            <option value="0.6em">Bem Colado (0.6em)</option>
+                                            <option value="0.8em">Colado (0.8em)</option>
+                                            <option value="1em">Normal (1em)</option>
+                                            <option value="2.2em">Afastado (2.2em)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="input-label mb-2 text-[9px]">Recuo 1ª Linha</label>
+                                        <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
+                                            <option value="20px">Clássico (20px)</option>
+                                            <option value="0px">Sem Recuo</option>
+                                            <option value="40px">Largo (40px)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="pt-3 border-t border-slate-100">
+                                    <label className="flex items-center text-xs font-bold text-gray-700 cursor-pointer">
+                                        <input type="checkbox" checked={indexShowSubtopics} onChange={(e) => setIndexShowSubtopics(e.target.checked)} className="mr-2 h-4 w-4 text-blue-600 rounded" />
+                                        Incluir Tópicos (Subtítulos) no Índice
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
 
-                              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Posição (Foto do Autor)</label>
-                                      <select value={autorPosicao} onChange={(e) => setAutorPosicao(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="esquerda">Lateral Esquerda</option>
-                                          <option value="topo">No Topo (Centro)</option>
-                                      </select>
-                                  </div>
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Formato (Foto Autor)</label>
-                                      <select value={autorFormato} onChange={(e) => setAutorFormato(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="circulo">Círculo</option>
-                                          <option value="retangulo">Retângulo</option>
-                                      </select>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
+                        {/* CONTEÚDO E GERAÇÃO */}
+                        <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
+                            <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span> Geração Editorial</h3>
+                            
+                            <div className="mb-4">
+                                <label className="input-label text-indigo-800">Modo de Criação da IA</label>
+                                <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard text-sm mb-3 font-bold text-indigo-700 bg-white shadow-sm border-indigo-300">
+                                    <option value="expandido">💡 Criar do Zero (A IA cria o livro baseado no tema)</option>
+                                    <option value="rigoroso">📝 Formatar e Corrigir (Usa SÓ seu texto, não inventa)</option>
+                                </select>
+                            </div>
 
-                      {/* TIPOGRAFIA E ESPAÇAMENTOS */}
-                      <div>
-                          <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">3</span> Tipografia e Índice</h3>
-                          <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                              <div>
-                                  <label className="input-label mb-2">Fonte do Livro</label>
-                                  <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard font-medium text-slate-800">
-                                      <option value="Lato">Lato (Moderna/Versátil)</option>
-                                      <option value="Arial">Arial (Padrão e Limpa)</option>
-                                      <option value="Verdana">Verdana (Muito Legível)</option>
-                                      <option value="Poppins">Poppins (Moderna e Arredondada)</option>
-                                      <option value="Merriweather">Merriweather (Leitura Longa)</option>
-                                      <option value="EB Garamond">EB Garamond (Clássico)</option>
-                                  </select>
-                              </div>
+                            <div className="mb-4">
+                                <label className="input-label text-indigo-800">Título do E-book</label>
+                                <input type="text" value={livroTitulo} onChange={e => setLivroTitulo(e.target.value)} className="input-standard text-sm" placeholder="Ex: O Poder da Mente" />
+                            </div>
+                            
+                            <div className="mb-4">
+                                <label className="input-label text-indigo-800">Autor(es)</label>
+                                <input type="text" value={livroAutores} onChange={e => setLivroAutores(e.target.value)} className="input-standard text-sm" placeholder="Ex: João Silva" />
+                            </div>
 
-                              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Tamanho Fonte Base</label>
-                                      <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="11pt">11pt</option><option value="12pt">12pt</option><option value="14pt">14pt</option><option value="16pt">16pt</option>
-                                      </select>
-                                  </div>
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Entrelinhas</label>
-                                      <select value={espacamentoLinhas} onChange={(e) => setEspacamentoLinhas(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="1.0">Simples (1.0)</option>
-                                          <option value="1.15">Justo (1.15)</option>
-                                          <option value="1.5">Padrão (1.5)</option>
-                                          <option value="2.0">Duplo (2.0)</option>
-                                      </select>
-                                  </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Espaço (Fim Parágrafo)</label>
-                                      <select value={espacamentoParagrafo} onChange={(e) => setEspacamentoParagrafo(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="0.6em">Bem Colado (0.6em)</option>
-                                          <option value="0.8em">Colado (0.8em)</option>
-                                          <option value="1em">Normal (1em)</option>
-                                          <option value="2.2em">Afastado (2.2em)</option>
-                                      </select>
-                                  </div>
-                                  <div>
-                                      <label className="input-label mb-2 text-[9px]">Recuo 1ª Linha</label>
-                                      <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard text-[10px] font-medium text-slate-800">
-                                          <option value="20px">Clássico (20px)</option>
-                                          <option value="0px">Sem Recuo</option>
-                                          <option value="40px">Largo (40px)</option>
-                                      </select>
-                                  </div>
-                              </div>
-                              <div className="pt-3 border-t border-slate-100">
-                                  <label className="flex items-center text-xs font-bold text-gray-700 cursor-pointer">
-                                      <input type="checkbox" checked={indexShowSubtopics} onChange={(e) => setIndexShowSubtopics(e.target.checked)} className="mr-2 h-4 w-4 text-blue-600 rounded" />
-                                      Incluir Tópicos (Subtítulos) no Índice
-                                  </label>
-                              </div>
-                          </div>
-                      </div>
+                            <div className="mb-4">
+                                <label className="input-label text-indigo-800 mb-2">Instruções / Capítulos para Gerar</label>
+                                <textarea 
+                                    value={productContent} 
+                                    onChange={(e) => setProductContent(e.target.value)} 
+                                    className="input-standard h-36 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
+                                    placeholder="Digite o tema principal ou cole seu texto/capítulos aqui..."
+                                ></textarea>
+                            </div>
 
-                      {/* CONTEÚDO E GERAÇÃO */}
-                      <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
-                          <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span> Geração Editorial</h3>
-                          
-                          <div className="mb-4">
-                              <label className="input-label text-indigo-800">Modo de Criação da IA</label>
-                              <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard text-sm mb-3 font-bold text-indigo-700 bg-white shadow-sm border-indigo-300">
-                                  <option value="expandido">💡 Criar do Zero (A IA cria o livro baseado no tema)</option>
-                                  <option value="rigoroso">📝 Formatar e Corrigir (Usa SÓ seu texto, não inventa)</option>
-                              </select>
-                          </div>
+                            <div className="flex flex-col gap-3 mt-2">
+                                {/* OPÇÃO 1: COMPLETO */}
+                                <button onClick={() => gerarLivroCompleto()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider py-3.5 rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
+                                    <i className="fas fa-bolt text-yellow-300 text-lg"></i> Gerar E-book Completo
+                                </button>
+                                
+                                <div className="flex items-center my-1 opacity-50">
+                                    <div className="flex-1 h-px bg-indigo-800"></div>
+                                    <span className="px-3 text-[9px] font-bold text-indigo-900 uppercase">Ou Gerar por Etapas</span>
+                                    <div className="flex-1 h-px bg-indigo-800"></div>
+                                </div>
 
-                          <div className="mb-4">
-                              <label className="input-label text-indigo-800">Título do E-book</label>
-                              <input type="text" value={livroTitulo} onChange={e => setLivroTitulo(e.target.value)} className="input-standard text-sm" placeholder="Ex: O Poder da Mente" />
-                          </div>
-                          
-                          <div className="mb-4">
-                              <label className="input-label text-indigo-800">Autor(es)</label>
-                              <input type="text" value={livroAutores} onChange={e => setLivroAutores(e.target.value)} className="input-standard text-sm" placeholder="Ex: João Silva" />
-                          </div>
+                                {/* OPÇÃO 2: ETAPAS */}
+                                <div className="grid grid-cols-1 gap-2">
+                                    <button onClick={() => iniciarEbookEtapas()} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-sky-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
+                                        <i className="fas fa-play-circle text-white"></i> 1. Iniciar (Capa e Índice)
+                                    </button>
+                                    
+                                    <button onClick={() => continuarEbookEtapas()} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-emerald-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
+                                        <i className="fas fa-plus-circle text-white"></i> 2. Adicionar Capítulos (Meio)
+                                    </button>
 
-                          <div className="mb-4">
-                              <label className="input-label text-indigo-800 mb-2">Instruções / Capítulos para Gerar</label>
-                              <textarea 
-                                  value={productContent} 
-                                  onChange={(e) => setProductContent(e.target.value)} 
-                                  className="input-standard h-36 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
-                                  placeholder="Digite o tema principal ou cole seu texto/capítulos aqui..."
-                              ></textarea>
-                          </div>
+                                    <button onClick={() => finalizarEbookEtapas()} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-amber-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
+                                        <i className="fas fa-flag-checkered text-white"></i> 3. Finalizar (Conclusão)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </aside>
 
-                          <div className="flex flex-col gap-3 mt-2">
-                              {/* OPÇÃO 1: COMPLETO */}
-                              <button onClick={() => gerarLivroCompleto()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider py-3.5 rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
-                                  <i className="fas fa-bolt text-yellow-300 text-lg"></i> Gerar E-book Completo
-                              </button>
-                              
-                              <div className="flex items-center my-1 opacity-50">
-                                  <div className="flex-1 h-px bg-indigo-800"></div>
-                                  <span className="px-3 text-[9px] font-bold text-indigo-900 uppercase">Ou Gerar por Etapas</span>
-                                  <div className="flex-1 h-px bg-indigo-800"></div>
-                              </div>
+        {/* ÁREA PRINCIPAL - CANVAS EDITORIAL */}
+        <main className="flex-grow relative bg-slate-200 p-0 md:p-8 overflow-y-auto overflow-x-hidden flex justify-center items-start custom-scrollbar">
+            <div className="bg-white border-b border-slate-200 flex justify-between items-center px-4 md:px-6 h-[60px] shadow-sm z-10 absolute top-0 left-0 right-0">
+                <div className="flex items-center gap-3">
+                    <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                        <button id="tabPreview" onClick={() => (window as any).mudarSeparador('preview')} className="px-5 py-2 rounded-md font-bold text-xs bg-white text-indigo-700 shadow-sm transition">Ver Leitura</button>
+                        <button id="tabCode" onClick={() => (window as any).mudarSeparador('code')} className="px-5 py-2 rounded-md font-bold text-xs text-slate-500 hover:text-slate-800 transition">Código HTML</button>
+                    </div>
+                    <div className="w-px h-6 bg-slate-200 mx-2 hidden md:block"></div>
+                    <button onClick={desfazerCodigo} className="hidden md:flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-xs font-bold transition px-2 py-1 rounded hover:bg-slate-100"><i className="fas fa-undo"></i> Desfazer</button>
+                </div>
 
-                              {/* OPÇÃO 2: ETAPAS */}
-                              <div className="grid grid-cols-1 gap-2">
-                                  <button onClick={() => iniciarEbookEtapas()} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-sky-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
-                                      <i className="fas fa-play-circle text-white"></i> 1. Iniciar (Capa e Índice)
-                                  </button>
-                                  
-                                  <button onClick={() => continuarEbookEtapas()} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-emerald-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
-                                      <i className="fas fa-plus-circle text-white"></i> 2. Adicionar Capítulos (Meio)
-                                  </button>
-
-                                  <button onClick={() => finalizarEbookEtapas()} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-amber-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2">
-                                      <i className="fas fa-flag-checkered text-white"></i> 3. Finalizar (Conclusão)
-                                  </button>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              )}
-          </div>
-      </aside>
-
-      {/* ÁREA PRINCIPAL - CANVAS EDITORIAL */}
-      <main className="flex-grow relative bg-slate-200 p-0 md:p-8 overflow-y-auto overflow-x-hidden flex justify-center items-start custom-scrollbar">
-          <div className="bg-white border-b border-slate-200 flex justify-between items-center px-4 md:px-6 h-[60px] shadow-sm z-10 absolute top-0 left-0 right-0">
-              <div className="flex items-center gap-3">
-                  <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-                      <button id="tabPreview" onClick={() => (window as any).mudarSeparador('preview')} className="px-5 py-2 rounded-md font-bold text-xs bg-white text-indigo-700 shadow-sm transition">Ver Leitura</button>
-                      <button id="tabCode" onClick={() => (window as any).mudarSeparador('code')} className="px-5 py-2 rounded-md font-bold text-xs text-slate-500 hover:text-slate-800 transition">Código HTML</button>
-                  </div>
-                  <div className="w-px h-6 bg-slate-200 mx-2 hidden md:block"></div>
-                  <button onClick={desfazerCodigo} className="hidden md:flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-xs font-bold transition px-2 py-1 rounded hover:bg-slate-100"><i className="fas fa-undo"></i> Desfazer</button>
-              </div>
-
-              <div className="flex items-center gap-2 md:gap-3">
-                  <button onClick={() => (window as any).baixarHtml()} className="px-4 py-2 border-2 border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-lg transition flex items-center" title="Baixar como arquivo HTML">
-                      <i className="fab fa-html5 mr-1.5 text-orange-500"></i> HTML
-                  </button>
-                  <button onClick={() => (window as any).baixarPdf()} className="px-6 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-xs uppercase tracking-wide rounded-lg transition flex items-center shadow-sm">
-                      <i className="fas fa-file-pdf mr-1.5"></i> Salvar PDF
-                  </button>
-              </div>
-          </div>
-          
-          <div className="pt-[60px] w-full h-full">
-              <iframe id="previewFrame" className="w-full h-full border-none active bg-transparent" sandbox="allow-scripts allow-same-origin allow-modals" title="Leitor do Ebook"></iframe>
-              
-              <div id="codigoContainer" className="absolute inset-0 pt-[60px] bg-[#0d1117] hidden">
-                  <textarea id="codigoGerado" className="w-full h-full font-mono text-[13px] bg-[#0d1117] text-[#56d364] border-none outline-none resize-none custom-scrollbar p-8 leading-relaxed"
-                      onChange={(e) => {
-                          const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-                          if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + getScriptPreview(indexShowSubtopics); }
-                      }}
-                  ></textarea>
-              </div>
-          </div>
-      </main>
-    </div>
+                <div className="flex items-center gap-2 md:gap-3">
+                    <button onClick={() => (window as any).baixarHtml()} className="px-4 py-2 border-2 border-slate-300 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-lg transition flex items-center" title="Baixar como arquivo HTML">
+                        <i className="fab fa-html5 mr-1.5 text-orange-500"></i> HTML
+                    </button>
+                    <button onClick={() => (window as any).baixarPdf()} className="px-6 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-xs uppercase tracking-wide rounded-lg transition flex items-center shadow-sm">
+                        <i className="fas fa-file-pdf mr-1.5"></i> Salvar PDF
+                    </button>
+                </div>
+            </div>
+            
+            <div className="pt-[60px] w-full h-full">
+                <iframe id="previewFrame" className="w-full h-full border-none active bg-transparent" sandbox="allow-scripts allow-same-origin allow-modals" title="Leitor do Ebook"></iframe>
+                
+                <div id="codigoContainer" className="absolute inset-0 pt-[60px] bg-[#0d1117] hidden">
+                    <textarea id="codigoGerado" className="w-full h-full font-mono text-[13px] bg-[#0d1117] text-[#56d364] border-none outline-none resize-none custom-scrollbar p-8 leading-relaxed"
+                        onChange={(e) => {
+                            const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+                            if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + getScriptPreview(indexShowSubtopics); }
+                            // 💾 SALVA no localStorage se editar na aba HTML
+                            localStorage.setItem('ebook_draft_html', e.target.value);
+                        }}
+                    ></textarea>
+                </div>
+            </div>
+        </main>
+      </div>
+    </>
   );
 }
