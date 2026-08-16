@@ -3,14 +3,15 @@ import { NextResponse } from 'next/server';
 // =====================================================================
 // 🎛️ PAINEL DE CONTROLE MESTRE DA INTELIGÊNCIA ARTIFICIAL
 // =====================================================================
-// Para escolher a IA de testes, altere o valor abaixo para: 
+// Para escolher a IA, altere o valor abaixo para: 
 // 'gemini' | 'groq' | 'together' | 'nvidia'
 const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
 
 // Configuração caso use o Gemini (Rodízio de Modelos)
 const REQUISICOES_POR_MODELO = 9999; 
 const MODELOS_GEMINI = [
-  "gemini-3.5-flash-lite",      
+  "gemini-3.1-flash-lite", 
+  // "gemini-3.1-flash-lite-image", // Descomente caso queira testar o modelo de imagem dedicado via API
 ];
 
 let contadorRequisicoes = 0;
@@ -118,7 +119,7 @@ export async function POST(req: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'meta/llama-3.1-70b-instruct', // Modelo de altíssima performance para textos e código HTML
+          model: 'meta/llama-3.1-70b-instruct', 
           messages: [
             { role: 'system', content: systemInstruction || '' },
             { role: 'user', content: textoUsuario }
@@ -151,7 +152,7 @@ export async function POST(req: Request) {
       contadorRequisicoes++;
       if (contadorRequisicoes > REQUISICOES_POR_MODELO) {
           contadorRequisicoes = 1; 
-          indiceModeloAtual++;     
+          indiceModeloAtual++;    
           if (indiceModeloAtual >= MODELOS_GEMINI.length) {
               indiceModeloAtual = 0; 
           }
