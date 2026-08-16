@@ -161,7 +161,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
                         nodesToMove = childNodes.slice(overflowIndex + 1);
                         nodesToMove.unshift(nextContainer);
                     } else {
-                        // Anti-órfão brando para evitar que a página inteira suba e deixe vácuo
+                        // Anti-órfão brando
                         let safeBreak = overflowIndex;
                         if (safeBreak > 0) {
                             let prevNode = childNodes[safeBreak - 1];
@@ -420,7 +420,7 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL - Top Padding ajustado para 25mm
+  // CONFIGURAÇÕES DE DESIGN GERAL
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -503,7 +503,6 @@ export default function Home() {
       return clean.trim();
   }
 
-  // Focado apenas em A4 - Top Padding ajustado para 25mm para o texto subir
   function getEstilosFormato() {
       return { width: '210mm', height: '297mm', padding: '25mm 20mm 25mm 20mm' }; 
   }
@@ -572,15 +571,12 @@ body {
     border: ${tipoBorda === 'single' ? '2px solid var(--color-primary)' : tipoBorda === 'double' ? '6px double var(--color-primary)' : tipoBorda === 'double-thin' ? '3px double var(--color-primary)' : 'none'};
 }
 
-/* Oculta a borda se a opção de borda for 'none' OU se for uma página inteira de imagem */
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
     display: none !important;
 }
 
-/* CLASSE ESPECIAL DO TÍTULO NAS PÁGINAS EXCLUSIVAS (Capturada pelo Índice) */
 h1.chapter-title-exclusive { color: #fff; font-size: 2.8rem; margin-top: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); z-index: 10; position: relative; text-align: center; width: 100%; }
 
-/* BLINDAGEM DO DISPLAY PARA EXCLUSIVAS (Força a centralizar dentro do A4) */
 .cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; color: #ffffff; }
 .cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
 
@@ -590,21 +586,17 @@ h1.chapter-title-exclusive { color: #fff; font-size: 2.8rem; margin-top: 15px; t
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
 
-/* CAPAS INICIAIS */
 .page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-/* IMAGEM HORIZONTAL E TÍTULO PRINCIPAL */
 .chapter-banner-img { width: 100%; height: 300px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.2rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
 .chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
-/* TÍTULOS DE TÓPICOS DENTRO DO CAPÍTULO (H3) */
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 0.8rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
 
-/* CABEÇALHOS E RODAPÉS - Topo ajustado para 10mm */
 .page-header { 
     position: absolute; top: 10mm; left: 18mm; right: 18mm; 
     display: flex; justify-content: space-between; align-items: flex-end;
@@ -630,7 +622,6 @@ h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; mar
 }
 .page-number.circulo::after { color: #ffffff !important; }
 
-/* CONTEÚDO BASE E ESPAÇAMENTOS ESTRITOS */
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
 
@@ -645,14 +636,12 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
-/* ÍNDICE CEGO (TOC) */
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
 .toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; padding: 6px 0; cursor: pointer; margin-bottom: 0.2rem; }
 .toc-item:hover { color: var(--color-secondary); }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR - LAYOUT PARA FLUTUAR TEXTO SOB A FOTO */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; }
 .author-section.layout-topo { display: flex; flex-direction: column; text-align: center; align-items: center; gap: 20px; }
@@ -759,46 +748,28 @@ ${ebookStyles}
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
-  // BOTÃO DE INSERÇÃO MANUAL DO AUTOR
-  function adicionarPaginaAutor() {
-      let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
-      let regraRodape = "";
-      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { regraRodape = `<span>${livroAutores}</span>${numSpan}`; } 
-      else { regraRodape = `${numSpan}`; }
-
-      const htmlAutor = `
-      <div class="page-container author-page">
-          <div class="page-header"><span>${livroTitulo || 'Título do Livro'}</span><span>SOBRE O AUTOR</span></div>
-          <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
-          <div class="author-section layout-${autorPosicao}">
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Sua Foto">
-              <div class="author-bio">
-                  <h2>Sobre o Autor</h2>
-                  <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional...</p>
-              </div>
-          </div>
-          <div class="page-footer">${regraRodape}</div>
-      </div>`;
-      
-      aplicarHtmlNovo(htmlAutor, true);
-      (window as any).showNotification("Página de Autor inserida no final!", "success");
-  }
-
-  // BUSCADOR UNSPLASH ORIGINAL (Dinâmico)
+  // BUSCADOR UNSPLASH ORIGINAL À PROVA DE FALHAS (Com Timestamp para sempre gerar nova)
   async function buscarImagemUnsplash() {
       if (!elementoSelecionado) return;
       (window as any).showNotification("Buscando no Unsplash...", "info");
       
-      const instrucao = "Retorne APENAS 2 palavras-chave em inglês, separadas por vírgula, que representem visualmente este texto. Nenhuma palavra a mais.";
-      const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
-      
-      if (data && data.html) {
-          const keywords = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[\n\r]/g, ' ').replace(/\s+/g, ',');
-          const url = `https://source.unsplash.com/random/1200x800/?${encodeURIComponent(keywords)}&sig=${Math.floor(Math.random() * 1000)}`;
-          let isBg = elementoSelecionado.tagName !== 'img';
-          atualizarElemento(isBg ? 'bgImage' : 'src', url);
-          (window as any).showNotification("Imagem do Unsplash adicionada!", "success");
+      let keywords = "abstract"; // Palavra padrão de segurança
+      try {
+          const instrucao = "Retorne APENAS 2 palavras-chave em inglês, separadas por vírgula, que representem visualmente este texto. Nenhuma palavra a mais.";
+          const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
+          
+          if (data && data.html) {
+              keywords = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[\n\r]/g, ' ').replace(/\s+/g, ',');
+          }
+      } catch (e) {
+          console.error("Falha ao ler palavras-chave via Gemini, usando padrão.");
       }
+
+      // O carimbo de tempo '&t=' garante que o navegador NÃO puxe a imagem antiga do cache
+      const url = `https://source.unsplash.com/1200x800/?${encodeURIComponent(keywords)}&t=${new Date().getTime()}`;
+      let isBg = elementoSelecionado.tagName !== 'img';
+      atualizarElemento(isBg ? 'bgImage' : 'src', url);
+      (window as any).showNotification("Imagem do Unsplash adicionada!", "success");
   }
 
   // GERADOR GEMINI IA DEDICADO
@@ -813,7 +784,7 @@ ${ebookStyles}
               body: JSON.stringify({
                   systemInstruction: '',
                   promptParts: [{ text: promptParaGemini }],
-                  isImageGeneration: true // Flag que aciona a rota (Imagen 3) no route.ts
+                  isImageGeneration: true 
               })
           });
           
@@ -960,6 +931,7 @@ ${ebookStyles}
     } catch (err: any) {
       let errorMsg = err.message;
       if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Limite excedido (Quota). O sistema não gerou por falta de saldo/cota na API."; }
+      if (isElementRefinement) throw new Error(errorMsg);
       (window as any).showNotification(errorMsg, 'error'); return null;
     } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
   }
@@ -979,7 +951,7 @@ ${ebookStyles}
               <div class="cap-icon"><i class="fas fa-book-open"></i></div>
               <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1>
           </div>
-          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema do capítulo. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
           Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé. 
           OBRIGATÓRIO: A primeira linha de conteúdo dessa nova página DEVE ser um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'box-arredondado') {
@@ -988,14 +960,14 @@ ${ebookStyles}
           <div class="page-container cap-box-rounded" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
               <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: NOME DO CAPÍTULO AQUI</h1></div>
           </div>
-          NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash relacionada ao tema. NÃO INCLUA nenhum texto de parágrafo nesta mesma div!
           Após essa div de capa, abra uma NOVA <div class="page-container"> normal com o cabeçalho e o rodapé. 
           OBRIGATÓRIO: A primeira linha de conteúdo dessa nova página DEVE ser um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'imagem-pura') {
           regraEstiloCapitulos = `
           Para ABRIR um novo capítulo, você é OBRIGADO a criar UMA PÁGINA EXCLUSIVA apenas com a imagem de fundo:
           <div class="page-container cap-img-pura" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');"></div>
-          NÃO INCLUA nenhum texto ou título nesta div!
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL de fotografia do Unsplash. NÃO INCLUA nenhum texto ou título nesta div!
           Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: NOME DO CAPÍTULO AQUI</h2> no topo. 
           OBRIGATÓRIO: Logo abaixo do h2, inicie com um Título de Tópico (<h3 class="subtopic-title">Nome do Tópico</h3>) antes de iniciar os parágrafos de texto do capítulo. E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else if (estiloCapitulos === 'inline-imagem') {
@@ -1009,7 +981,7 @@ ${ebookStyles}
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash. 
+          ATENÇÃO: Substitua 'URL_DA_IMAGEM_UNSPLASH_AQUI' por uma URL REAL do Unsplash (ex: https://source.unsplash.com/1200x800/?keyword). Nunca crie imagens de fundo de página inteira neste modo. 
           OBRIGATÓRIO: Sempre inicie o texto abaixo da imagem com um Título de Tópico (h3). E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
       } else {
           regraEstiloCapitulos = `
@@ -1021,7 +993,7 @@ ${ebookStyles}
               <p>[TODO O TEXTO DO CAPÍTULO AQUI...]</p>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          OBRIGATÓRIO: Sempre inicie o texto abaixo do h2 com um Título de Tópico (h3). E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos.`;
+          OBRIGATÓRIO: Sempre inicie o texto abaixo do h2 com um Título de Tópico (h3). E continue criando outros títulos de tópicos (<h3>) ao longo de todo o capítulo para dividir os assuntos. Nunca use a tag <img> neste modo de capítulo.`;
       }
 
       let regraCapaHtml = "";
@@ -1047,8 +1019,8 @@ ${ebookStyles}
       6. ELEMENTOS VISUAIS: Para quebrar blocos de texto, use <blockquote class="highlight-box"> para citações e <div class="highlight-box"> para quadros de resumo.
       7. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>. O meu sistema fará os links.
       8. PROIBIDO PARÁGRAFOS VAZIOS: O espaçamento de uma linha já é padrão do CSS. NUNCA gere tags <br> ou <p>&nbsp;</p>. Escreva os parágrafos diretos.
-      9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash (ex: https://source.unsplash.com/random/1200x800/?CHAVE). Substitua 'CHAVE' pelo termo em inglês.
-      10. CONTINUAÇÃO DE HTML E PROTEÇÃO DE AUTOR: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e preserve os estilos já aplicados.
+      9. REGRAS DE IMAGEM: Use APENAS URLs fotográficas REAIS do Unsplash (ex: https://source.unsplash.com/1200x800/?CHAVE). Substitua 'CHAVE' pelo termo em inglês.
+      10. CONTINUAÇÃO DE HTML E PROTEÇÃO DE AUTOR: Se o usuário fornecer um código HTML já iniciado, NÃO crie Índice, Capa ou Introdução novamente. Continue gerando a partir do próximo capítulo e cole o bloco de autor no final apenas se for OBRIGADO pelo modo de conclusão.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -1097,6 +1069,20 @@ ${ebookStyles}
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
           <p>[Escreva a conclusão densa com 4 a 6 parágrafos preenchendo a folha dentro desta única div, SEM NENHUMA IMAGEM...]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+      
+      <!-- OBRIGATÓRIO: Crie também a página de autor com este exato código abaixo para finalizar. NUNCA INVENTE O NOME NA BIO, USE ESTE TEXTO CONGELADO -->
+      <div class="page-container author-page">
+          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
+          <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
+          <div class="author-section layout-${autorPosicao}">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Sua Foto">
+              <div class="author-bio">
+                  <h2>Sobre o Autor</h2>
+                  <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional...</p>
+              </div>
+          </div>
           <div class="page-footer">${regraRodape}</div>
       </div>
 
@@ -1203,6 +1189,20 @@ ${ebookStyles}
           <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
           <p>[Parágrafo de tamanho médio para preencher espaço...]</p>
           <p>[Escreva a conclusão densa com vários parágrafos preenchendo o espaço dentro desta mesma div, SEM IMAGENS...]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+      
+      <!-- OBRIGATÓRIO: Cole exatamente este bloco de autor sem inventar nomes ou mudar a foto -->
+      <div class="page-container author-page">
+          <div class="page-header"><span>${livroTitulo}</span><span>SOBRE O AUTOR</span></div>
+          <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute;">Sobre o Autor</h2>
+          <div class="author-section layout-${autorPosicao}">
+              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="Sua Foto">
+              <div class="author-bio">
+                  <h2>Sobre o Autor</h2>
+                  <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional...</p>
+              </div>
+          </div>
           <div class="page-footer">${regraRodape}</div>
       </div>
       `;
@@ -1632,12 +1632,6 @@ ${ebookStyles}
                                           <option value="retangulo">Retângulo</option>
                                       </select>
                                   </div>
-                              </div>
-
-                              <div className="pt-3 border-t border-slate-100 mt-2">
-                                  <button onClick={adicionarPaginaAutor} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] uppercase py-2.5 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
-                                      <i className="fas fa-user-circle"></i> Inserir Página de Autor Manualmente
-                                  </button>
                               </div>
                           </div>
                       </div>
