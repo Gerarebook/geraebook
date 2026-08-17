@@ -453,7 +453,6 @@ export default function Home() {
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
-  const [htmlInspiracao, setHtmlInspiracao] = useState('');
 
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
@@ -484,7 +483,6 @@ export default function Home() {
 
   // Estado para o texto da revisão profissional
   const [textoRevisao, setTextoRevisao] = useState('');
-  const [arquivoRevisao, setArquivoRevisao] = useState<File | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const txtUploadRef = useRef<HTMLInputElement>(null);
@@ -929,7 +927,7 @@ ${ebookStyles}
       (window as any).showNotification("Fotografia aplicada com sucesso!", "success");
   }
 
-  // ===== NOVA REVISÃO PROFISSIONAL: organiza texto bruto em ebook =====
+  // ===== NOVA REVISÃO PROFISSIONAL: CORRIGE ORTOGRAFIA E DEPOIS FORMATA =====
   async function revisaoProfissional() {
       if (!textoRevisao.trim()) {
           (window as any).showNotification("Cole o texto ou faça upload de um arquivo .txt primeiro.", "error");
@@ -938,9 +936,23 @@ ${ebookStyles}
 
       const { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos } = obterInstrucoesBase();
 
-      const instrucao = `Você é um editor profissional. Receba o texto bruto fornecido pelo usuário e transforme-o em um ebook completo, seguindo as regras abaixo.
+      const instrucao = `Você é um revisor ortográfico e gramatical especializado.
+
+      **ETAPA 1 (OBRIGATÓRIA): CORREÇÃO LEVE**
+      - Receba o texto bruto fornecido pelo usuário.
+      - Corrija APENAS erros de ortografia, pontuação e concordância verbal/nominal.
+      - PRESERVE ABSOLUTAMENTE todas as palavras, frases, estrutura e ordem do texto original.
+      - NÃO reescreva, não resuma, não adicione nem remova informações.
+      - O texto corrigido deve ser IDÊNTICO ao original, exceto pelos erros corrigidos.
+
+      **ETAPA 2 (FORMATAÇÃO):**
+      - Após a correção, organize o texto corrigido dentro da estrutura de ebook definida abaixo.
+      - Utilize o conteúdo corrigido para preencher os parágrafos, títulos e tópicos.
+      - NÃO crie novo conteúdo – use apenas o que foi corrigido.
+
+      REGRAS DE FORMATAÇÃO:
       ${regrasComuns}
-      
+
       ESTRUTURA OBRIGATÓRIA DO E-BOOK:
       1. CAPA: ${regraCapaHtml}
       2. ÍNDICE: 
@@ -955,11 +967,11 @@ ${ebookStyles}
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
             <h3 class="subtopic-title">Visão Geral</h3>
-            <p>[Parágrafo denso...]</p>
-            <p>[Parágrafo denso...]</p>
+            <p>[Parágrafo da introdução – use o texto corrigido]</p>
+            <p>[Parágrafo da introdução – use o texto corrigido]</p>
             <h3 class="subtopic-title">Propósito</h3>
-            <p>[Parágrafo denso...]</p>
-            <p>[Parágrafo denso...]</p>
+            <p>[Parágrafo da introdução – use o texto corrigido]</p>
+            <p>[Parágrafo da introdução – use o texto corrigido]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       4. CAPÍTULOS: 
@@ -969,25 +981,23 @@ ${ebookStyles}
             <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
             <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
             <h3 class="subtopic-title">Fechamento</h3>
-            <p>[Conclusão densa...]</p>
+            <p>[Parágrafo da conclusão – use o texto corrigido]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
 
-      INSTRUÇÕES ADICIONAIS:
-      - Use o texto fornecido como base, extraia os capítulos e tópicos conforme a estrutura.
-      - Corrija ortografia e gramática.
-      - Mantenha o estilo e as regras de volume (3 tópicos por capítulo, 2 parágrafos curtos na página de título, 4 parágrafos nas demais).
+      INSTRUÇÕES FINAIS:
+      - Use o texto fornecido como base. Extraia os capítulos, tópicos e parágrafos conforme a estrutura.
       - NUNCA crie a página do autor – o sistema a injetará automaticamente.
-      - Retorne APENAS o HTML completo do ebook.`;
+      - Retorne APENAS o HTML completo do ebook, com o texto já corrigido e formatado.
+      `;
 
-      const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BRUTO PARA O E-BOOK:\n"""\n${textoRevisao}\n"""` }], false);
+      const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BRUTO PARA O E-BOOK (corrija ortografia e pontuação, depois formate mantendo o conteúdo original):\n"""\n${textoRevisao}\n"""` }], false);
 
       if (data && data.html) {
           let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
           aplicarHtmlNovo(htmlFinal, false);
-          // Limpa o campo de texto após gerar
           setTextoRevisao('');
-          (window as any).showNotification("E-book gerado a partir do texto com sucesso!", "success");
+          (window as any).showNotification("E-book gerado a partir do texto corrigido com sucesso!", "success");
       }
   }
 
