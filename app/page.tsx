@@ -220,6 +220,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
             );
             if (contentNodes.length > 0) return;
+            
             const isSpecial = page.classList.contains('page-cover-pura') || 
                               page.classList.contains('page-cover-img') || 
                               page.classList.contains('page-cover-text') || 
@@ -228,6 +229,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                               page.classList.contains('cap-img-pura') ||
                               page.querySelector('#conclusao, h2.chapter-title-inline:not(:empty)');
             if (isSpecial) return;
+            
             page.remove();
         });
 
@@ -652,30 +654,12 @@ ${bgSegundaPaginaCss}
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
 .cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
-/* Overlay com opacidade para a capa box-arredondado */
-.cap-box-rounded {
-    position: relative;
-}
-.cap-box-rounded::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.4); /* Escurece a imagem para melhor legibilidade */
-    z-index: 1;
-    pointer-events: none;
-}
-.cap-box-inner {
-    position: relative;
-    z-index: 2;
-}
-
 .cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; color: #ffffff; }
 .cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
 
 .cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); z-index: 10; position: relative; color: ${capBoxTextColor}; }
 .cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: ${capBoxTextColor}; text-shadow: none; }
-.cap-box-inner p { text-indent: 0; text-align: center; }
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
 
@@ -982,42 +966,6 @@ ${ebookStyles}
       }
   }
 
-  // GERAR 2–3 CAPÍTULOS
-  async function gerarCapitulos(quantidade: number = 3) {
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      if (!codEl || !codEl.value.includes('page-container')) {
-          (window as any).showNotification("Gere a estrutura inicial (Capa/Índice/Intro) primeiro!", "error");
-          return;
-      }
-      const content = productContent.trim();
-      if (!content) {
-          (window as any).showNotification("Forneça o texto base para os capítulos.", "error");
-          return;
-      }
-
-      const { regrasComuns, regraEstiloCapitulos } = obterInstrucoesBase();
-      const instrucao = `Você vai ADICIONAR ${quantidade} NOVOS CAPÍTULOS a um e-book já existente.
-      ${regrasComuns}
-      OBRIGAÇÕES CRÍTICAS:
-      1. PROIBIÇÃO ABSOLUTA: Sua resposta DEVE CONTER APENAS os blocos HTML dos novos capítulos. NADA de capa, índice, introdução ou conclusão.
-      2. NUMERAÇÃO: Leia o código fornecido e continue a numeração dos capítulos a partir do último existente.
-      3. ESTRUTURA DE CADA CAPÍTULO:
-         ${regraEstiloCapitulos}
-      4. DISTRIBUIÇÃO: NUNCA coloque um <blockquote> e um <div class="highlight-box"> na mesma página. Alterne entre páginas.
-      5. ÍCONES: Nos <div class="highlight-box">, insira um ícone do Font Awesome (ex: <i class="fas fa-lightbulb"></i>) antes do texto.
-      `;
-
-      const data = await chamarMotorIA(instrucao, [
-          { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${codEl.value}\n"""` },
-          { text: `TEXTO BASE PARA OS NOVOS CAPÍTULOS:\n"""\n${content}\n"""` }
-      ], false);
-
-      if (data && data.html) {
-          aplicarHtmlNovo(data.html, true);
-          (window as any).showNotification(`${quantidade} capítulo(s) adicionado(s) com sucesso!`, "success");
-      }
-  }
-
   async function aplicarModificacaoGlobal() {
       const input = document.getElementById('ai_prompt_global') as HTMLInputElement;
       const comando = input?.value.trim();
@@ -1194,23 +1142,16 @@ ${ebookStyles}
       if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
           MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco + Páginas de Texto):
-          <!-- PÁGINA DE CAPA DO CAPÍTULO (com imagem de fundo e opacidade automática) -->
-          <div class="page-container cap-box-rounded" style="background-image: url('URL_FOTOGRAFIA_REAL_UNSPLASH_AQUI');">
-              <div class="cap-box-inner">
-                  <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1>
-                  <p>[Parágrafo 1 da página de título, denso de 6 a 8 linhas...]</p>
-                  <p>[Parágrafo 2 da página de título, denso de 6 a 8 linhas...]</p>
-              </div>
+          <!-- PÁGINA DE CAPA DO CAPÍTULO -->
+          <div class="page-container cap-box-rounded" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('URL_FOTOGRAFIA_REAL_UNSPLASH_AQUI'); background-size: cover; background-position: center;">
+              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
           </div>
           <!-- PÁGINAS DE TEXTO CONTÍNUO (NÃO REPETIR O TÍTULO DO CAPÍTULO) -->
-          Após a capa, crie uma ou mais <div class="page-container"> para o restante do conteúdo. 
-          A primeira página de texto deve conter apenas os tópicos (h3) e parágrafos, sem h2 ou h1 de capítulo.
-          O capítulo deve ter exatamente 3 títulos de tópicos (<h3 class="subtopic-title">). Em cada tópico, 2 a 3 parágrafos.
-          A página de capa já contém 2 parágrafos. As demais páginas devem ter 4 parágrafos por tópico (totalizando 3 páginas de conteúdo: capa + 2 páginas de texto).
-          O sistema fará a quebra automática, mas você deve fornecer todo o conteúdo dentro de uma ou mais divs page-container, garantindo o volume descrito.
-          `;
+          Após a div de capa, abra UMA ÚNICA <div class="page-container"> normal e descarregue todo o texto lá dentro, SEM repetir o título do capítulo (não use h2.chapter-title-inline novamente).
+          OBRIGATÓRIO: O capítulo deve ter exatamente 3 títulos de tópicos (<h3>). Em cada tópico, 2 a 3 parágrafos. A página de título/imagem do capítulo deve ter apenas 2 parágrafos, e as demais páginas do capítulo devem ter 4 parágrafos com mais linhas de conteúdo, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
+          Atenção: OBRIGATÓRIO escrever a palavra "Capítulo" no H1.`;
       } else {
-          // inline-imagem
+          // Padrão inline-imagem
           regraEstiloCapitulos = `
           MOLDE OBRIGATÓRIO DO CAPÍTULO (Total de 3 páginas por capítulo, incluindo a página com imagem):
           NÃO crie página de capa separada. O capítulo INTEIRO deve ser impresso dentro de uma ÚNICA DIV. O sistema cortará sozinho em 3 páginas.
@@ -1285,6 +1226,66 @@ ${ebookStyles}
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
   }
 
+  // ==== GERAR E-BOOK COMPLETO (RESTAURADO) ====
+  async function gerarLivroCompleto() {
+    const content = productContent.trim();
+    if (!content) { (window as any).showNotification('Insira o texto base.', 'error'); return; }
+
+    const { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos } = obterInstrucoesBase();
+
+    const instrucao = `Gere o E-book COMPLETO em HTML puro.
+    ${regrasComuns}
+    ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
+    - 1. Capa: 
+      ${regraCapaHtml}
+    - 2. Índice: 
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div>
+          <h2 class="chapter-title-inline">Índice</h2>
+          <div class="toc-container"></div>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+    
+    - 3. Introdução (Volume cravado, obrigatório começar com tópico): 
+      <!-- PROIBIDO USAR TAG IMG AQUI -->
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
+          <h2 id="intro" class="chapter-title-inline">Introdução</h2>
+          <h3 class="subtopic-title">O Começo</h3>
+          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <h3 class="subtopic-title">O Propósito</h3>
+          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+    
+    - 4. Capítulos: Gere os capítulos pedidos.
+      ${regraEstiloCapitulos}
+    
+    - 5. Conclusão: Use EXATAMENTE esta estrutura HTML para finalizar (obrigatório começar com tópico):
+      <!-- PROIBIDO USAR TAG IMG AQUI -->
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
+          <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
+          <h3 class="subtopic-title">Fechamento do Ciclo</h3>
+          <p>[Escreva a conclusão densa com cerca de 6 parágrafos de 6 a 8 linhas, SEM IMAGENS...]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+
+      AVISO FINAL: O PROMPT ACABA AQUI. NUNCA CRIE PÁGINA DO AUTOR, APENAS FECHE A CONCLUSÃO. O SISTEMA INJETARÁ O AUTOR SOZINHO.
+    `;
+
+    const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA O E-BOOK:\n"""\n${content}\n"""` }], false);
+    if (data && data.html) {
+        let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
+        aplicarHtmlNovo(htmlFinal, false);
+        (window as any).showNotification("E-book completo gerado com sucesso!", "success");
+    }
+  }
+
   async function iniciarEbookEtapas() {
       const content = productContent.trim();
       if (!content) { (window as any).showNotification('Insira o texto base.', 'error'); return; }
@@ -1330,6 +1331,7 @@ ${ebookStyles}
       }
   }
 
+  // PASSO 2: Continuar adicionando 3 capítulos de cada vez
   async function continuarEbookEtapas() {
       const content = productContent.trim();
       const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
@@ -1350,12 +1352,12 @@ ${ebookStyles}
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras, com 3 tópicos H3 e parágrafos estruturados.'}\n"""` }
+          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 3 capítulos):\n"""\n${content || 'Gere os próximos 3 capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras, com 3 tópicos H3 e parágrafos estruturados.'}\n"""` }
       ], false);
       
       if (data && data.html) {
           aplicarHtmlNovo(data.html, true);
-          (window as any).showNotification("Passo 2 Concluído! Próximos capítulos adicionados.", "success");
+          (window as any).showNotification("Passo 2 Concluído! 3 capítulos adicionados.", "success");
       }
   }
 
@@ -1420,7 +1422,6 @@ ${ebookStyles}
         const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
         if(iframe && iframe.contentWindow) { iframe.contentWindow.print(); }
     };
-
   }, [livroTitulo]);
 
   useEffect(() => {
@@ -1706,19 +1707,16 @@ ${ebookStyles}
                                     <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y" placeholder="Descreva os capítulos ou cole seu texto aqui..."></textarea>
                                 </div>
 
+                                {/* Botão Gerar E-book Completo restaurado */}
                                 <div className="pt-2">
-                                    <button onClick={() => gerarCapitulos(3)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider py-3 rounded-xl shadow-lg shadow-indigo-200 transition flex items-center justify-center gap-2">
-                                        <i className="fas fa-plus-circle text-yellow-300"></i> Gerar 3 Capítulos (IA)
+                                    <button onClick={gerarLivroCompleto} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider py-3 rounded-xl shadow-lg shadow-indigo-200 transition flex items-center justify-center gap-2">
+                                        <i className="fas fa-magic text-yellow-300"></i> Gerar E-book Completo (IA)
                                     </button>
-                                    <div className="flex gap-2 mt-2">
-                                        <button onClick={() => gerarCapitulos(2)} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm">+ 2 Capítulos</button>
-                                        <button onClick={() => gerarCapitulos(3)} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm">+ 3 Capítulos</button>
-                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-2 pt-1">
                                     <button onClick={iniciarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
-                                    <button onClick={continuarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. Capítulos</button>
+                                    <button onClick={continuarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
                                     <button onClick={finalizarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">3. Fim/Autor</button>
                                 </div>
                             </div>
