@@ -1068,8 +1068,8 @@ ${ebookStyles}
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h3 class="subtopic-title">Nome do Tópico 1</h3>
-              <p>[Primeiro parágrafo de 4 linhas...]</p>
-              <p>[Segundo parágrafo de 4 linhas...]</p>
+              <p>[Primeiro parágrafo de 5 linhas...]</p>
+              <p>[Segundo parágrafo de 5 linhas...]</p>
               <h3 class="subtopic-title">Nome do Tópico 2</h3>
               <p>[4 Parágrafos...]</p>
               <div class="highlight-box">Quadro Resumo</div>
@@ -1089,7 +1089,7 @@ ${ebookStyles}
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h3 class="subtopic-title">Nome do Tópico 1</h3>
               <p>[Primeiro parágrafo de 4 linhas...]</p>
-              <p>[Segundo parágrafo de 5 a 7 linhas...]</p>
+              <p>[Segundo parágrafo de 5 linhas...]</p>
               <h3 class="subtopic-title">Nome do Tópico 2</h3>
               <p>[4 Parágrafos...]</p>
               <div class="highlight-box">Quadro Resumo</div>
