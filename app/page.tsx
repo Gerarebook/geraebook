@@ -638,6 +638,11 @@ body {
 
 ${bgSegundaPaginaCss}
 
+/* Ajuste para página de texto após capa exclusiva do capítulo */
+.chapter-text-page {
+    padding-top: 15mm !important;
+}
+
 .page-container::after, .page-cover-img::after, .page-cover-pura::after, .page-cover-text::after,
 .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
     content: '';
@@ -1147,9 +1152,10 @@ ${ebookStyles}
               <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
           </div>
           <!-- PÁGINAS DE TEXTO CONTÍNUO (NÃO REPETIR O TÍTULO DO CAPÍTULO) -->
-          Após a div de capa, abra UMA ÚNICA <div class="page-container"> normal e descarregue todo o texto lá dentro, SEM repetir o título do capítulo (não use h2.chapter-title-inline novamente).
+          Após a div de capa, abra UMA ÚNICA <div class="page-container chapter-text-page"> e descarregue todo o texto lá dentro, SEM repetir o título do capítulo (não use h2.chapter-title-inline novamente).
           OBRIGATÓRIO: O capítulo deve ter exatamente 3 títulos de tópicos (<h3>). Em cada tópico, 2 a 3 parágrafos. A página de título/imagem do capítulo deve ter apenas 2 parágrafos, e as demais páginas do capítulo devem ter 4 parágrafos com mais linhas de conteúdo, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
-          Atenção: OBRIGATÓRIO escrever a palavra "Capítulo" no H1.`;
+          Atenção: OBRIGATÓRIO escrever a palavra "Capítulo" no H1.
+          IMPORTANTE: Não deixe parágrafos órfãos no final das páginas; distribua o conteúdo uniformemente.`;
       } else {
           // Padrão inline-imagem
           regraEstiloCapitulos = `
@@ -1186,7 +1192,8 @@ ${ebookStyles}
               <div class="page-footer">${regraRodape}</div>
           </div>
           ATENÇÃO: Na página do título/imagem do capítulo devem constar APENAS 2 parágrafos no total. Nas demais páginas do capítulo, deverão ter 4 parágrafos com mais linhas de conteúdo. Cada capítulo terá exatamente 3 títulos de tópicos e em cada tópico 2 a 3 parágrafos, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
-          NUNCA coloque um <blockquote> e um <div class="highlight-box"> na mesma página – distribua em páginas diferentes.`;
+          NUNCA coloque um <blockquote> e um <div class="highlight-box"> na mesma página – distribua em páginas diferentes.
+          IMPORTANTE: Não deixe parágrafos órfãos no final das páginas.`;
       }
 
       let regraCapaHtml = "";
@@ -1331,7 +1338,7 @@ ${ebookStyles}
       }
   }
 
-  // PASSO 2: Continuar adicionando 3 capítulos de cada vez
+  // PASSO 2: Continuar adicionando capítulos (tenta gerar 3, mas pode gerar menos se a IA não conseguir)
   async function continuarEbookEtapas() {
       const content = productContent.trim();
       const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
@@ -1348,16 +1355,17 @@ ${ebookStyles}
       2. ONDE CONTINUAR: Leia o código que forneci abaixo e comece no capítulo seguinte da numeração.
       3. ESTRUTURA DO CAPÍTULO E VOLUME: 
          ${regraEstiloCapitulos}
+      4. QUANTIDADE: Gere EXATAMENTE 3 capítulos. Se não for possível gerar 3 (por limites de token ou outros), gere o máximo que puder, mas tente sempre 3.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 3 capítulos):\n"""\n${content || 'Gere os próximos 3 capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras, com 3 tópicos H3 e parágrafos estruturados.'}\n"""` }
+          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 3 capítulos, se possível):\n"""\n${content || 'Gere os próximos capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras, com 3 tópicos H3 e parágrafos estruturados.'}\n"""` }
       ], false);
       
       if (data && data.html) {
           aplicarHtmlNovo(data.html, true);
-          (window as any).showNotification("Passo 2 Concluído! 3 capítulos adicionados.", "success");
+          (window as any).showNotification("Passo 2 Concluído! Capítulos adicionados.", "success");
       }
   }
 
