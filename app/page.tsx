@@ -113,7 +113,8 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                    page.classList.contains('page-cover-text') || 
                    page.classList.contains('cap-img-overlay') || 
                    page.classList.contains('cap-box-rounded') || 
-                   page.classList.contains('cap-img-pura')) continue;
+                   page.classList.contains('cap-img-pura') ||
+                   page.classList.contains('author-page')) continue;
 
                 let computedStyle = window.getComputedStyle(page);
                 let paddingBottom = parseFloat(computedStyle.paddingBottom);
@@ -219,7 +220,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 !el.classList.contains('page-footer') && 
                 el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
             );
-            if (contentNodes.length === 0 && !page.classList.contains('page-cover-pura') && !page.classList.contains('page-cover-img') && !page.classList.contains('page-cover-text') && !page.classList.contains('cap-img-overlay') && !page.classList.contains('cap-box-rounded') && !page.classList.contains('cap-img-pura')) {
+            if (contentNodes.length === 0 && !page.classList.contains('page-cover-pura') && !page.classList.contains('page-cover-img') && !page.classList.contains('page-cover-text') && !page.classList.contains('cap-img-overlay') && !page.classList.contains('cap-box-rounded') && !page.classList.contains('cap-img-pura') && !page.classList.contains('author-page')) {
                 page.remove();
             }
         });
@@ -1079,7 +1080,7 @@ ${ebookStyles}
           </div>
           <!-- PÁGINAS DE TEXTO CONTÍNUO -->
           Após a div de capa, abra UMA ÚNICA <div class="page-container"> normal e descarregue todo o texto lá dentro.
-          OBRIGATÓRIO: O texto DEVE iniciar OBRIGATORIAMENTE com o Título de Tópico 1 (<h3>) e EXATAMENTE 3 parágrafos longos (com 6 a 8 linhas cada). Depois o Tópico 2 com 3 parágrafos, Tópico 3 com 3 parágrafos e Tópico 4 com 3 parágrafos.
+          OBRIGATÓRIO: O texto DEVE iniciar com o Tópico 1 (<h3>) e EXATAMENTE 2 parágrafos longos (com 10 a 12 linhas cada). Depois o Tópico 2 com 3 a 4 parágrafos, e o Tópico 3 com 3 a 4 parágrafos. Total de 3 tópicos por capítulo.
           Atenção: OBRIGATÓRIO escrever a palavra "Capítulo" no H1.`;
       } else {
           // Padrão inline-imagem
@@ -1092,22 +1093,17 @@ ${ebookStyles}
               <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
               
               <h3 class="subtopic-title">Nome do Primeiro Tópico</h3>
-              <p>[Parágrafo 1 longo e denso com 6 a 8 linhas...]</p>
-              <p>[Parágrafo 2 longo e denso com 6 a 8 linhas...]</p>
-              <p>[Parágrafo 3 longo e denso com 6 a 8 linhas...]</p>
+              <p>[Parágrafo 1 longo e denso com 10 a 12 linhas...]</p>
+              <p>[Parágrafo 2 longo e denso com 10 a 12 linhas...]</p>
               
               <h3 class="subtopic-title">Nome do Segundo Tópico</h3>
-              <p>[Parágrafo 1 longo e denso com 6 a 8 linhas...]</p>
+              <p>[Parágrafo 1 longo e denso com 10 a 12 linhas...]</p>
               <p>[Parágrafo 2 longo e denso...]</p>
               <p>[Parágrafo 3 longo e denso...]</p>
               <div class="highlight-box">Quadro Conceito</div>
+              <p>[Parágrafo 4 longo e denso...]</p>
               
               <h3 class="subtopic-title">Nome do Terceiro Tópico</h3>
-              <p>[Parágrafo 1 longo e denso...]</p>
-              <p>[Parágrafo 2 longo e denso...]</p>
-              <p>[Parágrafo 3 longo e denso...]</p>
-              
-              <h3 class="subtopic-title">Nome do Quarto Tópico</h3>
               <p>[Parágrafo 1 longo e denso...]</p>
               <p>[Parágrafo 2 longo e denso...]</p>
               <p>[Parágrafo 3 longo e denso...]</p>
@@ -1115,7 +1111,7 @@ ${ebookStyles}
               
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: A imagem OBRIGATORIAMENTE é seguida imediatamente por um <h3> e depois o texto. Você OBRIGATORIAMENTE DEVE escrever "Capítulo X:" no H2.`;
+          ATENÇÃO: A imagem OBRIGATORIAMENTE é seguida imediatamente por um <h3> e depois EXATAMENTE 2 parágrafos na introdução do capítulo.`;
       }
 
       let regraCapaHtml = "";
@@ -1144,7 +1140,10 @@ ${ebookStyles}
       1. REGRA DA PALAVRA CAPÍTULO: Você OBRIGATORIAMENTE deve escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H1 ou H2) de todo capítulo gerado! Nunca deixe só o nome do assunto.
       2. REGRA SUPREMA DO USUÁRIO: Se o usuário pedir no prompt algo específico, OBEDEÇA AO PEDIDO DELE ACIMA DE QUALQUER REGRA DESTE SISTEMA.
       3. REGRA DE OPERAÇÃO: ${regraModo}
-      4. A REGRA DOS 4 TÓPICOS E 3 PARÁGRAFOS (CRÍTICA): Para gerar a diagramação exata pedida, você OBRIGATORIAMENTE deve criar EXATOS 4 subtópicos (H3) por capítulo. Embaixo de CADA subtópico H3, você deve escrever EXATAMENTE 3 parágrafos LONGOS e DENSOS (com 6 a 8 linhas de texto cada). Coloque todos os 4 tópicos e seus 12 parágrafos de texto dentro da MESMA DIV (page-container). O nosso navegador cortará a folha A4 sozinho, de modo que a primeira página da imagem comporte apenas 2 parágrafos e as seguintes fiquem cheias com cerca de 4 parágrafos.
+      4. A REGRA DOS 3 TÓPICOS E PAGINAÇÃO (CRÍTICA): Para gerar a diagramação exata pedida com cerca de 3 páginas por capítulo, você OBRIGATORIAMENTE deve criar EXATOS 3 subtópicos (H3) por capítulo. 
+         - Embaixo do 1º subtópico (que dividirá espaço com o título/imagem), escreva EXATAMENTE 2 parágrafos LONGOS (com 10 a 12 linhas cada). 
+         - Embaixo do 2º e do 3º subtópicos, escreva de 3 a 4 parágrafos bem densos (10 a 12 linhas cada). A meta é que as páginas seguintes tenham 4 parágrafos robustos cada.
+         Coloque todos os 3 tópicos e seus parágrafos dentro da MESMA DIV (page-container). O nosso navegador cortará a folha A4 sozinho.
       5. ELEMENTOS VISUAIS OBRIGATÓRIOS: Em TODOS os capítulos gerados, é mandatório inserir um Quadro de Resumo (<div class="highlight-box">) e uma Citação (<blockquote class="highlight-box">). Distribua-os bem.
       6. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice EXATAMENTE ASSIM: <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>.
       7. IMAGENS REAIS E PROIBIÇÕES: Ao usar URLs no Unsplash, NUNCA solicite desenhos, gráficos animados ou sci-fi. Você deve buscar EXCLUSIVAMENTE fotografias humanas e realistas (ex: https://source.unsplash.com/featured/1200x800/?people,photography,realistic). NUNCA gere a página "Sobre o Autor" (O sistema gerará nativamente no botão finalizar). NUNCA gere tags <br> ou <p>&nbsp;</p>. NUNCA deixe um Título sozinho no final da sua geração sem texto debaixo.
@@ -1179,13 +1178,12 @@ ${ebookStyles}
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
           <h3 class="subtopic-title">O Começo</h3>
-          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
-          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
-          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <p>[Parágrafo denso humano de 10 a 12 linhas...]</p>
+          <p>[Parágrafo denso humano de 10 a 12 linhas...]</p>
           <h3 class="subtopic-title">O Propósito</h3>
-          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
-          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
-          <p>[Parágrafo denso humano de 6 a 8 linhas...]</p>
+          <p>[Parágrafo denso humano de 10 a 12 linhas...]</p>
+          <p>[Parágrafo denso humano de 10 a 12 linhas...]</p>
+          <p>[Parágrafo denso humano de 10 a 12 linhas...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
     
@@ -1198,7 +1196,7 @@ ${ebookStyles}
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
           <h3 class="subtopic-title">Fechamento do Ciclo</h3>
-          <p>[Escreva a conclusão densa com cerca de 6 parágrafos de 6 a 8 linhas, SEM IMAGENS...]</p>
+          <p>[Escreva a conclusão densa com cerca de 4 a 6 parágrafos de 10 a 12 linhas, SEM IMAGENS...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
 
@@ -1238,13 +1236,12 @@ ${ebookStyles}
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
             <h3 class="subtopic-title">Visão Geral</h3>
-            <p>[Parágrafo denso de 6 a 8 linhas...]</p>
-            <p>[Parágrafo denso de 6 a 8 linhas...]</p>
-            <p>[Parágrafo denso de 6 a 8 linhas...]</p>
+            <p>[Parágrafo denso de 10 a 12 linhas...]</p>
+            <p>[Parágrafo denso de 10 a 12 linhas...]</p>
             <h3 class="subtopic-title">O Propósito</h3>
-            <p>[Parágrafo denso de 6 a 8 linhas...]</p>
-            <p>[Parágrafo denso de 6 a 8 linhas...]</p>
-            <p>[Parágrafo denso de 6 a 8 linhas...]</p>
+            <p>[Parágrafo denso de 10 a 12 linhas...]</p>
+            <p>[Parágrafo denso de 10 a 12 linhas...]</p>
+            <p>[Parágrafo denso de 10 a 12 linhas...]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       
@@ -1278,7 +1275,7 @@ ${ebookStyles}
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras, com 4 tópicos H3 e 3 parágrafos longos por tópico.'}\n"""` }
+          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras, com 3 tópicos H3, sendo 2 parágrafos no primeiro tópico e 3 a 4 parágrafos nos demais.'}\n"""` }
       ], false);
       
       if (data && data.html) {
@@ -1297,16 +1294,16 @@ ${ebookStyles}
       ${regrasComuns}
 
       MOLDE OBRIGATÓRIO (PASSO 3 - FIM):
-      1. PROIBIÇÃO ABSOLUTA CRÍTICA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções.
+      1. PROIBIÇÃO ABSOLUTA CRÍTICA: A sua resposta deve conter APENAS o bloco HTML da conclusão. NUNCA repita ou reescreva os capítulos anteriores. NUNCA crie novas capas.
       2. MOLDE DE CONCLUSÃO: 
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
           <h3 class="subtopic-title">O Fim da Jornada</h3>
-          <p>[Parágrafo de 6 a 8 linhas para preencher espaço...]</p>
-          <p>[Parágrafo de 6 a 8 linhas para preencher espaço...]</p>
-          <p>[Escreva a conclusão densa com cerca de 6 parágrafos, SEM IMAGENS...]</p>
+          <p>[Parágrafo longo e denso com 10 a 12 linhas...]</p>
+          <p>[Parágrafo longo e denso com 10 a 12 linhas...]</p>
+          <p>[Escreva a conclusão com cerca de 4 a 6 parágrafos no total, SEM IMAGENS...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
 
@@ -1588,266 +1585,216 @@ ${ebookStyles}
                                             </div>
                                         </div>
                                     )}
-
                                 </div>
-
-                                {elementoSelecionado.tagName !== 'img' && (
-                                    <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100 mt-3">
-                                        <div>
-                                            <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
-                                            <input type="color" value={elementoSelecionado.bgColor || '#ffffff'} onChange={(e) => atualizarElemento('bgColor', e.target.value)} className="w-full h-8 rounded cursor-pointer border-none" />
-                                        </div>
-                                        <div>
-                                            <label className="input-label mb-0 text-[9px] flex justify-between">Tamanho Fonte <span className="text-indigo-600 font-bold">{elementoSelecionado.fontSize || 16}px</span></label>
-                                            <input type="range" min="10" max="60" value={elementoSelecionado.fontSize || 16} onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2" />
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {elementoSelecionado.tagName !== 'img' && (
-                                  <div className="panel-section border-t border-slate-100">
-                                      <label className="input-label mb-2 text-[9px]">Alinhamento</label>
-                                      <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1">
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-left')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-left' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-left"></i></button>
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-center')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-center' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-center"></i></button>
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-right')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-right' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-right"></i></button>
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className={`flex-1 h-8 flex items-center justify-center rounded text-sm transition-all duration-200 ${elementoSelecionado.textAlign === 'text-justify' ? 'bg-indigo-600 shadow-md text-white font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><i className="fas fa-align-justify"></i></button>
-                                      </div>
-                                  </div>
-                                )}
                             </div>
                         )}
                     </div>
                 ) : (
-                    <div className="p-5 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-                        {/* 1. CONFIGURAÇÕES DE DESIGN GERAL */}
-                        <div>
-                            <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">1</span> Capa & Design</h3>
-                            <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                    <div><label className="input-label mb-2 text-[9px]">Cor Fundo E-book</label><input type="color" value={corManualBg} onChange={(e) => setCorManualBg(e.target.value)} className="w-full h-8 rounded border-none cursor-pointer" /></div>
-                                    <div><label className="input-label mb-2 text-[9px]">Cor do Texto Base</label><input type="color" value={corManualText} onChange={(e) => setCorManualText(e.target.value)} className="w-full h-8 rounded border-none cursor-pointer" /></div>
-                                    <div className="col-span-2"><label className="input-label mb-2 text-[9px]">Cor Primária (Títulos, Linhas e Bordas)</label><input type="color" value={corManualPri} onChange={(e) => setCorManualPri(e.target.value)} className="w-full h-8 rounded border-none cursor-pointer" /></div>
-                                </div>
-
-                                <div className="pt-3 border-t border-slate-100">
-                                    <label className="input-label mb-2">Buscar Imagem de Capa (Unsplash)</label>
-                                    <div className="flex gap-2 mb-2">
-                                        <input type="text" id="termoBuscaCapa" placeholder="Ex: abstract, business..." className="input-standard text-xs" />
-                                        <button onClick={() => {
-                                            const termo = (document.getElementById('termoBuscaCapa') as HTMLInputElement).value || 'abstract';
-                                            setImagemCapaUrl(`https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(termo)}&sig=${new Date().getTime()}`);
-                                            (window as any).showNotification("Nova imagem buscada!", "success");
-                                        }} className="bg-indigo-600 text-white font-bold text-xs px-3 py-2 rounded-lg"><i className="fas fa-search"></i></button>
-                                    </div>
-                                    <button onClick={() => imageInputRef.current?.click()} className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-[10px] uppercase py-2 rounded-lg transition"><i className="fas fa-upload mr-1"></i> Upload do PC</button>
-                                </div>
-
-                                <div className="pt-3 border-t border-slate-100">
-                                    <label className="input-label mb-2">Estilo da Borda da Página</label>
-                                    <select value={tipoBorda} onChange={(e) => setTipoBorda(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                        <option value="none">Sem Borda</option>
-                                        <option value="single">1 Linha Fina</option>
-                                        <option value="medium">1 Linha Média</option>
-                                        <option value="double-thin">2 Linhas Finas</option>
-                                    </select>
-                                </div>
-
-                                <div className="pt-3 border-t border-slate-100">
-                                    <label className="input-label mb-2">Estilo do Rodapé</label>
-                                    <select value={estiloRodape} onChange={(e) => setEstiloRodape(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                        <option value="linha-superior">Com Linha Superior de Divisão</option>
-                                        <option value="simples-circulo">Simples + Número no Círculo Colorido</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 2. CAPÍTULOS E AUTOR */}
-                        <div>
-                            <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">2</span> Capítulos & Autor</h3>
-                            <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                                <div>
-                                    <label className="input-label mb-2">Títulos de Capítulo</label>
-                                    <select value={estiloCapitulos} onChange={(e) => setEstiloCapitulos(e.target.value as any)} className="input-standard font-medium text-slate-800">
-                                        <option value="inline-imagem">Texto Contínuo com Imagem Abaixo do Título</option>
-                                        <option value="box-arredondado">Página Exclusiva (Imagem + Box Branco Arredondado)</option>
-                                    </select>
-                                </div>
-                                
-                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                    <div>
-                                        <label className="input-label mb-2 text-[9px]">Alinhamento do Título</label>
-                                        <select value={alinhamentoCapitulo} onChange={(e) => setAlinhamentoCapitulo(e.target.value as any)} className="input-standard text-[10px] font-medium text-slate-800">
-                                            <option value="flex-start">Topo</option><option value="center">Centro</option><option value="flex-end">Base</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="input-label mb-2 text-[9px]">Cor Fundo (Box Capítulos)</label>
-                                        <input type="color" value={corBoxCapitulo === 'rgba(255, 255, 255, 0.95)' ? '#ffffff' : corBoxCapitulo} onChange={(e) => setCorBoxCapitulo(e.target.value)} className="w-full h-8 rounded border-none cursor-pointer" />
-                                    </div>
-                                </div>
-
-                                <div className="pt-3 border-t border-slate-100">
-                                    <label className="flex items-center text-xs font-bold text-gray-700 cursor-pointer mb-2">
-                                        <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)} className="mr-2 h-4 w-4 text-indigo-600 rounded" />
-                                        Fundo Automático na 2ª Pág de cada Capítulo
-                                    </label>
-                                    
-                                    {ativarBgSegundaPagina && (
-                                        <>
-                                            <div className="flex gap-2 mb-2">
-                                                <input type="text" value={bgSegundaPaginaUrl} onChange={(e) => setBgSegundaPaginaUrl(e.target.value)} className="input-standard text-[10px] font-mono" placeholder="URL Opcional (Senão copia a img do cap.)" />
-                                            </div>
-                                            <label className="input-label mb-1 text-[9px]">Opacidade/Clareamento do Fundo</label>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] text-slate-500 font-bold">0%</span>
-                                                <input type="range" min="0" max="1" step="0.05" value={bgSegundaPaginaOpacidade} onChange={(e) => setBgSegundaPaginaOpacidade(e.target.value)} className="flex-1 accent-indigo-600 cursor-pointer" />
-                                                <span className="text-[10px] text-slate-500 font-bold">100%</span>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="mb-4 pt-3 border-t border-slate-100">
-                                    <label className="input-label text-indigo-800">Título do E-book</label>
-                                    <input type="text" value={livroTitulo} onChange={e => setLivroTitulo(e.target.value)} className="input-standard text-sm" placeholder="Ex: O Poder da Mente" />
-                                </div>
-
-                                <div className="mb-2">
-                                    <label className="input-label text-indigo-800 mb-2">Autor</label>
-                                    <input type="text" value={livroAutores} onChange={e => setLivroAutores(e.target.value)} className="input-standard text-sm" placeholder="Ex: João Silva" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 3. TIPOGRAFIA */}
-                        <div>
-                            <h3 className="text-xs font-black uppercase text-slate-800 mb-3.5 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">3</span> Tipografia e Índice</h3>
-                            <div className="space-y-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                                <div>
-                                    <label className="input-label mb-2">Fonte do Livro</label>
-                                    <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard font-medium text-slate-800">
-                                        <option value="Lato">Lato (Moderna)</option><option value="Arial">Arial (Limpa)</option><option value="Verdana">Verdana (Legível)</option><option value="EB Garamond">EB Garamond (Clássico)</option>
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                                    <div>
-                                        <label className="input-label mb-2 text-[9px]">Tamanho Fonte Base</label>
-                                        <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[10px]">
-                                            <option value="10pt">10pt</option><option value="11pt">11pt</option><option value="12pt">12pt</option><option value="13pt">13pt</option><option value="14pt">14pt</option><option value="15pt">15pt</option><option value="16pt">16pt</option><option value="18pt">18pt</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="input-label mb-2 text-[9px]">Entrelinhas</label>
-                                        <select value={espacamentoLinhas} onChange={(e) => setEspacamentoLinhas(e.target.value)} className="input-standard text-[10px]">
-                                            <option value="1.15">1.15</option><option value="1.2">1.2</option><option value="1.3">1.3</option><option value="1.4">1.4</option><option value="1.5">1.5 (Padrão)</option><option value="1.6">1.6</option><option value="1.8">1.8</option><option value="2.0">2.0 (Duplo)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="pt-3 border-t border-slate-100">
-                                    <label className="flex items-center text-xs font-bold text-gray-700 cursor-pointer">
-                                        <input type="checkbox" checked={indexShowSubtopics} onChange={(e) => setIndexShowSubtopics(e.target.checked)} className="mr-2 h-4 w-4 text-blue-600 rounded" />
-                                        Incluir Tópicos (Subtítulos) no Índice
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 4. GERAÇÃO EDITORIAL */}
-                        <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
-                            <h3 className="text-xs font-black uppercase text-indigo-900 mb-3 tracking-wide flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span> Geração Editorial</h3>
+                    <div className="animate-[fadeIn_0.2s_ease]">
+                        <div className="panel-section">
+                            <label className="input-label"><i className="fas fa-heading mr-1"></i> Título da Obra</label>
+                            <input type="text" value={livroTitulo} onChange={(e)=>setLivroTitulo(e.target.value)} className="input-standard font-bold text-slate-700" placeholder="Ex: A Arte de Inovar" />
                             
-                            <div className="mb-4">
-                                <label className="input-label text-indigo-800">Modo de Criação da IA</label>
-                                <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard text-sm mb-3 font-bold text-indigo-700 bg-white shadow-sm border-indigo-300">
-                                    <option value="expandido">💡 Criar do Zero / Expandir (Aplica regras de Volume)</option>
-                                    <option value="rigoroso">📝 Formatar Fielmente (Mantém texto original fiel)</option>
-                                </select>
+                            <label className="input-label mt-4"><i className="fas fa-user-edit mr-1"></i> Autor(es)</label>
+                            <input type="text" value={livroAutores} onChange={(e)=>setLivroAutores(e.target.value)} className="input-standard" placeholder="Ex: João da Silva" />
+                        </div>
+                        
+                        <div className="panel-section bg-slate-50/50">
+                            <label className="input-label text-indigo-700"><i className="fas fa-brain mr-1"></i> Engenharia do E-book (Conteúdo Base)</label>
+                            <div className="flex gap-2 mb-2">
+                                <button onClick={() => setModoConteudo('expandido')} className={`flex-1 py-1.5 text-[9px] font-bold rounded uppercase tracking-wider transition ${modoConteudo === 'expandido' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-white text-slate-400 border border-slate-200'}`} title="A IA criará todo o conteúdo baseado no seu tema">CRIAR/EXPANDIR (IA)</button>
+                                <button onClick={() => setModoConteudo('rigoroso')} className={`flex-1 py-1.5 text-[9px] font-bold rounded uppercase tracking-wider transition ${modoConteudo === 'rigoroso' ? 'bg-slate-700 text-white border border-slate-800' : 'bg-white text-slate-400 border border-slate-200'}`} title="A IA apenas formatará o seu texto original">MOLDAR TEXTO</button>
                             </div>
-
-                            <div className="mb-4 pt-3 border-t border-indigo-100">
-                                <label className="input-label text-indigo-800 mb-2">Inspirar no HTML (Opcional - Estilo e Cor)</label>
-                                <textarea 
-                                    value={htmlInspiracao} 
-                                    onChange={(e) => setHtmlInspiracao(e.target.value)} 
-                                    className="input-standard h-20 resize-y text-xs font-mono text-slate-500 border-indigo-200 shadow-inner" 
-                                    placeholder="Cole um HTML aqui para a IA copiar a identidade visual, cores e layouts..."
-                                ></textarea>
-                            </div>
-
-                            <div className="mb-4 pt-3 border-t border-indigo-100">
-                                <label className="input-label text-indigo-800 mb-2">Instruções / Capítulos para Gerar</label>
-                                <textarea 
-                                    value={productContent} 
-                                    onChange={(e) => {
-                                        setProductContent(e.target.value);
-                                        localStorage.setItem('ebook_draft_prompt', e.target.value);
-                                    }} 
-                                    className="input-standard h-36 resize-y leading-relaxed text-sm p-4 rounded-xl border-indigo-200 shadow-inner font-serif" 
-                                    placeholder="Digite o tema principal ou cole seu texto/capítulos aqui..."
-                                ></textarea>
-                            </div>
-
-                            <div className="flex flex-col gap-3 mt-2">
-                                <button onClick={() => gerarLivroCompleto()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider py-3.5 rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-0.5 text-xs flex items-center justify-center gap-2 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
-                                    <i className="fas fa-bolt text-yellow-300 text-lg"></i> Gerar E-book Completo
-                                </button>
-                                
-                                <div className="flex items-center my-1 opacity-50">
-                                    <div className="flex-1 h-px bg-indigo-800"></div><span className="px-3 text-[9px] font-bold text-indigo-900 uppercase">Ou Gerar por Etapas</span><div className="flex-1 h-px bg-indigo-800"></div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2">
-                                    <button onClick={() => iniciarEbookEtapas()} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-sky-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2"><i className="fas fa-play-circle text-white"></i> 1. Iniciar (Capa e Índice)</button>
-                                    <button onClick={() => continuarEbookEtapas()} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-emerald-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2"><i className="fas fa-plus-circle text-white"></i> 2. Adicionar Capítulos</button>
-                                    <button onClick={() => finalizarEbookEtapas()} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase tracking-wider py-2.5 rounded-lg shadow-md shadow-amber-200 transition-all hover:-translate-y-0.5 text-[10px] flex items-center justify-center gap-2"><i className="fas fa-flag-checkered text-white"></i> 3. Finalizar (Conclusão)</button>
+                            <textarea value={productContent} onChange={(e)=>setProductContent(e.target.value)} rows={6} className="input-standard text-xs shadow-inner border-indigo-100 focus:border-indigo-400 mb-3" placeholder={modoConteudo === 'expandido' ? "Digite os temas dos capítulos, público-alvo ou tópicos que a IA deve criar..." : "Cole aqui o seu texto completo. A IA será rigorosa e apenas formatará seu conteúdo nas páginas do E-book."}></textarea>
+                            
+                            <div className="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm mb-4">
+                                <label className="input-label text-indigo-800 mb-2"><i className="fas fa-layer-group mr-1"></i> Etapas de Geração</label>
+                                <div className="space-y-2">
+                                    <button onClick={iniciarEbookEtapas} className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2"><span className="bg-white px-2 py-0.5 rounded text-[9px] border border-indigo-100">Passo 1</span> Capa, Índice e Introdução</button>
+                                    <button onClick={continuarEbookEtapas} className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2"><span className="bg-white px-2 py-0.5 rounded text-[9px] border border-indigo-100">Passo 2</span> Gerar Próximos Capítulos</button>
+                                    <button onClick={finalizarEbookEtapas} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-md flex items-center justify-center gap-2"><span className="bg-indigo-800 px-2 py-0.5 rounded text-[9px]">Passo 3</span> Conclusão e Autor</button>
                                 </div>
                             </div>
+
+                            <button onClick={gerarLivroCompleto} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wide py-3 rounded-xl transition shadow-lg flex justify-center items-center gap-2 mb-2"><i className="fas fa-bolt text-yellow-400"></i> Gerar Livro Inteiro de uma vez</button>
+                            <div className="flex gap-2">
+                                <button onClick={iniciarNovoLivro} className="w-1/2 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-500 font-bold text-[10px] uppercase py-2 rounded-lg transition"><i className="fas fa-file mr-1"></i> Novo Branco</button>
+                                <button onClick={desfazerCodigo} className="w-1/2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-[10px] uppercase py-2 rounded-lg transition"><i className="fas fa-undo mr-1"></i> Desfazer Ação</button>
+                            </div>
+                        </div>
+
+                        <div className="panel-section">
+                            <label className="input-label"><i className="fas fa-image mr-1"></i> Capa Principal</label>
+                            <div className="flex gap-2 mb-3">
+                                <button onClick={() => setTipoCapa('imagem-texto')} className={`flex-1 py-1.5 text-[9px] font-bold rounded uppercase tracking-wider transition ${tipoCapa === 'imagem-texto' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>Clássica</button>
+                                <button onClick={() => setTipoCapa('imagem-pura')} className={`flex-1 py-1.5 text-[9px] font-bold rounded uppercase tracking-wider transition ${tipoCapa === 'imagem-pura' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>Sem Texto</button>
+                                <button onClick={() => setTipoCapa('texto')} className={`flex-1 py-1.5 text-[9px] font-bold rounded uppercase tracking-wider transition ${tipoCapa === 'texto' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>Minimalista</button>
+                            </div>
+                            <div className="flex gap-2 mb-1">
+                                <input type="text" value={imagemCapaUrl} onChange={(e)=>setImagemCapaUrl(e.target.value)} className="input-standard text-[10px]" placeholder="URL da Capa" />
+                                <button onClick={() => imageInputRef.current?.click()} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 rounded-md text-[10px] font-bold transition shadow-inner"><i className="fas fa-upload"></i></button>
+                            </div>
+                            <p className="text-[9px] text-slate-400 font-medium">Recomendado: 1200x1600px</p>
+                        </div>
+
+                        <div className="panel-section bg-slate-50/50">
+                            <label className="input-label"><i className="fas fa-font mr-1"></i> Tipografia e Espaçamento</label>
+                            <select value={fontFamily} onChange={(e)=>setFontFamily(e.target.value)} className="input-standard mb-3 cursor-pointer">
+                                <option value="Lato">Lato (Sóbria e Moderna)</option>
+                                <option value="Poppins">Poppins (Redonda, Acessível)</option>
+                                <option value="Playfair Display">Playfair (Clássica e Elegante)</option>
+                                <option value="Merriweather">Merriweather (Leitura Acadêmica)</option>
+                                <option value="EB Garamond">Garamond (Estilo Livro Físico)</option>
+                                <option value="Arial">Arial (Universal)</option>
+                                <option value="Verdana">Verdana (Espaçada, Digital)</option>
+                            </select>
+
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div><label className="input-label">Fonte Base</label><input type="text" value={tamanhoFonteBase} onChange={(e)=>setTamanhoFonteBase(e.target.value)} className="input-standard" /></div>
+                                <div><label className="input-label">Entrelinhas</label><input type="text" value={espacamentoLinhas} onChange={(e)=>setEspacamentoLinhas(e.target.value)} className="input-standard" /></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="input-label">Margem Abaixo</label><input type="text" value={espacamentoParagrafo} onChange={(e)=>setEspacamentoParagrafo(e.target.value)} className="input-standard" /></div>
+                                <div><label className="input-label">Recuo 1ª Linha</label><input type="text" value={recuoParagrafo} onChange={(e)=>setRecuoParagrafo(e.target.value)} className="input-standard" /></div>
+                            </div>
+                        </div>
+
+                        <div className="panel-section">
+                            <label className="input-label"><i className="fas fa-paint-roller mr-1"></i> Paleta de Cores</label>
+                            <select value={paletaCores} onChange={(e)=>setPaletaCores(e.target.value as any)} className="input-standard mb-3 cursor-pointer">
+                                <option value="classico">Clássico (Branco / Marrom / Coral)</option>
+                                <option value="moderno">Moderno (Branco / Azul Royal)</option>
+                                <option value="sepia">Sépia (Creme / Marrom Escuro)</option>
+                                <option value="dark">Modo Escuro (Grafite / Violeta)</option>
+                                <option value="personalizado">Natureza (Branco / Esmeralda)</option>
+                                <option value="manual">Cores Personalizadas</option>
+                            </select>
+
+                            {paletaCores === 'manual' && (
+                                <div className="grid grid-cols-2 gap-2 mt-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                    <div><label className="input-label">Fundo</label><input type="color" value={corManualBg} onChange={(e)=>setCorManualBg(e.target.value)} className="w-full h-8 rounded cursor-pointer" /></div>
+                                    <div><label className="input-label">Texto</label><input type="color" value={corManualText} onChange={(e)=>setCorManualText(e.target.value)} className="w-full h-8 rounded cursor-pointer" /></div>
+                                    <div><label className="input-label">Primária</label><input type="color" value={corManualPri} onChange={(e)=>setCorManualPri(e.target.value)} className="w-full h-8 rounded cursor-pointer" /></div>
+                                    <div><label className="input-label">Secundária</label><input type="color" value={corManualSec} onChange={(e)=>setCorManualSec(e.target.value)} className="w-full h-8 rounded cursor-pointer" /></div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="panel-section bg-slate-50/50">
+                            <label className="input-label"><i className="fas fa-layer-group mr-1"></i> Formatação de Capítulos</label>
+                            <select value={estiloCapitulos} onChange={(e)=>setEstiloCapitulos(e.target.value as any)} className="input-standard mb-3 cursor-pointer font-bold">
+                                <option value="inline-imagem">Padrão: Texto Contínuo + Imagem Topo</option>
+                                <option value="box-arredondado">Capa Exclusiva c/ Box Branco</option>
+                            </select>
+                            
+                            {estiloCapitulos !== 'inline-imagem' && (
+                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                    <div>
+                                        <label className="input-label">Alinhamento</label>
+                                        <select value={alinhamentoCapitulo} onChange={(e)=>setAlinhamentoCapitulo(e.target.value as any)} className="input-standard cursor-pointer">
+                                            <option value="center">Centro</option>
+                                            <option value="flex-start">Cima</option>
+                                            <option value="flex-end">Baixo</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="input-label">Cor do Box</label>
+                                        <input type="text" value={corBoxCapitulo} onChange={(e)=>setCorBoxCapitulo(e.target.value)} className="input-standard" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <label className="input-label mt-4 border-t border-slate-200 pt-4"><i className="fas fa-image mr-1 text-slate-400"></i> Imagem de Fundo na 2ª Página</label>
+                            <div className="flex items-center gap-2 mb-2 mt-1">
+                                <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e)=>setAtivarBgSegundaPagina(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                                <span className="text-[10px] font-bold text-slate-600">Ativar marca d'água na segunda página</span>
+                            </div>
+                            {ativarBgSegundaPagina && (
+                                <div className="space-y-2 mt-2 pl-6">
+                                    <input type="text" value={bgSegundaPaginaUrl} onChange={(e)=>setBgSegundaPaginaUrl(e.target.value)} className="input-standard text-[10px]" placeholder="URL Específica (Deixe vazio para usar a do capítulo)" />
+                                    <div>
+                                        <label className="input-label text-[9px]">Brancura (Opacidade): {bgSegundaPaginaOpacidade}</label>
+                                        <input type="range" min="0" max="1" step="0.05" value={bgSegundaPaginaOpacidade} onChange={(e)=>setBgSegundaPaginaOpacidade(e.target.value)} className="w-full accent-indigo-600" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="panel-section">
+                            <label className="input-label"><i className="fas fa-shoe-prints mr-1"></i> Rodapé e Páginas</label>
+                            <select value={estiloRodape} onChange={(e)=>setEstiloRodape(e.target.value as any)} className="input-standard mb-3 cursor-pointer">
+                                <option value="linha-superior">Nome + Linha + Número (Elegante)</option>
+                                <option value="simples">Nome + Número (Minimalista)</option>
+                                <option value="simples-circulo">Nome + Número em Círculo</option>
+                                <option value="centralizado">Somente Número Centralizado</option>
+                                <option value="centralizado-circulo">Somente Número em Círculo (Centro)</option>
+                            </select>
+
+                            <label className="input-label mt-3"><i className="fas fa-border-all mr-1"></i> Bordas da Folha (A4)</label>
+                            <select value={tipoBorda} onChange={(e)=>setTipoBorda(e.target.value as any)} className="input-standard cursor-pointer">
+                                <option value="none">Sem Borda</option>
+                                <option value="single">Linha Simples e Fina</option>
+                                <option value="medium">Linha Média</option>
+                                <option value="double-thin">Linha Dupla Elegante</option>
+                            </select>
+                            
+                            <label className="input-label mt-4 pt-3 border-t border-slate-100"><i className="fas fa-list mr-1"></i> Índice / Sumário</label>
+                            <div className="flex items-center gap-2 mt-1">
+                                <input type="checkbox" checked={indexShowSubtopics} onChange={(e)=>setIndexShowSubtopics(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                                <span className="text-[10px] font-bold text-slate-600">Exibir os subtópicos (H3) no índice</span>
+                            </div>
+                        </div>
+
+                        <div className="panel-section bg-slate-50/50">
+                            <label className="input-label"><i className="fas fa-id-badge mr-1"></i> Layout do Autor</label>
+                            <div className="grid grid-cols-2 gap-3 mb-2">
+                                <div>
+                                    <label className="input-label text-[9px]">Posição</label>
+                                    <select value={autorPosicao} onChange={(e)=>setAutorPosicao(e.target.value as any)} className="input-standard text-[10px] cursor-pointer">
+                                        <option value="esquerda">Lado a Lado</option>
+                                        <option value="topo">Foto no Topo</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="input-label text-[9px]">Formato Foto</label>
+                                    <select value={autorFormato} onChange={(e)=>setAutorFormato(e.target.value as any)} className="input-standard text-[10px] cursor-pointer">
+                                        <option value="circulo">Círculo</option>
+                                        <option value="retangulo">Retrato (Retângulo)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <p className="text-[9px] text-slate-400 font-medium">A página de autor é adicionada automaticamente ao usar a etapa "Conclusão e Autor".</p>
                         </div>
                     </div>
                 )}
             </div>
         </aside>
 
-        {/* ÁREA PRINCIPAL - CANVAS EDITORIAL */}
-        <main className="flex-grow relative bg-slate-200 p-0 md:p-8 overflow-y-auto overflow-x-hidden flex justify-center items-start custom-scrollbar">
-            <div className="bg-white border-b border-slate-200 flex justify-between items-center px-4 md:px-6 h-[60px] shadow-sm z-10 absolute top-0 left-0 right-0">
-                <div className="flex items-center gap-3">
-                    <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-                        <button id="tabPreview" onClick={() => (window as any).mudarSeparador('preview')} className="px-5 py-2 rounded-md font-bold text-xs bg-white text-indigo-700 shadow-sm transition">Ver Leitura</button>
-                        <button id="tabCode" onClick={() => (window as any).mudarSeparador('code')} className="px-5 py-2 rounded-md font-bold text-xs text-slate-500 hover:text-slate-800 transition">Código HTML</button>
-                    </div>
-                    <div className="w-px h-6 bg-slate-200 mx-2 hidden md:block"></div>
-                    <button onClick={desfazerCodigo} className="hidden md:flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-xs font-bold transition px-2 py-1 rounded hover:bg-slate-100" title="Desfazer"><i className="fas fa-undo"></i></button>
-                    <button onClick={iniciarNovoLivro} className="hidden md:flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 text-xs font-bold transition px-2 py-1 rounded hover:bg-indigo-50" title="Apagar tela e iniciar novo arquivo em branco"><i className="fas fa-file"></i> Novo Livro</button>
+        {/* ÁREA PRINCIPAL (VISUALIZAÇÃO / CÓDIGO) */}
+        <main className="flex-1 flex flex-col min-w-0 bg-slate-200/50 relative">
+            <header className="h-[60px] bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 shadow-sm z-10">
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <button id="tabPreview" onClick={() => (window as any).mudarSeparador('preview')} className="px-5 py-2 rounded-md font-bold text-[11px] bg-slate-800 text-white shadow-sm transition"><i className="fas fa-eye mr-1.5"></i> Visão A4</button>
+                    <button id="tabCode" onClick={() => (window as any).mudarSeparador('code')} className="px-5 py-2 rounded-md font-bold text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"><i className="fas fa-code mr-1.5"></i> Código HTML</button>
                 </div>
-
-                <div className="flex items-center gap-2 md:gap-3">
-                    <button onClick={salvarNaBiblioteca} className="px-4 py-2 border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-bold text-xs rounded-lg transition flex items-center shadow-sm" title="Salvar progresso na Memória Local do seu navegador">
-                        <i className="fas fa-save mr-1.5"></i> Salvar Local
-                    </button>
-                    <button onClick={() => setModalBiblioteca(true)} className="px-4 py-2 bg-slate-800 text-white hover:bg-slate-900 font-bold text-xs rounded-lg transition flex items-center shadow-sm">
-                        <i className="fas fa-folder-open mr-1.5 text-indigo-400"></i> Meus Livros
-                    </button>
-                    <div className="w-px h-6 bg-slate-200 mx-1 hidden md:block"></div>
-                    <button onClick={() => (window as any).baixarPdf()} className="px-6 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold text-xs uppercase tracking-wide rounded-lg transition flex items-center shadow-sm">
-                        <i className="fas fa-file-pdf mr-1.5"></i> Baixar PDF
-                    </button>
-                </div>
-            </div>
-            
-            <div className="pt-[60px] w-full h-full">
-                <iframe id="previewFrame" className="w-full h-full border-none active bg-transparent" sandbox="allow-scripts allow-same-origin allow-modals" title="Leitor do Ebook"></iframe>
                 
-                <div id="codigoContainer" className="absolute inset-0 pt-[60px] bg-[#0d1117] hidden">
-                    <textarea id="codigoGerado" className="w-full h-full font-mono text-[13px] bg-[#0d1117] text-[#56d364] border-none outline-none resize-none custom-scrollbar p-8 leading-relaxed"
-                        onChange={(e) => {
-                            const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-                            if (iframe) { iframe.srcdoc = moldarApresentacaoHtml(e.target.value) + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade); }
-                            localStorage.setItem('ebook_draft_html', e.target.value);
-                        }}
-                    ></textarea>
+                <div className="flex gap-3">
+                    <div className="flex bg-slate-50 border border-slate-200 rounded-lg overflow-hidden p-0.5">
+                        <button onClick={() => setTextEngine('gemini')} className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wide rounded ${textEngine === 'gemini' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200 transition'}`}>Gemini Pro</button>
+                        <button onClick={() => setTextEngine('groq')} className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wide rounded ${textEngine === 'groq' ? 'bg-orange-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200 transition'}`}>Llama 3</button>
+                    </div>
+                    <div className="w-px h-8 bg-slate-300 mx-1"></div>
+                    <button onClick={() => setModalBiblioteca(true)} className="bg-white border border-slate-300 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-2"><i className="fas fa-folder-open text-indigo-500"></i> Biblioteca</button>
+                    <button onClick={salvarNaBiblioteca} className="bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-2"><i className="fas fa-save"></i> Salvar Local</button>
+                    <button onClick={() => (window as any).baixarHtml()} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-md flex items-center gap-2"><i className="fas fa-download text-emerald-400"></i> HTML</button>
+                    <button onClick={() => (window as any).baixarPdf()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-md flex items-center gap-2"><i className="fas fa-file-pdf text-red-200"></i> Imprimir PDF</button>
+                </div>
+            </header>
+
+            <div className="flex-1 relative overflow-hidden">
+                <iframe id="previewFrame" className="w-full h-full bg-[#f1f5f9] border-none active" title="Pré-visualização do E-book"></iframe>
+                <div id="codigoContainer" className="w-full h-full p-4 bg-[#1e293b]">
+                    <textarea id="codigoGerado" className="w-full h-full bg-[#0f172a] text-[#38bdf8] font-mono text-xs p-5 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 shadow-inner resize-none" spellCheck="false" placeholder="Seu código HTML aparecerá aqui..."></textarea>
                 </div>
             </div>
         </main>
