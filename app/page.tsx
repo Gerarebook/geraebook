@@ -25,7 +25,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // 1. SINCRONIZADOR DE ÍNDICE MESTRE E LIMPEZA
+    // 1. SINCRONIZADOR DE ÍNDICE MESTRE
     function sincronizarIndice() {
         document.querySelectorAll('p').forEach(p => {
             if(p.innerHTML.trim() === '' || p.innerHTML.trim() === '&nbsp;') p.remove();
@@ -34,7 +34,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         const allTocs = document.querySelectorAll('.toc-container');
         if (allTocs.length === 0) return;
 
-        // Mantém apenas o primeiro índice
         const mainToc = allTocs[0];
         for(let i = 1; i < allTocs.length; i++) { allTocs[i].closest('.page-container')?.remove(); }
 
@@ -88,7 +87,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO (Corte Seco e Exato)
+    // 2. MOTOR DE REFLUXO AVANÇADO (Corte Seco e Preciso)
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -108,12 +107,10 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                    page.classList.contains('cap-box-rounded') || 
                    page.classList.contains('cap-img-pura')) continue;
 
-                // Pega o limite inferior da página descontando o espaço do rodapé
                 let computedStyle = window.getComputedStyle(page);
                 let paddingBottom = parseFloat(computedStyle.paddingBottom);
                 let pageRect = page.getBoundingClientRect();
                 
-                // A linha vermelha imaginária onde o texto tem que parar
                 let limitY = pageRect.bottom - paddingBottom;
                 
                 let childNodes = Array.from(page.children).filter(el => 
@@ -125,7 +122,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 let overflowIndex = -1;
                 let tocOverflowIndex = -1;
 
-                // A. CHECAGEM MANUAL DE QUEBRA (Botão do Inspetor)
+                // A. QUEBRA MANUAL DO USUÁRIO
                 for(let j=1; j < childNodes.length; j++) {
                     let node = childNodes[j];
                     if (node.classList.contains('force-break-before')) {
@@ -135,7 +132,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                     }
                 }
 
-                // B. CHECAGEM OVERFLOW NATURAL (Bateu na borda do A4)
+                // B. CORTE SECO DA MARGEM
                 if (overflowIndex === -1) {
                     for(let j=0; j < childNodes.length; j++) {
                         let node = childNodes[j];
@@ -153,9 +150,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                         } else {
                             let nodeRect = node.getBoundingClientRect();
                             let nodeBottom = nodeRect.bottom + parseFloat(window.getComputedStyle(node).marginBottom || 0);
-                            
-                            // O MOMENTO DO CORTE
-                            if (nodeBottom > limitY + 2) { 
+                            if (nodeBottom > limitY) { 
                                 overflowIndex = j;
                                 break;
                             }
@@ -175,17 +170,15 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                         nodesToMove = childNodes.slice(overflowIndex + 1);
                         nodesToMove.unshift(nextContainer);
                     } else {
-                        // ANTI-ÓRFÃO DE TÍTULO: Se o corte cair num parágrafo, checa se a linha de cima é um Título.
-                        // Se for um título (H2/H3), puxa ele pra próxima página junto para não ficar sozinho!
+                        // Corte seco exato. Removemos a "inteligência" que puxava parágrafos, para acabar com os buracos.
                         let safeBreak = overflowIndex;
+                        // Apenas garante que não separa um Título do seu texto imediato
                         if (safeBreak > 0) {
                             let prevNode = childNodes[safeBreak - 1];
                             if (prevNode.tagName.match(/^H[1-6]$/i) || prevNode.classList.contains('subtopic-title')) {
                                 safeBreak--;
                             }
                         }
-                        
-                        if (safeBreak <= 0 && childNodes.length > 1) { safeBreak = 1; }
                         nodesToMove = childNodes.slice(safeBreak);
                     }
 
@@ -208,7 +201,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             }
         }
 
-        // LIMPEZA DE PÁGINAS VAZIAS
+        // LIMPEZA RÁPIDA
         document.querySelectorAll('.page-container').forEach(page => {
             const contentNodes = Array.from(page.children).filter(el => 
                 !el.classList.contains('page-header') && 
@@ -220,20 +213,18 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             }
         });
 
-        // 3. IDENTIFICADOR DA 2ª PÁGINA (Com Herança Automática da Imagem do Capítulo)
+        // 3. APLICADOR DO FUNDO DA 2ª PÁGINA
         let chIndex = 0;
         let currentChapterImg = '';
         
         document.querySelectorAll('.page-container').forEach((p) => {
             let imgEl = p.querySelector('.chapter-banner-img');
             
-            // Verifica se iniciou um capítulo novo
             if(p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura') || p.classList.contains('page-cover-pura')) {
                 chIndex = 1; 
                 if (imgEl) {
                     currentChapterImg = imgEl.src;
                 } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-                    // Pega o background-image da página de capa do capítulo se não for tag img
                     let bgMatch = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
                     if (bgMatch) currentChapterImg = bgMatch[1];
                 }
@@ -241,13 +232,9 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 chIndex++; 
             }
 
-            // Aplica APENAS na 2ª página do capítulo e se a opção estiver ativada
             if (chIndex === 2 && ${ativarBgSegundaPagina} && !p.classList.contains('author-page') && !p.classList.contains('toc-container')) {
                 p.classList.add('chapter-page-2');
-                
-                // Se o usuário não digitou URL manual, PUXA AUTOMATICAMENTE a imagem do capítulo!
                 let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
-                
                 if (finalBgUrl && finalBgUrl.trim() !== '') {
                     p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
                     p.style.setProperty('background-size', 'cover', 'important');
@@ -414,7 +401,6 @@ export default function Home() {
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
 
-  // CONFIGURAÇÕES DE DESIGN GERAL (Margens Blindadas no Padrão Ouro: 32mm topo)
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -426,14 +412,12 @@ export default function Home() {
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
   const [htmlTemplate, setHtmlTemplate] = useState('');
 
-  // CORES MANUAIS
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
   const [corManualSec, setCorManualSec] = useState('#3b82f6');
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
 
-  // CONFIGURAÇÕES DE CAPÍTULO E AUTOR
   const [estiloCapitulos, setEstiloCapitulos] = useState<'padrao' | 'box-arredondado' | 'imagem-pura' | 'inline-imagem' | 'inline'>('inline-imagem');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
@@ -441,19 +425,16 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
-  // BACKGROUND SEGUNDA PÁGINA AUTOMÁTICO
   const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
   const [bgSegundaPaginaUrl, setBgSegundaPaginaUrl] = useState('');
   const [bgSegundaPaginaOpacidade, setBgSegundaPaginaOpacidade] = useState('0.85');
 
-  // DADOS DO PROJETO E OPÇÕES DO ÍNDICE
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso'>('expandido');
   const [indexShowSubtopics, setIndexShowSubtopics] = useState(true);
 
-  // BIBLIOTECA LOCAL
   const [livrosSalvos, setLivrosSalvos] = useState<{id: string, titulo: string, data: string, html: string, prompt: string}[]>([]);
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
 
@@ -466,7 +447,6 @@ export default function Home() {
     };
     verificarAcesso();
 
-    // 💾 RECUPERA O RASCUNHO E O PROMPT ATUAL DO LOCALSTORAGE
     const savedHtml = localStorage.getItem('ebook_draft_html');
     const savedPrompt = localStorage.getItem('ebook_draft_prompt');
     
@@ -530,7 +510,14 @@ export default function Home() {
       const conf = getEstilosFormato();
       const paleta = getPaletaObj();
       
-      // O Javascript injetará o background da página 2 automaticamente, aqui definimos apenas a base CSS.
+      const urlFundo2 = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : 'https://images.unsplash.com/photo-1607513746994-6c36195fb27f?auto=format&fit=crop&w=1200&q=80';
+      const bgSegundaPaginaCss = ativarBgSegundaPagina ? `
+      .chapter-page-2 {
+          background-image: linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${urlFundo2}') !important;
+          background-size: cover !important;
+          background-position: center !important;
+      }` : '';
+
       const ebookStyles = `<style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
@@ -580,6 +567,8 @@ body {
     counter-increment: ebook-page;
 }
 
+${bgSegundaPaginaCss}
+
 .page-container::after, .page-cover-img::after, .page-cover-pura::after, .page-cover-text::after,
 .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
     content: '';
@@ -610,10 +599,12 @@ h1.chapter-title-exclusive { color: #fff; font-size: 2.8rem; margin-top: 15px; t
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
+/* FIX FORMATO DE IMAGEM */
 .chapter-banner-img { width: 100%; height: 300px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.2rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
 .chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
-h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 0.8rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
+/* ESPAÇAMENTO EXATO ENTRE TÓPICO E PARÁGRAFO */
+h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1em; color: var(--color-primary); line-height: 1.2; text-align: left; }
 
 .page-header { 
     position: absolute; top: 12mm; left: 18mm; right: 18mm; 
@@ -660,7 +651,7 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR - ALINHAMENTO FLEX E QUEBRA PERFEITA */
+/* SEÇÃO DO AUTOR */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; page-break-inside: avoid; break-inside: avoid; }
 .author-section.layout-topo { flex-direction: column; text-align: center; }
@@ -823,14 +814,14 @@ ${ebookStyles}
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
-  // BUSCADOR UNSPLASH 100% EXCLUSIVO E AUTOMÁTICO
+  // BUSCADOR UNSPLASH AUTOMÁTICO (Focado em Fotografia Humana/Realista)
   async function buscarImagemUnsplash() {
       if (!elementoSelecionado) return;
       (window as any).showNotification("Lendo contexto para buscar imagem perfeita no Unsplash...", "info");
       
       let keyword = "abstract"; 
       try {
-          const instrucao = "Você é um fotógrafo e designer de capa. Retorne APENAS UMA ÚNICA palavra-chave em INGLÊS (sem vírgulas ou símbolos) que represente o texto fornecido para buscar no banco de imagens Unsplash.";
+          const instrucao = "Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra.";
           const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
           
           if (data && data.html) {
@@ -841,13 +832,12 @@ ${ebookStyles}
           console.error("Falha ao ler palavras-chave via IA, usando padrão.");
       }
 
-      // O carimbo de tempo na URL garante imagem inédita sempre
       const timestamp = new Date().getTime(); 
-      const url = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(keyword)}&sig=${timestamp}`;
+      const url = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(keyword)},photography,human&sig=${timestamp}`;
       let isBg = elementoSelecionado.tagName !== 'img';
       
       atualizarElemento(isBg ? 'bgImage' : 'src', url);
-      (window as any).showNotification("Imagem fotográfica aplicada!", "success");
+      (window as any).showNotification("Fotografia aplicada com sucesso!", "success");
   }
 
   async function aplicarModificacaoGlobal() {
@@ -1025,28 +1015,53 @@ ${ebookStyles}
       let regraEstiloCapitulos = "";
       if (estiloCapitulos === 'padrao') {
           regraEstiloCapitulos = `
-          - PÁGINA 1: Para abrir o capítulo, USE UM BLOCO ÚNICO <div class="page-container cap-img-overlay" style="background-image: url('URL_AQUI');"> com H1. NUNCA repita o nome do livro, coloque o título exclusivo do capítulo! NÃO inclua texto de parágrafo nesta div. Após a div de capa, abra uma NOVA <div class="page-container"> normal. A nova página DEVE INICIAR com um Título de Tópico (<h3 class="subtopic-title">Nome</h3>) e depois EXATOS 2 PARÁGRAFOS de introdução.`;
+          Para ABRIR um novo capítulo, USE O MOLDE EXATO (Página de Capa):
+          <div class="page-container cap-img-overlay" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
+              <div class="cap-icon"><i class="fas fa-book-open"></i></div>
+              <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo Deste Capítulo</h1>
+          </div>
+          Após a div de capa, abra uma NOVA <div class="page-container">. 
+          OBRIGATÓRIO NA PÁGINA 1: No topo, INICIE COM UM TÍTULO DE TÓPICO (<h3 class="subtopic-title">Nome</h3>) e EXATOS 2 PARÁGRAFOS curtos de introdução.`;
       } else if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
-          - PÁGINA 1: Para abrir o capítulo, USE UM BLOCO ÚNICO <div class="page-container cap-box-rounded" style="background-image: url('URL_AQUI');"> com H1. NUNCA repita o nome do livro, coloque o título exclusivo do capítulo! NÃO inclua texto de parágrafo nesta div. Após a div de capa, abra uma NOVA <div class="page-container"> normal. A nova página DEVE INICIAR com um Título de Tópico (<h3 class="subtopic-title">Nome</h3>) e depois EXATOS 2 PARÁGRAFOS de introdução.`;
+          Para ABRIR um novo capítulo, USE O MOLDE EXATO (Página de Capa):
+          <div class="page-container cap-box-rounded" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');">
+              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo Deste Capítulo</h1></div>
+          </div>
+          Após a div de capa, abra uma NOVA <div class="page-container">. 
+          OBRIGATÓRIO NA PÁGINA 1: No topo, INICIE COM UM TÍTULO DE TÓPICO (<h3 class="subtopic-title">Nome</h3>) e EXATOS 2 PARÁGRAFOS curtos de introdução.`;
       } else if (estiloCapitulos === 'imagem-pura') {
           regraEstiloCapitulos = `
-          - PÁGINA 1: Para abrir o capítulo, USE UMA DIV APENAS COM A IMAGEM <div class="page-container cap-img-pura" style="background-image: url('URL_AQUI');"></div>. NÃO inclua texto. Após ela, abra uma NOVA <div class="page-container"> normal, coloque o título <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo</h2> no topo. Abaixo do h2, escreva um Título de Tópico (<h3 class="subtopic-title">Nome</h3>) e EXATOS 2 PARÁGRAFOS de introdução.`;
+          Para ABRIR um novo capítulo, USE O MOLDE EXATO (Página de Capa):
+          <div class="page-container cap-img-pura" style="background-image: url('URL_DA_IMAGEM_UNSPLASH_AQUI');"></div>
+          Após ela, abra uma NOVA <div class="page-container">.
+          OBRIGATÓRIO NA PÁGINA 1: Coloque <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo</h2> no topo. Abaixo do H2, INICIE COM UM TÍTULO DE TÓPICO (<h3 class="subtopic-title">Nome</h3>) e EXATOS 2 PARÁGRAFOS curtos.`;
       } else if (estiloCapitulos === 'inline-imagem') {
           regraEstiloCapitulos = `
-          - PÁGINA 1: O Capítulo OBRIGATORIAMENTE deve ser construído na seguinte ordem estrutural rigorosa (nesta exata sequência, tudo dentro de <div class="page-container">): 
-             1º Cabeçalho (page-header)
-             2º H2 do Capítulo
-             3º Tag Imagem (<img> com URL válida do Unsplash)
-             4º Um subtítulo H3
-             5º EXATAMENTE 2 parágrafos. FIM DA PÁGINA 1.`;
+          NÃO crie página de capa de fundo! O capítulo OBRIGATORIAMENTE deve ser formatado neste MOLDE EXATO E ESTRITO para iniciar (Tudo dentro da mesma DIV inicial):
+          <div class="page-container">
+              <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo Deste Capítulo</h2>
+              <img src="URL_DA_IMAGEM_UNSPLASH_AQUI" class="chapter-banner-img" alt="Ilustração do Capítulo" />
+              <h3 class="subtopic-title">Nome do Primeiro Tópico</h3>
+              <p>[Primeiro parágrafo do capítulo...]</p>
+              <p>[Segundo parágrafo do capítulo...]</p>
+              <div class="page-footer">${regraRodape}</div>
+          </div>
+          ATENÇÃO: Substitua a URL por uma fotografia humana real do Unsplash (ex: https://source.unsplash.com/featured/1200x800/?people,photography). 
+          OBRIGATÓRIO NA PÁGINA 1: OBRIGATORIAMENTE a imagem é seguida por um <h3> e apenas 2 PARÁGRAFOS, formando a primeira página.`;
       } else {
           regraEstiloCapitulos = `
-          - PÁGINA 1: O Capítulo OBRIGATORIAMENTE deve ser construído na seguinte ordem estrutural rigorosa (sem Imagem, tudo dentro de <div class="page-container">):
-             1º Cabeçalho (page-header)
-             2º H2 do Capítulo
-             3º Um subtítulo H3
-             4º EXATAMENTE 2 parágrafos. FIM DA PÁGINA 1.`;
+          NÃO use imagens no topo! O capítulo OBRIGATORIAMENTE deve ser formatado neste MOLDE EXATO E ESTRITO:
+          <div class="page-container">
+              <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo Deste Capítulo</h2>
+              <h3 class="subtopic-title">Nome do Primeiro Tópico</h3>
+              <p>[Primeiro parágrafo do capítulo...]</p>
+              <p>[Segundo parágrafo do capítulo...]</p>
+              <div class="page-footer">${regraRodape}</div>
+          </div>
+          OBRIGATÓRIO NA PÁGINA 1: O h2 OBRIGATORIAMENTE é seguido por um <h3> e EXATOS 2 PARÁGRAFOS.`;
       }
 
       let regraCapaHtml = "";
@@ -1059,22 +1074,22 @@ ${ebookStyles}
       }
 
       const regraModo = modoConteudo === 'rigoroso' 
-          ? `MODO RIGOROSO (FORMATADOR FIEL ESTRITO): Você está PROIBIDO de inventar conteúdo, adicionar parágrafos ou mudar o tamanho do texto. Sua ÚNICA função é pegar o texto fornecido pelo usuário, corrigir ortografia/pontuação, e aplicar as tags HTML de formatação (h2, h3, p). MANTENHA A QUANTIDADE E O CONTEÚDO ORIGINAL INTACTOS. Neste modo, IGNORE as regras de "Volume de Páginas", "Quantidade de Parágrafos" e "Elementos Visuais" listadas abaixo. Não tem problema ficar parágrafo órfão neste modo.` 
-          : `MODO EXPANDIDO (CRIATIVO): O usuário forneceu o tema central. Crie, expanda e escreva o e-book com a estrutura de volume EXATA cravada nas regras abaixo.`;
+          ? `MODO RIGOROSO (FORMATADOR FIEL ESTRITO): Você está PROIBIDO de inventar conteúdo, adicionar parágrafos ou mudar o tamanho do texto. Sua ÚNICA função é pegar o texto original, corrigir ortografia e envelopar nas tags HTML exatas do sistema (h2, h3, p). MANTENHA O TEXTO ORIGINAL INTACTO. Neste modo, IGNORE as regras de "Volume de Páginas" e "Molde de Capítulos", formate APENAS o que o usuário mandar.` 
+          : `MODO EXPANDIDO (CRIATIVO E ESTRUTURADO): O usuário forneceu o tema central. Crie e expanda o e-book garantindo OBRIGATORIAMENTE o volume exato do "Molde de Capítulos" abaixo.`;
 
       const regrasComuns = `
-      ESTRUTURA MATEMÁTICA OBRIGATÓRIA DOS CAPÍTULOS:
-      AJA COMO UM SISTEMA ROBÓTICO DE FORMATAÇÃO E UM ESCRITOR DE LINGUAGEM HUMANIZADA.
+      DIRETRIZES DE ESTRUTURA EDITORIAL:
+      AJA COMO UM SISTEMA GERADOR DE HTML MATEMÁTICO E ESCRITOR HUMANIZADO.
       1. REGRA SUPREMA DO USUÁRIO: Se o usuário pedir no prompt "faça X páginas", "não use quadros", etc., VOCÊ DEVE OBEDECER AO PEDIDO DELE ACIMA DE QUALQUER REGRA DESTE SISTEMA.
       2. REGRA DE OPERAÇÃO: ${regraModo}
-      
-      3. REGRA DE VOLUME E PÁGINAS (CRAVADO 3 PÁGINAS POR CAPÍTULO): Cada capítulo TEM QUE RENDER EXATAMENTE 3 PÁGINAS e EXATAMENTE 3 TÓPICOS. Siga o seguinte Molde de Capítulos Rígido:
-         ${regraEstiloCapitulos}
-         - PÁGINA 2 DO CAPÍTULO: Novo Título de Tópico (<h3>) -> 4 Parágrafos (cerca de 4 a 5 linhas cada) -> 1 Quadro Ilustrativo (<div class="highlight-box">).
-         - PÁGINA 3 DO CAPÍTULO: Novo Título de Tópico (<h3>) -> 4 Parágrafos (cerca de 4 a 5 linhas cada) -> 1 Citação de reflexão (<blockquote class="highlight-box">).
-      
-      4. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice: <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>.
-      5. PROIBIÇÕES: NUNCA gere a página "Sobre o Autor" (O sistema gerará nativamente). Se for instruído a "continuar" o livro, NUNCA repita a Capa ou Introdução. NUNCA gere tags <br> ou <p>&nbsp;</p>. NUNCA repita o Título do livro na variável NOME DO CAPÍTULO.
+      3. MOLDE DE CAPÍTULOS (CRAVADO 3 PÁGINAS): Cada capítulo TEM QUE RENDER EXATAMENTE 3 PÁGINAS e TER EXATOS 3 TÓPICOS H3. Siga o fluxo obrigatório:
+         - PÁGINA 1: Começa com Imagem ou Título Principal -> H3 -> 2 Parágrafos Iniciais.
+         - PÁGINA 2: Novo H3 -> 4 Parágrafos -> 1 Quadro (<div class="highlight-box">Conceito principal</div>).
+         - PÁGINA 3: Novo H3 -> 4 Parágrafos -> 1 Citação (<blockquote class="highlight-box">Citação impactante</blockquote>).
+      4. ELEMENTOS VISUAIS OBRIGATÓRIOS: Em TODOS os capítulos, é mandatório inserir um Quadro na Página 2 e uma Citação na Página 3. Nunca na mesma página.
+      5. ESTRUTURA HTML ÚNICA: Coloque TODOS os parágrafos de um capítulo dentro de uma ÚNICA <div class="page-container">. O corte será feito de forma seca e perfeita no navegador.
+      6. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice: <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>.
+      7. IMAGENS REAIS E PROIBIÇÕES: Ao usar URLs no Unsplash, NUNCA solicite desenhos ou sci-fi, apenas fotografia real humana. NUNCA gere a página "Sobre o Autor" (O sistema gerará). NUNCA gere tags <br> ou <p>&nbsp;</p>. NUNCA repita o Título do livro no lugar da variável NOME DO CAPÍTULO.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
@@ -1086,12 +1101,12 @@ ${ebookStyles}
 
     const { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos } = obterInstrucoesBase();
 
-    const instrucao = `Atue como Especialista Editorial. Gere o E-book COMPLETO em HTML.
+    const instrucao = `Gere o E-book COMPLETO em HTML puro.
     ${regrasComuns}
-    OBRIGAÇÕES DESTE MODO (COMPLETO):
-    - Gere a Capa OBRIGATORIAMENTE COM ESTE CÓDIGO EXATO: 
+    ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
+    - 1. Capa: 
       ${regraCapaHtml}
-    - Gere o Índice OBRIGATORIAMENTE DENTRO DE UMA PÁGINA: 
+    - 2. Índice: 
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div>
           <h2 class="chapter-title-inline">Índice</h2>
@@ -1099,17 +1114,17 @@ ${ebookStyles}
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - A INTRODUÇÃO DEVE TER OBRIGATORIAMENTE CONTEÚDO PARA EXATAS 2 PÁGINAS: 
+    - 3. Introdução (Volume cravado: 2 páginas): 
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
           <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-          <h3 class="subtopic-title">Visão Geral</h3>
+          <h3 class="subtopic-title">O Começo</h3>
           <p>[Parágrafo denso humano de 4 linhas...]</p>
           <p>[Parágrafo denso humano de 4 linhas...]</p>
           <p>[Parágrafo denso humano de 4 linhas...]</p>
           <p>[Parágrafo denso humano de 4 linhas...]</p>
-          <h3 class="subtopic-title">O Começo da Jornada</h3>
+          <h3 class="subtopic-title">O Propósito</h3>
           <p>[Parágrafo denso humano de 4 linhas...]</p>
           <p>[Parágrafo denso humano de 4 linhas...]</p>
           <p>[Parágrafo denso humano de 4 linhas...]</p>
@@ -1117,22 +1132,24 @@ ${ebookStyles}
           <div class="page-footer">${regraRodape}</div>
       </div>
     
-    - Gere TODOS os capítulos solicitados aplicando RIGOROSAMENTE A MATEMÁTICA DE 3 PÁGINAS POR CAPÍTULO.
+    - 4. Capítulos:
+      ${regraEstiloCapitulos}
+      (Gere as páginas 2 e 3 de cada capítulo com H3, Quadros e Citações conforme as Diretrizes).
     
-    - OBRIGATÓRIO (MOLDE FINAL DA IA): Ao chegar na conclusão, use EXATAMENTE esta estrutura HTML para finalizar o livro:
+    - 5. Conclusão: Use EXATAMENTE esta estrutura HTML para finalizar:
       <!-- PROIBIDO USAR TAG IMG AQUI -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
           <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
           <h3 class="subtopic-title">Fechamento do Ciclo</h3>
-          <p>[Escreva a conclusão com cerca de 6 a 8 parágrafos de 4 linhas...]</p>
+          <p>[Escreva a conclusão densa com cerca de 6 a 8 parágrafos de 4 linhas, SEM IMAGENS...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
 
       AVISO: O PROMPT ACABA AQUI. NUNCA CRIE PÁGINA DO AUTOR, APENAS FECHE A CONCLUSÃO.
     `;
 
-    const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA O E-BOOK:\n"""\n${content}\n"""` }], false);
+    const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA O E-BOOK:\n"""\n${content}\n"""` }], false);
     if (data && data.html) {
         let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
         aplicarHtmlNovo(htmlFinal, false);
@@ -1148,7 +1165,7 @@ ${ebookStyles}
 
       const instrucao = `Você vai INICIAR um e-book gerando APENAS a Capa, Índice e Introdução.
       ${regrasComuns}
-      MOLDE OBRIGATÓRIO (PASSO 1 - INÍCIO):
+      ESTRUTURA OBRIGATÓRIA DA RESPOSTA (PASSO 1):
       1. CAPA: 
          ${regraCapaHtml}
       2. ÍNDICE: 
@@ -1159,7 +1176,7 @@ ${ebookStyles}
             <div class="page-footer">${regraRodape}</div>
          </div>
       
-      3. INTRODUÇÃO (Volume: EXATAS 2 páginas): 
+      3. INTRODUÇÃO (Volume cravado: 2 páginas): 
          <!-- PROIBIDO USAR TAG IMG AQUI -->
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
@@ -1180,7 +1197,7 @@ ${ebookStyles}
       4. PARE AQUI! NÃO gere o Capítulo 1 ainda.
       `;
 
-      const data = await chamarMotorIA(instrucao, [{ text: `TEMA BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
+      const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
       if (data && data.html) {
           aplicarHtmlNovo(data.html, false);
           (window as any).showNotification("Passo 1 Concluído! Capa, Índice e Introdução gerados.", "success");
@@ -1199,14 +1216,16 @@ ${ebookStyles}
       const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES CRÍTICAS (PASSO 2 - MEIO):
-      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com <div class="page-container"> iniciando o NOVO capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Índice ou Introdução neste passo.
-      2. ONDE CONTINUAR: Leia o código que forneci abaixo e comece no capítulo seguinte da numeração lógica.
-      3. RETORNE AS DIVS COMPLETAS: Retorne TODO O CÓDIGO HTML COMPLETO DOS NOVOS CAPÍTULOS, aplicando o molde das 3 páginas por capítulo.
+      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com <div class="page-container"> iniciando o novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Índice ou Introdução neste passo.
+      2. ONDE CONTINUAR: Leia o código que forneci abaixo e comece no capítulo seguinte.
+      3. ESTRUTURA DO CAPÍTULO: 
+         ${regraEstiloCapitulos}
+      4. CUMPRA A REGRA: Páginas 2 e 3 de cada capítulo devem ter os Tópicos (H3), os Quadros e as Citações como ordenado nas diretrizes.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos capítulos garantindo o volume matemático de EXATAMENTE 3 páginas para cada capítulo (10 parágrafos + 1 Quadro + 1 Citação).'}\n"""` }
+          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos capítulos garantindo OBRIGATORIAMENTE o volume de 3 páginas (Mínimo de 3 tópicos, citações e quadros) para cada capítulo.'}\n"""` }
       ], false);
       
       if (data && data.html) {
@@ -1234,11 +1253,11 @@ ${ebookStyles}
           <h3 class="subtopic-title">O Fim da Jornada</h3>
           <p>[Parágrafo de 4 linhas para preencher espaço...]</p>
           <p>[Parágrafo de 4 linhas para preencher espaço...]</p>
-          <p>[Escreva a conclusão densa com cerca de 6 a 8 parágrafos, SEM IMAGENS...]</p>
+          <p>[Escreva a conclusão com cerca de 6 a 8 parágrafos, SEM IMAGENS...]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
 
-      O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará da bio do autor.
+      O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará do autor.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
@@ -1384,7 +1403,7 @@ ${ebookStyles}
                                         </div>
                                         <div className="flex gap-2">
                                             <button onClick={() => carregarDaBiblioteca(livro)} className="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white font-bold px-4 py-2 rounded-lg text-xs transition">Carregar</button>
-                                            <button onClick={() => excluirDaBiblioteca(livro.id)} className="bg-red-50 text-red-500 hover:bg-red-500 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"><i className="fas fa-trash"></i></button>
+                                            <button onClick={() => excluirDaBiblioteca(livro.id)} className="bg-red-50 text-red-500 hover:bg-red-50 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"><i className="fas fa-trash"></i></button>
                                         </div>
                                     </div>
                                 ))}
@@ -1627,13 +1646,13 @@ ${ebookStyles}
                                 <div className="pt-3 border-t border-slate-100">
                                     <label className="flex items-center text-xs font-bold text-gray-700 cursor-pointer mb-2">
                                         <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)} className="mr-2 h-4 w-4 text-indigo-600 rounded" />
-                                        Fundo na 2ª Página de cada Capítulo
+                                        Fundo na 2ª Pág de cada Capítulo
                                     </label>
                                     
                                     {ativarBgSegundaPagina && (
                                         <>
                                             <div className="flex gap-2 mb-2">
-                                                <input type="text" value={bgSegundaPaginaUrl} onChange={(e) => setBgSegundaPaginaUrl(e.target.value)} className="input-standard text-[10px] font-mono" placeholder="URL da Imagem (Opcional - Senão automático)" />
+                                                <input type="text" value={bgSegundaPaginaUrl} onChange={(e) => setBgSegundaPaginaUrl(e.target.value)} className="input-standard text-[10px] font-mono" placeholder="URL Opcional (Senão copia a img do cap.)" />
                                             </div>
                                             <label className="input-label mb-1 text-[9px]">Opacidade/Clareamento do Fundo</label>
                                             <div className="flex items-center gap-2">
@@ -1688,7 +1707,7 @@ ${ebookStyles}
                                 <label className="input-label text-indigo-800">Modo de Criação da IA</label>
                                 <select value={modoConteudo} onChange={(e) => setModoConteudo(e.target.value as any)} className="input-standard text-sm mb-3 font-bold text-indigo-700 bg-white shadow-sm border-indigo-300">
                                     <option value="expandido">💡 Criar do Zero / Expandir (Aplica regras de Volume)</option>
-                                    <option value="rigoroso">📝 Formatar Fielmente (Mantém texto e tamanho original)</option>
+                                    <option value="rigoroso">📝 Formatar Fielmente (Mantém texto original fiel)</option>
                                 </select>
                             </div>
 
