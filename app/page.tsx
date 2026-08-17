@@ -212,14 +212,28 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             }
         }
 
-        // LIMPEZA 
+        // LIMPEZA - NÃO REMOVER PÁGINAS QUE CONTÊM CONCLUSÃO
         document.querySelectorAll('.page-container').forEach(page => {
             const contentNodes = Array.from(page.children).filter(el => 
                 !el.classList.contains('page-header') && 
                 !el.classList.contains('page-footer') && 
                 el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
             );
-            if (contentNodes.length === 0 && !page.classList.contains('page-cover-pura') && !page.classList.contains('page-cover-img') && !page.classList.contains('page-cover-text') && !page.classList.contains('cap-img-overlay') && !page.classList.contains('cap-box-rounded') && !page.classList.contains('cap-img-pura')) {
+            // Verifica se a página contém o título "Conclusão" (id ou texto)
+            const hasConclusion = page.querySelector('#conclusao, h2.chapter-title-inline:not(:empty)');
+            let isConclusion = false;
+            if (hasConclusion) {
+                const text = (hasConclusion.textContent || '').trim().toLowerCase();
+                if (text === 'conclusão' || text === 'conclusao') isConclusion = true;
+            }
+            if (contentNodes.length === 0 && 
+                !page.classList.contains('page-cover-pura') && 
+                !page.classList.contains('page-cover-img') && 
+                !page.classList.contains('page-cover-text') && 
+                !page.classList.contains('cap-img-overlay') && 
+                !page.classList.contains('cap-box-rounded') && 
+                !page.classList.contains('cap-img-pura') &&
+                !isConclusion) {
                 page.remove();
             }
         });
@@ -402,6 +416,11 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             let el = document.getElementById(event.data.id);
             if(el) { el.outerHTML = event.data.newHtml; sendCleanHtml(); }
         }
+        // Nova mensagem para reorganizar páginas sem alterar texto
+        if (event.data.type === 'REORGANIZE_PAGES') {
+            triggerSmartReflow();
+            sendCleanHtml();
+        }
     });
 
     document.addEventListener('click', (e) => {
@@ -450,7 +469,6 @@ export default function Home() {
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
 
-  // Reduzido para 2 opções conforme solicitado
   const [estiloCapitulos, setEstiloCapitulos] = useState<'inline-imagem' | 'box-arredondado'>('inline-imagem');
   
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
@@ -895,6 +913,49 @@ ${ebookStyles}
       
       atualizarElemento(isBg ? 'bgImage' : 'src', url);
       (window as any).showNotification("Fotografia aplicada com sucesso!", "success");
+  }
+
+  // FUNÇÃO PARA REORGANIZAR PÁGINAS SEM ALTERAR TEXTO
+  function reorganizarPaginas() {
+      const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+      if (!iframe || !iframe.contentWindow) {
+          (window as any).showNotification("Nenhum conteúdo para reorganizar.", "error");
+          return;
+      }
+      iframe.contentWindow.postMessage({ type: 'REORGANIZE_PAGES' }, '*');
+      (window as any).showNotification("Páginas reorganizadas com sucesso!", "success");
+  }
+
+  // FUNÇÃO PARA REVISÃO PROFISSIONAL (corrige ortografia/pontuação mantendo conteúdo)
+  async function revisaoProfissional() {
+      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
+      if (!codEl || !codEl.value) {
+          (window as any).showNotification("Nenhum E-book gerado para revisar.", "error");
+          return;
+      }
+
+      const instrucao = `Você é um revisor ortográfico e gramatical especializado. 
+      Receba o HTML completo do e-book e faça APENAS correções de ortografia, pontuação e concordância verbal/nominal.
+      PRESERVE ABSOLUTAMENTE toda a estrutura HTML, classes, ids e atributos.
+      NÃO altere o conteúdo textual além das correções necessárias.
+      NÃO adicione nem remova parágrafos, imagens ou qualquer elemento.
+      Devolva o HTML completo e idêntico em estrutura, apenas com os textos corrigidos.`;
+
+      const data = await chamarMotorIA(instrucao, [{ text: `HTML ATUAL DO E-BOOK:\n${codEl.value}` }], false);
+
+      if (data && data.html) {
+          let htmlCorrigido = purificarHTML(data.html);
+          // Aplicar a formatação visual (mantém as mesmas configurações)
+          const htmlFinal = moldarApresentacaoHtml(htmlCorrigido);
+          const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
+          
+          setHistoricoCodigo((prev) => [...prev, codEl.value]);
+          codEl.value = htmlFinal;
+          localStorage.setItem('ebook_draft_html', htmlFinal);
+          if (prevEl) prevEl.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+          
+          (window as any).showNotification("Revisão profissional concluída com sucesso!", "success");
+      }
   }
 
   async function aplicarModificacaoGlobal() {
@@ -1350,22 +1411,7 @@ ${ebookStyles}
         if(iframe && iframe.contentWindow) { iframe.contentWindow.print(); }
     };
 
-    (window as any).baixarHtml = () => {
-        const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (!doc) { (window as any).showNotification("Nenhum código para baixar.", "error"); return; }
-        
-        const clone = doc.documentElement.cloneNode(true) as HTMLElement;
-        const script = clone.querySelector('#editor-magic-script');
-        if (script) script.remove(); 
-        
-        const finalHtml = "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n" + clone.innerHTML + "\n</html>";
-        const blob = new Blob([finalHtml], { type: 'text/html' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${livroTitulo ? livroTitulo.replace(/\s+/g, '-').toLowerCase() : 'meu-ebook'}.html`;
-        a.click();
-    };
+    // Função de download HTML removida conforme solicitado
   }, [livroTitulo]);
 
   useEffect(() => {
@@ -1723,22 +1769,59 @@ ${ebookStyles}
                                 </div>
                             )}
 
-                            <div className="mb-3">
-                                <label className="input-label text-[9px]">Molde de Capítulos</label>
-                                <select value={estiloCapitulos} onChange={(e: any) => setEstiloCapitulos(e.target.value)} className="input-standard text-[10px]">
-                                    <option value="inline-imagem">Padrão com Banner de Imagem</option>
-                                    <option value="box-arredondado">Capa Exclusiva com Box Branco</option>
-                                </select>
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label className="input-label text-[9px]">Molde de Capítulos</label>
+                                    <select value={estiloCapitulos} onChange={(e: any) => setEstiloCapitulos(e.target.value)} className="input-standard text-[10px]">
+                                        <option value="inline-imagem">Padrão com Banner de Imagem</option>
+                                        <option value="box-arredondado">Capa Exclusiva com Box Branco</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="input-label text-[9px]">Rodapé da Página</label>
+                                    <select value={estiloRodape} onChange={(e: any) => setEstiloRodape(e.target.value)} className="input-standard text-[10px]">
+                                        <option value="linha-superior">Linha Superior + Autor + Num</option>
+                                        <option value="simples">Simples (Autor + Num)</option>
+                                        <option value="centralizado-circulo">Centralizado com Círculo</option>
+                                        <option value="centralizado">Apenas Número Centralizado</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="input-label text-[9px]">Rodapé da Página</label>
-                                <select value={estiloRodape} onChange={(e: any) => setEstiloRodape(e.target.value)} className="input-standard text-[10px]">
-                                    <option value="linha-superior">Linha Superior + Autor + Num</option>
-                                    <option value="simples">Simples (Autor + Num)</option>
-                                    <option value="centralizado-circulo">Centralizado com Círculo</option>
-                                    <option value="centralizado">Apenas Número Centralizado</option>
-                                </select>
+                            {/* NOVO: Controle de Borda */}
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label className="input-label text-[9px]">Borda da Página</label>
+                                    <select value={tipoBorda} onChange={(e: any) => setTipoBorda(e.target.value)} className="input-standard text-[10px]">
+                                        <option value="none">Nenhuma</option>
+                                        <option value="single">Simples (1px)</option>
+                                        <option value="medium">Média (2px)</option>
+                                        <option value="double-thin">Dupla fina (3px)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="input-label text-[9px]">Recuo do Parágrafo</label>
+                                    <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard text-[10px]">
+                                        <option value="0px">0px (sem recuo)</option>
+                                        <option value="10px">10px</option>
+                                        <option value="20px">20px (padrão)</option>
+                                        <option value="30px">30px</option>
+                                        <option value="40px">40px</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* NOVAS FERRAMENTAS DE FORMATAÇÃO */}
+                            <div className="mt-3 border-t border-slate-200 pt-3">
+                                <label className="input-label text-indigo-600 mb-2">Ferramentas de Formatação</label>
+                                <div className="flex flex-col gap-2">
+                                    <button onClick={reorganizarPaginas} className="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
+                                        <i className="fas fa-arrows-alt-h"></i> Reorganizar Páginas (sem alterar texto)
+                                    </button>
+                                    <button onClick={revisaoProfissional} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
+                                        <i className="fas fa-spell-check"></i> Revisão Profissional (ortografia)
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1781,7 +1864,7 @@ ${ebookStyles}
 
                 <div className="flex items-center gap-3">
                     <button onClick={desfazerCodigo} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"><i className="fas fa-undo"></i> Desfazer</button>
-                    <button onClick={() => (window as any).baixarHtml()} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"><i className="fas fa-code"></i> Baixar HTML</button>
+                    {/* Botão "Baixar HTML" removido conforme solicitado */}
                     <button onClick={() => (window as any).baixarPdf()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md shadow-indigo-200 transition flex items-center gap-2"><i className="fas fa-print"></i> Imprimir / PDF</button>
                 </div>
             </header>
