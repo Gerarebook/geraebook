@@ -454,8 +454,7 @@ export default function Home() {
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
-  const [htmlInspiracao, setHtmlInspiracao] = useState(''); // mantido no estado, mas removido da UI
-  const [htmlTemplate, setHtmlTemplate] = useState('');
+  // removido htmlInspiracao e htmlTemplate
 
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
@@ -511,7 +510,7 @@ export default function Home() {
 
   function getPaletaObj() {
       if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: corManualSec };
-      if (htmlTemplate.trim() && paletaCores === 'personalizado') return { bg: 'var(--template-bg, #ffffff)', text: 'var(--template-text, #111827)', pri: 'var(--template-pri, #3b82f6)', sec: 'var(--template-sec, #60a5fa)', borda: 'var(--template-sec, #60a5fa)' };
+      // removido 'personalizado' com htmlTemplate
       switch(paletaCores) {
           case 'moderno': return { bg: '#ffffff', text: '#111827', pri: '#2563eb', sec: '#3b82f6', borda: '#3b82f6' };
           case 'sepia': return { bg: '#fdf6e3', text: '#4a4036', pri: '#8b6d4f', sec: '#c08770', borda: '#c08770' };
@@ -960,7 +959,7 @@ ${ebookStyles}
       }
   }
 
-  // removido aplicarModificacaoGlobal
+  // removida função aplicarModificacaoGlobal
 
   async function aplicarModificacaoLocal() {
       const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
@@ -1117,7 +1116,7 @@ ${ebookStyles}
           Atenção: OBRIGATÓRIO escrever a palavra "Capítulo" no H1.
           IMPORTANTE: Não deixe parágrafos órfãos no final das páginas; distribua o conteúdo uniformemente.`;
       } else {
-          // Padrão inline-imagem (agora com subtítulo após a imagem)
+          // Padrão inline-imagem com título de tópico abaixo da imagem
           regraEstiloCapitulos = `
           MOLDE OBRIGATÓRIO DO CAPÍTULO (Total de 3 páginas por capítulo, incluindo a página com imagem):
           NÃO crie página de capa separada. O capítulo INTEIRO deve ser impresso dentro de uma ÚNICA DIV. O sistema cortará sozinho em 3 páginas.
@@ -1125,7 +1124,8 @@ ${ebookStyles}
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo do Capítulo</h2>
               <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
-              <h3 class="subtopic-title">[Título do tópico introdutório do capítulo]</h3>
+              <h3 class="subtopic-title">Título do Tópico</h3>
+              
               <p>[Parágrafo 1 longo e denso da página de título...]</p>
               <p>[Parágrafo 2 longo e denso da página de título...]</p>
               
@@ -1151,7 +1151,7 @@ ${ebookStyles}
               
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Na página do título/imagem do capítulo devem constar APENAS 2 parágrafos no total (além do h3 de introdução). Nas demais páginas do capítulo, deverão ter 4 parágrafos com mais linhas de conteúdo. Cada capítulo terá exatamente 3 títulos de tópicos (incluindo o introdutório) e em cada tópico 2 a 3 parágrafos, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
+          ATENÇÃO: Na página do título/imagem do capítulo devem constar APENAS 2 parágrafos no total. Nas demais páginas do capítulo, deverão ter 4 parágrafos com mais linhas de conteúdo. Cada capítulo terá exatamente 3 títulos de tópicos e em cada tópico 2 a 3 parágrafos, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
           NUNCA coloque um <blockquote> e um <div class="highlight-box"> na mesma página – distribua em páginas diferentes.
           IMPORTANTE: Não deixe parágrafos órfãos no final das páginas.`;
       }
@@ -1165,8 +1165,7 @@ ${ebookStyles}
           regraCapaHtml = `<div class="page-container page-cover-text"><h1 style="font-size: 3rem; margin-bottom: 1.5rem; text-transform: uppercase;">${livroTitulo || 'Meu E-book'}</h1><div style="width: 80px; height: 2px; background: var(--color-primary); margin: 0 auto 1.5rem auto;"></div><p style="font-size: 1.3rem; font-style: italic;">Por ${livroAutores || 'Autor'}</p></div>`;
       }
 
-      // removida a parte de htmlInspiracao
-      const regraInspiracao = ''; // removido
+      // removida regraInspiracao
 
       const regraModo = modoConteudo === 'rigoroso' 
           ? `MODO RIGOROSO (FORMATADOR FIEL ESTRITO): Você está PROIBIDO de inventar conteúdo, adicionar parágrafos ou mudar o tamanho do texto. Sua ÚNICA função é pegar o texto original, corrigir ortografia e envelopar nas tags HTML exatas do sistema (h2, h3, p). MANTENHA O TEXTO ORIGINAL INTACTO. Neste modo, IGNORE as regras de "Volume de Páginas" e "Molde de Capítulos", formate APENAS o que o usuário mandar.` 
@@ -1404,7 +1403,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
+  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
 
   useEffect(() => {
     const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
@@ -1412,7 +1411,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
-  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
+  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
 
   const isTextElement = elementoSelecionado ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(elementoSelecionado.tagName.toLowerCase()) : false;
 
@@ -1441,7 +1440,7 @@ ${ebookStyles}
         `}} />
 
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
-        {/* removido input de upload HTML */}
+        {/* removido input para upload HTML */}
 
         {statusApis.processing && (
             <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
@@ -1507,7 +1506,7 @@ ${ebookStyles}
                             <i className="fas fa-magic text-indigo-300"></i>
                         </div>
 
-                        {/* REMOVIDO BOTÃO "Aplicar no Livro Inteiro" */}
+                        {/* Área de modificação global removida */}
 
                         {!elementoSelecionado ? (
                             <div className="flex flex-col items-center justify-center p-14 text-center text-slate-400">
@@ -1783,7 +1782,7 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* REMOVIDO: Upload de HTML para inspiração */}
+                            {/* Upload de HTML para inspiração removido */}
 
                             {/* Ferramentas de Formatação */}
                             <div className="mt-3 border-t border-slate-200 pt-3">
