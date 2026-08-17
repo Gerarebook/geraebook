@@ -219,10 +219,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 !el.classList.contains('page-footer') && 
                 el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
             );
-            // Se houver qualquer elemento de conteúdo (título, parágrafo, imagem, etc.), mantém a página
             if (contentNodes.length > 0) return;
-            
-            // Se não houver conteúdo, mas for uma página especial (capa, conclusão, etc.), mantém
             const isSpecial = page.classList.contains('page-cover-pura') || 
                               page.classList.contains('page-cover-img') || 
                               page.classList.contains('page-cover-text') || 
@@ -231,8 +228,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                               page.classList.contains('cap-img-pura') ||
                               page.querySelector('#conclusao, h2.chapter-title-inline:not(:empty)');
             if (isSpecial) return;
-            
-            // Só remove se estiver realmente vazia e não for especial
             page.remove();
         });
 
@@ -414,7 +409,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             let el = document.getElementById(event.data.id);
             if(el) { el.outerHTML = event.data.newHtml; sendCleanHtml(); }
         }
-        // Nova mensagem para reorganizar páginas sem alterar texto
         if (event.data.type === 'REORGANIZE_PAGES') {
             triggerSmartReflow();
             sendCleanHtml();
@@ -658,12 +652,30 @@ ${bgSegundaPaginaCss}
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
 .cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
+/* Overlay com opacidade para a capa box-arredondado */
+.cap-box-rounded {
+    position: relative;
+}
+.cap-box-rounded::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4); /* Escurece a imagem para melhor legibilidade */
+    z-index: 1;
+    pointer-events: none;
+}
+.cap-box-inner {
+    position: relative;
+    z-index: 2;
+}
+
 .cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; color: #ffffff; }
 .cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
 
 .cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }
 .cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); z-index: 10; position: relative; color: ${capBoxTextColor}; }
 .cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: ${capBoxTextColor}; text-shadow: none; }
+.cap-box-inner p { text-indent: 0; text-align: center; }
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
 
@@ -970,7 +982,7 @@ ${ebookStyles}
       }
   }
 
-  // NOVA FUNÇÃO: GERAR 2–3 CAPÍTULOS (substitui o "Gerar Completo")
+  // GERAR 2–3 CAPÍTULOS
   async function gerarCapitulos(quantidade: number = 3) {
       const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
       if (!codEl || !codEl.value.includes('page-container')) {
@@ -1182,16 +1194,23 @@ ${ebookStyles}
       if (estiloCapitulos === 'box-arredondado') {
           regraEstiloCapitulos = `
           MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco + Páginas de Texto):
-          <!-- PÁGINA DE CAPA DO CAPÍTULO -->
+          <!-- PÁGINA DE CAPA DO CAPÍTULO (com imagem de fundo e opacidade automática) -->
           <div class="page-container cap-box-rounded" style="background-image: url('URL_FOTOGRAFIA_REAL_UNSPLASH_AQUI');">
-              <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
+              <div class="cap-box-inner">
+                  <h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1>
+                  <p>[Parágrafo 1 da página de título, denso de 6 a 8 linhas...]</p>
+                  <p>[Parágrafo 2 da página de título, denso de 6 a 8 linhas...]</p>
+              </div>
           </div>
-          <!-- PÁGINAS DE TEXTO CONTÍNUO -->
-          Após a div de capa, abra UMA ÚNICA <div class="page-container"> normal e descarregue todo o texto lá dentro.
-          OBRIGATÓRIO: O capítulo deve ter exatamente 3 títulos de tópicos (<h3>). Em cada tópico, 2 a 3 parágrafos. A página de título/imagem do capítulo deve ter apenas 2 parágrafos, e as demais páginas do capítulo devem ter 4 parágrafos com mais linhas de conteúdo, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
-          Atenção: OBRIGATÓRIO escrever a palavra "Capítulo" no H1.`;
+          <!-- PÁGINAS DE TEXTO CONTÍNUO (NÃO REPETIR O TÍTULO DO CAPÍTULO) -->
+          Após a capa, crie uma ou mais <div class="page-container"> para o restante do conteúdo. 
+          A primeira página de texto deve conter apenas os tópicos (h3) e parágrafos, sem h2 ou h1 de capítulo.
+          O capítulo deve ter exatamente 3 títulos de tópicos (<h3 class="subtopic-title">). Em cada tópico, 2 a 3 parágrafos.
+          A página de capa já contém 2 parágrafos. As demais páginas devem ter 4 parágrafos por tópico (totalizando 3 páginas de conteúdo: capa + 2 páginas de texto).
+          O sistema fará a quebra automática, mas você deve fornecer todo o conteúdo dentro de uma ou mais divs page-container, garantindo o volume descrito.
+          `;
       } else {
-          // Padrão inline-imagem
+          // inline-imagem
           regraEstiloCapitulos = `
           MOLDE OBRIGATÓRIO DO CAPÍTULO (Total de 3 páginas por capítulo, incluindo a página com imagem):
           NÃO crie página de capa separada. O capítulo INTEIRO deve ser impresso dentro de uma ÚNICA DIV. O sistema cortará sozinho em 3 páginas.
@@ -1265,8 +1284,6 @@ ${ebookStyles}
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
   }
-
-  // (Removida a função gerarLivroCompleto)
 
   async function iniciarEbookEtapas() {
       const content = productContent.trim();
@@ -1404,7 +1421,6 @@ ${ebookStyles}
         if(iframe && iframe.contentWindow) { iframe.contentWindow.print(); }
     };
 
-    // Função de download HTML removida conforme solicitado
   }, [livroTitulo]);
 
   useEffect(() => {
