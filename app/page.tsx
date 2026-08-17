@@ -454,7 +454,7 @@ export default function Home() {
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
-  const [htmlInspiracao, setHtmlInspiracao] = useState('');
+  const [htmlInspiracao, setHtmlInspiracao] = useState(''); // mantido no estado, mas removido da UI
   const [htmlTemplate, setHtmlTemplate] = useState('');
 
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'personalizado' | 'manual'>('classico');
@@ -485,7 +485,7 @@ export default function Home() {
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const htmlUploadRef = useRef<HTMLInputElement>(null);
+  // removido htmlUploadRef
 
   useEffect(() => {
     const verificarAcesso = async () => {
@@ -798,18 +798,7 @@ ${ebookStyles}
       reader.readAsDataURL(file);
   }
 
-  function handleHtmlUpload(e: React.ChangeEvent<HTMLInputElement>) {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-          const content = event.target?.result as string;
-          setHtmlInspiracao(content);
-          (window as any).showNotification("HTML de inspiração carregado!", "success");
-      };
-      reader.readAsText(file);
-      if (htmlUploadRef.current) htmlUploadRef.current.value = '';
-  }
+  // removido handleHtmlUpload
 
   function toggleInspetor() {
       const newMode = !modoInspetor;
@@ -971,36 +960,7 @@ ${ebookStyles}
       }
   }
 
-  async function aplicarModificacaoGlobal() {
-      const input = document.getElementById('ai_prompt_global') as HTMLInputElement;
-      const comando = input?.value.trim();
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      
-      if(!comando) { (window as any).showNotification("Digite o que deseja alterar no e-book.", "error"); return; }
-      if(!codEl || !codEl.value) { (window as any).showNotification("Nenhum E-book gerado para modificar.", "error"); return; }
-
-      const instrucao = `Você é um Revisor Editorial Sênior. 
-      Vou fornecer o HTML COMPLETO do E-book atual. Aplique a seguinte alteração global DE FORMA RIGOROSA E OBEDIENTE: "${comando}".
-      
-      REGRAS MÁXIMAS DE SEGURANÇA:
-      1. PRESERVAÇÃO ABSOLUTA: Você é OBRIGADO a devolver o código HTML inteiro, do começo ao fim. NUNCA resuma ou apague o resto do livro.
-      2. NUNCA adicione estilos inline <p style="...">. Mantenha as tags HTML intactas.`;
-
-      const data = await chamarMotorIA(instrucao, [{text: `HTML ATUAL DO E-BOOK:\n${codEl.value}`}], false);
-
-      if(data && data.html) {
-          let htmlFinal = moldarApresentacaoHtml(purificarHTML(data.html));
-          const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-          
-          setHistoricoCodigo((prev) => [...prev, codEl.value]); 
-          codEl.value = htmlFinal; 
-          localStorage.setItem('ebook_draft_html', htmlFinal);
-          if (prevEl) prevEl.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade); 
-          
-          if(input) input.value = '';
-          (window as any).showNotification("E-book modificado com sucesso!", "success");
-      }
-  }
+  // removido aplicarModificacaoGlobal
 
   async function aplicarModificacaoLocal() {
       const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
@@ -1157,7 +1117,7 @@ ${ebookStyles}
           Atenção: OBRIGATÓRIO escrever a palavra "Capítulo" no H1.
           IMPORTANTE: Não deixe parágrafos órfãos no final das páginas; distribua o conteúdo uniformemente.`;
       } else {
-          // Padrão inline-imagem
+          // Padrão inline-imagem (agora com subtítulo após a imagem)
           regraEstiloCapitulos = `
           MOLDE OBRIGATÓRIO DO CAPÍTULO (Total de 3 páginas por capítulo, incluindo a página com imagem):
           NÃO crie página de capa separada. O capítulo INTEIRO deve ser impresso dentro de uma ÚNICA DIV. O sistema cortará sozinho em 3 páginas.
@@ -1165,7 +1125,7 @@ ${ebookStyles}
               <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo do Capítulo</h2>
               <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
-              
+              <h3 class="subtopic-title">[Título do tópico introdutório do capítulo]</h3>
               <p>[Parágrafo 1 longo e denso da página de título...]</p>
               <p>[Parágrafo 2 longo e denso da página de título...]</p>
               
@@ -1191,7 +1151,7 @@ ${ebookStyles}
               
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Na página do título/imagem do capítulo devem constar APENAS 2 parágrafos no total. Nas demais páginas do capítulo, deverão ter 4 parágrafos com mais linhas de conteúdo. Cada capítulo terá exatamente 3 títulos de tópicos e em cada tópico 2 a 3 parágrafos, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
+          ATENÇÃO: Na página do título/imagem do capítulo devem constar APENAS 2 parágrafos no total (além do h3 de introdução). Nas demais páginas do capítulo, deverão ter 4 parágrafos com mais linhas de conteúdo. Cada capítulo terá exatamente 3 títulos de tópicos (incluindo o introdutório) e em cada tópico 2 a 3 parágrafos, totalizando exatamente 3 páginas de conteúdo por capítulo incluindo a página com imagem.
           NUNCA coloque um <blockquote> e um <div class="highlight-box"> na mesma página – distribua em páginas diferentes.
           IMPORTANTE: Não deixe parágrafos órfãos no final das páginas.`;
       }
@@ -1205,13 +1165,8 @@ ${ebookStyles}
           regraCapaHtml = `<div class="page-container page-cover-text"><h1 style="font-size: 3rem; margin-bottom: 1.5rem; text-transform: uppercase;">${livroTitulo || 'Meu E-book'}</h1><div style="width: 80px; height: 2px; background: var(--color-primary); margin: 0 auto 1.5rem auto;"></div><p style="font-size: 1.3rem; font-style: italic;">Por ${livroAutores || 'Autor'}</p></div>`;
       }
 
-      let regraInspiracao = htmlInspiracao.trim() !== '' ? `
-      INSPIRAÇÃO DE DESIGN OBRIGATÓRIA DO USUÁRIO:
-      O usuário forneceu o seguinte código HTML/CSS como referência visual estrita. Analise este código e OBRIGATORIAMENTE copie e reproduza o estilo de cores, estilo de bordas, formato dos quadros (boxes de destaque), formato das citações (blockquotes) e estilo dos títulos (H2, H3), incorporando essa identidade no E-book gerado. Apenas adapte isso para as tags e regras estruturais (volume de páginas) da nossa plataforma:
-      <HTML_INSPIRACAO>
-      ${htmlInspiracao}
-      </HTML_INSPIRACAO>
-      ` : '';
+      // removida a parte de htmlInspiracao
+      const regraInspiracao = ''; // removido
 
       const regraModo = modoConteudo === 'rigoroso' 
           ? `MODO RIGOROSO (FORMATADOR FIEL ESTRITO): Você está PROIBIDO de inventar conteúdo, adicionar parágrafos ou mudar o tamanho do texto. Sua ÚNICA função é pegar o texto original, corrigir ortografia e envelopar nas tags HTML exatas do sistema (h2, h3, p). MANTENHA O TEXTO ORIGINAL INTACTO. Neste modo, IGNORE as regras de "Volume de Páginas" e "Molde de Capítulos", formate APENAS o que o usuário mandar.` 
@@ -1227,13 +1182,12 @@ ${ebookStyles}
       6. ÍNDICE DINÂMICO: Apenas crie o bloco vazio do índice EXATAMENTE ASSIM: <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>.
       7. IMAGENS REAIS E PROIBIÇÕES: Ao usar URLs no Unsplash, NUNCA solicite desenhos, gráficos animados ou sci-fi. Você deve buscar EXCLUSIVAMENTE fotografias humanas e realistas (ex: https://source.unsplash.com/featured/1200x800/?people,photography,realistic). NUNCA gere a página "Sobre o Autor" (O sistema gerará nativamente no botão finalizar). NUNCA gere tags <br> ou <p>&nbsp;</p>. NUNCA deixe um Título sozinho no final da sua geração sem texto debaixo.
       8. ÍCONES: Use ícones do Font Awesome nos highlight-box, escolha um ícone temático para cada (ex: fa-lightbulb, fa-star, fa-gem, fa-rocket, etc.).
-      ${regraInspiracao}
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos };
   }
 
-  // ==== GERAR E-BOOK COMPLETO (RESTAURADO) ====
+  // ==== GERAR E-BOOK COMPLETO ====
   async function gerarLivroCompleto() {
     const content = productContent.trim();
     if (!content) { (window as any).showNotification('Insira o texto base.', 'error'); return; }
@@ -1338,7 +1292,7 @@ ${ebookStyles}
       }
   }
 
-  // PASSO 2: Continuar adicionando capítulos (tenta gerar 3, mas pode gerar menos se a IA não conseguir)
+  // PASSO 2: Continuar adicionando capítulos (tenta gerar 3)
   async function continuarEbookEtapas() {
       const content = productContent.trim();
       const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
@@ -1450,7 +1404,7 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores, htmlInspiracao]);
+  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
 
   useEffect(() => {
     const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
@@ -1458,7 +1412,7 @@ ${ebookStyles}
     if (codEl && codEl.value && prevEl) {
         prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
-  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores, htmlInspiracao]);
+  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, htmlTemplate, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
 
   const isTextElement = elementoSelecionado ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(elementoSelecionado.tagName.toLowerCase()) : false;
 
@@ -1487,7 +1441,7 @@ ${ebookStyles}
         `}} />
 
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
-        <input type="file" ref={htmlUploadRef} onChange={handleHtmlUpload} accept=".html,.htm" className="hidden" />
+        {/* removido input de upload HTML */}
 
         {statusApis.processing && (
             <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
@@ -1553,11 +1507,7 @@ ${ebookStyles}
                             <i className="fas fa-magic text-indigo-300"></i>
                         </div>
 
-                        <div className="p-4 bg-indigo-50 border-b border-indigo-100 shadow-sm">
-                            <label className="input-label text-indigo-900 mb-2"><i className="fas fa-bolt mr-1 text-yellow-500"></i> Modificação Global no E-book</label>
-                            <textarea id="ai_prompt_global" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="Ex: Adicionar um quadro em todo final de capítulo."></textarea>
-                            <button onClick={aplicarModificacaoGlobal} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase tracking-wide py-2.5 rounded-lg transition shadow-sm">Aplicar no Livro Inteiro</button>
-                        </div>
+                        {/* REMOVIDO BOTÃO "Aplicar no Livro Inteiro" */}
 
                         {!elementoSelecionado ? (
                             <div className="flex flex-col items-center justify-center p-14 text-center text-slate-400">
@@ -1833,17 +1783,7 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* Upload de HTML para inspiração */}
-                            <div className="border-t border-slate-200 pt-3 mt-1">
-                                <label className="input-label text-indigo-600 mb-1">Inspiração Visual (HTML)</label>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <button onClick={() => htmlUploadRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-[9px] px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                                        <i className="fas fa-cloud-upload-alt"></i> Upload HTML
-                                    </button>
-                                    <span className="text-[9px] text-slate-400">ou cole o código abaixo</span>
-                                </div>
-                                <textarea rows={2} value={htmlInspiracao} onChange={(e) => setHtmlInspiracao(e.target.value)} className="input-standard text-[10px] font-mono" placeholder="Cole o HTML/CSS de inspiração aqui..."></textarea>
-                            </div>
+                            {/* REMOVIDO: Upload de HTML para inspiração */}
 
                             {/* Ferramentas de Formatação */}
                             <div className="mt-3 border-t border-slate-200 pt-3">
