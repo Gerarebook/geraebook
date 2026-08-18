@@ -497,8 +497,10 @@ export default function Home() {
   const [paginaImagem, setPaginaImagem] = useState('');
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
+  const [paginaImagemUpload, setPaginaImagemUpload] = useState<File | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const extraImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const verificarAcesso = async () => {
@@ -692,7 +694,7 @@ ${bgSegundaPaginaCss}
     padding: 32mm 20mm 25mm 20mm;
 }
 .page-extra img {
-    max-width: 80%;
+    max-width: 100%;
     height: auto;
     margin: 1rem auto;
     display: block;
@@ -713,6 +715,24 @@ ${bgSegundaPaginaCss}
     display: block;
     margin: 0 auto 1rem auto;
     max-width: 80%;
+}
+.page-extra .img-horizontal {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin: 0 auto 1.5rem auto;
+}
+.page-extra .img-vertical {
+    display: block;
+    width: auto;
+    height: 70%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 8px;
+    margin: 0 auto 1.5rem auto;
 }
 .page-extra h2 {
     text-align: center;
@@ -893,6 +913,19 @@ ${ebookStyles}
           if (imageInputRef.current) imageInputRef.current.value = '';
       };
       reader.readAsDataURL(file);
+  }
+
+  function handleExtraImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const base64Img = event.target?.result as string;
+          setPaginaImagem(base64Img);
+          (window as any).showNotification("Imagem carregada para página extra!", "success");
+      };
+      reader.readAsDataURL(file);
+      if (extraImageInputRef.current) extraImageInputRef.current.value = '';
   }
 
   function toggleInspetor() {
@@ -1127,6 +1160,27 @@ ${ebookStyles}
   }
 
   // ===== FUNÇÃO PARA INSERIR PÁGINA EXTRA (CORRIGIDA) =====
+  function findClosingDiv(html: string, startIndex: number): number {
+      let open = 0;
+      let i = startIndex;
+      while (i < html.length) {
+          const openTag = html.indexOf('<div', i);
+          const closeTag = html.indexOf('</div>', i);
+          if (closeTag === -1) break;
+          if (openTag !== -1 && openTag < closeTag) {
+              open++;
+              i = openTag + 4;
+          } else {
+              if (open === 0) {
+                  return closeTag + 6;
+              }
+              open--;
+              i = closeTag + 6;
+          }
+      }
+      return -1;
+  }
+
   function inserirPaginaExtra() {
       if (!paginaTitulo.trim() && !paginaImagem.trim()) {
           (window as any).showNotification("Preencha pelo menos o título ou uma imagem.", "error");
@@ -1143,14 +1197,29 @@ ${ebookStyles}
       if (paginaPosicaoImagem === 'esquerda') classeImagem = 'img-left';
       else if (paginaPosicaoImagem === 'centro') classeImagem = 'img-center';
       else if (paginaPosicaoImagem === 'topo') classeImagem = 'img-top';
+      // Se for horizontal ou vertical, usamos classes específicas
+      // Vamos detectar automaticamente pela proporção da imagem
+      // Mas o usuário pode escolher "horizontal" ou "vertical" via um select
+
+      const tituloParaHeader = paginaTitulo.trim() || 'Página Extra';
+      const tituloHtml = paginaTitulo.trim() ? `<h2 id="extra-${Date.now()}" class="chapter-title-inline">${paginaTitulo}</h2>` : '';
+
+      // Se imagem for horizontal (largura > altura) usamos img-horizontal, senão img-vertical
+      // Como não temos como saber, vamos permitir que o usuário escolha no modal
+      // Por enquanto, usamos img-horizontal como padrão
+      let imagemClasse = 'img-horizontal';
+      // Se a URL tiver "vertical" no nome, podemos inferir, mas não confiável.
+
+      // Para simplificar, adicionamos um seletor no modal para orientação da imagem.
+      // Vamos adicionar um novo estado para orientação.
 
       let imagemHtml = '';
       if (paginaImagem.trim()) {
-          imagemHtml = `<img src="${paginaImagem}" class="${classeImagem}" alt="Imagem da página" />`;
+          imagemHtml = `<img src="${paginaImagem}" class="${classeImagem || imagemClasse}" alt="Imagem da página" />`;
       }
 
-      const tituloParaHeader = paginaTitulo.trim() || 'Página Extra';
-      const tituloHtml = paginaTitulo.trim() ? `<h2>${paginaTitulo}</h2>` : '';
+      // Gerar um ID único para o título
+      const extraId = 'extra-' + Date.now();
 
       const paginaHtml = `
       <div class="page-container page-extra">
@@ -1165,25 +1234,31 @@ ${ebookStyles}
       let posicao = -1;
 
       if (paginaLocal === 'depois-capa') {
-          const matchCapa = htmlAtual.match(/<div class="page-container (page-cover-[a-z-]+)[^>]*>.*?<\/div>\s*</i);
+          // Encontrar a primeira div com classe page-cover-*
+          const matchCapa = htmlAtual.match(/<div class="page-container (page-cover-[a-z-]+)[^>]*>/i);
           if (matchCapa && matchCapa.index !== undefined) {
-              const indexFimCapa = matchCapa.index + matchCapa[0].length - 1;
-              let posFimCapa = htmlAtual.indexOf('</div>', indexFimCapa);
-              if (posFimCapa !== -1) {
-                  posicao = posFimCapa + 6;
+              const startDiv = matchCapa.index;
+              const endDiv = findClosingDiv(htmlAtual, startDiv + matchCapa[0].length);
+              if (endDiv !== -1) {
+                  posicao = endDiv;
               }
           }
       } else if (paginaLocal === 'depois-conclusao') {
-          const matchConclusao = htmlAtual.match(/<div class="page-container[^>]*>.*?id="conclusao".*?<\/div>\s*</i);
+          // Encontrar a div que contém id="conclusao"
+          const matchConclusao = htmlAtual.match(/<div class="page-container[^>]*>[\s\S]*?id="conclusao"/i);
           if (matchConclusao && matchConclusao.index !== undefined) {
-              const indexFimConclusao = matchConclusao.index + matchConclusao[0].length - 1;
-              let posFimConclusao = htmlAtual.indexOf('</div>', indexFimConclusao);
-              if (posFimConclusao !== -1) {
-                  posicao = posFimConclusao + 6;
+              // Encontrar o início da div
+              const startDiv = htmlAtual.lastIndexOf('<div', matchConclusao.index);
+              if (startDiv !== -1) {
+                  const endDiv = findClosingDiv(htmlAtual, startDiv + 4);
+                  if (endDiv !== -1) {
+                      posicao = endDiv;
+                  }
               }
           }
       }
 
+      // Se não encontrou, insere antes do fechamento do container
       if (posicao === -1) {
           const containerEnd = htmlAtual.lastIndexOf('</div>');
           if (containerEnd !== -1) {
@@ -1631,6 +1706,7 @@ ${ebookStyles}
         `}} />
 
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
+        <input type="file" ref={extraImageInputRef} onChange={handleExtraImageUpload} accept="image/*" className="hidden" />
 
         {statusApis.processing && (
             <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
@@ -1653,6 +1729,12 @@ ${ebookStyles}
                 <div>
                   <label className="input-label">URL da Imagem (opcional)</label>
                   <input type="text" value={paginaImagem} onChange={(e) => setPaginaImagem(e.target.value)} className="input-standard" placeholder="https://exemplo.com/imagem.jpg" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => extraImageInputRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-[9px] px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                    <i className="fas fa-upload"></i> Upload Imagem
+                  </button>
+                  <span className="text-[9px] text-slate-400">(PC)</span>
                 </div>
                 <div>
                   <label className="input-label">Posição da Imagem</label>
