@@ -687,7 +687,7 @@ ${bgSegundaPaginaCss}
     display: none !important;
 }
 
-/* Estilos para páginas extras (inseridas pelo usuário) */
+/* Estilos para páginas extras (inseridas pelo usuário) - CORRIGIDO */
 .page-extra {
     padding: 32mm 20mm 25mm 20mm;
 }
@@ -724,6 +724,17 @@ ${bgSegundaPaginaCss}
     text-align: justify;
     line-height: 1.6;
     margin-bottom: 0.8rem;
+}
+
+/* Títulos de tópicos em receitas - DESTAQUE */
+.receita-titulo {
+    font-size: 1.8rem !important;
+    font-weight: 900 !important;
+    color: var(--color-primary) !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2rem !important;
+    margin-bottom: 1.5rem !important;
 }
 
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
@@ -795,14 +806,32 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR */
+/* SEÇÃO DO AUTOR - ATUALIZADA */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; page-break-inside: avoid; break-inside: avoid; }
 .author-section.layout-topo { flex-direction: column; text-align: center; }
 .author-section.layout-esquerda { flex-direction: row; text-align: justify; align-items: flex-start; }
-.author-photo { flex-shrink: 0; object-fit: cover; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
-.author-photo.circulo { border-radius: 50%; width: 150px; height: 150px; }
-.author-photo.retangulo { border-radius: 8px; width: 130px; height: 180px; }
+.author-photo {
+    flex-shrink: 0;
+    object-fit: cover;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    border: 3px solid rgba(255,255,255,0.8);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.author-photo:hover {
+    transform: scale(1.02);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+}
+.author-photo.circulo {
+    border-radius: 50%;
+    width: 150px;
+    height: 150px;
+}
+.author-photo.retangulo {
+    border-radius: 20px;
+    width: 130px;
+    height: 180px;
+}
 .author-bio { flex-grow: 1; min-width: 250px; }
 .author-bio h2 { margin-top: 0; margin-bottom: 1rem; }
 
@@ -1097,7 +1126,7 @@ ${ebookStyles}
       </div>`;
   }
 
-  // ===== FUNÇÃO PARA INSERIR PÁGINA EXTRA (USUÁRIO) - CORRIGIDA =====
+  // ===== FUNÇÃO PARA INSERIR PÁGINA EXTRA (CORRIGIDA) =====
   function inserirPaginaExtra() {
       if (!paginaTitulo.trim() && !paginaImagem.trim()) {
           (window as any).showNotification("Preencha pelo menos o título ou uma imagem.", "error");
@@ -1120,14 +1149,15 @@ ${ebookStyles}
           imagemHtml = `<img src="${paginaImagem}" class="${classeImagem}" alt="Imagem da página" />`;
       }
 
+      const tituloParaHeader = paginaTitulo.trim() || 'Página Extra';
       const tituloHtml = paginaTitulo.trim() ? `<h2>${paginaTitulo}</h2>` : '';
 
       const paginaHtml = `
       <div class="page-container page-extra">
-          <div class="page-header"><span>${livroTitulo || 'E-book'}</span><span>PÁGINA EXTRA</span></div>
+          <div class="page-header"><span>${livroTitulo || 'E-book'}</span><span>${tituloParaHeader}</span></div>
           ${tituloHtml}
           ${imagemHtml}
-          <p>Insira aqui o conteúdo da página extra. Você pode editar este texto diretamente no editor.</p>
+          <p>Digite aqui o conteúdo da página extra. Você pode editar este texto diretamente no editor.</p>
           <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
       </div>`;
 
@@ -1182,7 +1212,7 @@ ${ebookStyles}
       (window as any).showNotification("Página extra inserida com sucesso!", "success");
   }
 
-  // ===== FUNÇÃO PARA OBTER INSTRUÇÕES DO PROMPT (MODIFICADO) =====
+  // ===== FUNÇÃO PARA OBTER INSTRUÇÕES DO PROMPT (ATUALIZADA) =====
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
@@ -1211,7 +1241,7 @@ ${ebookStyles}
               <h2 id="ID_DA_RECEITA" class="chapter-title-inline">Nome da Receita</h2>
               <img src="URL_DA_IMAGEM_HORIZONTAL_UNSPLASH" class="chapter-banner-img" alt="Imagem da receita" style="height: 300px; object-fit: cover;" />
               <p>[Descrição breve da receita...]</p>
-              <h3>Ingredientes</h3>
+              <h3 class="receita-titulo">Ingredientes</h3>
               <ul>
                   <li>Ingrediente 1</li>
                   <li>Ingrediente 2</li>
@@ -1222,13 +1252,13 @@ ${ebookStyles}
           <!-- PRÓXIMA PÁGINA: MODO DE PREPARO -->
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>RECEITA - PREPARO</span></div>
-              <h3>Modo de Preparo</h3>
+              <h3 class="receita-titulo">Modo de Preparo</h3>
               <p>[Passo 1...]</p>
               <p>[Passo 2...]</p>
               <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          IMPORTANTE: A página de imagem + ingredientes deve vir primeiro, seguida da página de preparo. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px).`;
+          IMPORTANTE: A página de imagem + ingredientes deve vir primeiro, seguida da página de preparo. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px). Use a classe "receita-titulo" nos H3.`;
       } else if (modoConteudo === 'historias') {
           // ---- MODO HISTÓRIAS ----
           regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa.`;
@@ -1252,39 +1282,47 @@ ${ebookStyles}
           </div>
           ATENÇÃO: O conteúdo deve ser extenso o suficiente para que o sistema corte em pelo menos 2 páginas. Use de 6 a 8 parágrafos por capítulo.`;
       } else if (modoConteudo === 'academico') {
-          // ---- MODO ACADÊMICO ----
+          // ---- MODO ACADÊMICO (ATUALIZADO) ----
           regraTitulo = `Use "Capítulo" nos títulos (H2). Estrutura formal com subtítulos (H3) para tópicos.`;
           regraEstrutura = `
-          ESTRUTURA ACADÊMICA (formal):
+          ESTRUTURA ACADÊMICA (formal, com volume mínimo de 2 páginas por capítulo):
           - Cada capítulo deve ter um título (H2) e subtópicos (H3) para organizar o conteúdo.
-          - Incluir citações (blockquote) e referências (p ou ul) quando apropriado.
-          - Conclusão deve sintetizar os pontos principais.
+          - Conteúdo denso: use de 6 a 8 parágrafos por capítulo para garantir pelo menos 2 páginas.
+          - Incluir citações (blockquote) e dicas (highlight-box com ícone) em páginas alternadas (NUNCA ambos na mesma página).
           - A página de referências deve ser a última (pode ser uma página extra).
           `;
           regraEstiloCapitulos = `
-          MOLDE DO CAPÍTULO (Acadêmico):
+          MOLDE DO CAPÍTULO (Acadêmico – mínimo 2 páginas):
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Título do Capítulo</h2>
-              <img src="URL_DA_IMAGEM_HORIZONTAL_UNSPLASH" class="chapter-banner-img" alt="Imagem ilustrativa" style="height: 200px; object-fit: cover;" />
+              <img src="URL_DA_IMAGEM_ILUSTRATIVA_UNSPLASH" class="chapter-banner-img" alt="Imagem ilustrativa" style="height: 200px; object-fit: cover;" />
               <h3 class="subtopic-title">Subtítulo 1</h3>
-              <p>[Parágrafo acadêmico...]</p>
-              <p>[Mais parágrafos...]</p>
-              <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> "Citação relevante"</blockquote>
+              <p>[Parágrafo acadêmico denso...]</p>
+              <p>[Parágrafo acadêmico denso...]</p>
               <h3 class="subtopic-title">Subtítulo 2</h3>
-              <p>[Parágrafo...]</p>
-              <p>[Parágrafo...]</p>
-              <div class="highlight-box"><i class="fas fa-lightbulb"></i> Conceito-chave</div>
+              <p>[Parágrafo acadêmico denso...]</p>
+              <p>[Parágrafo acadêmico denso...]</p>
+              <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica relevante]</div>
+              <h3 class="subtopic-title">Subtítulo 3</h3>
+              <p>[Parágrafo acadêmico denso...]</p>
+              <p>[Parágrafo acadêmico denso...]</p>
+              <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> "Citação relevante"</blockquote>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Use citações e referências para dar credibilidade. Inclua uma página de referências ao final.`;
+          ATENÇÃO: Distribua citações e dicas em páginas diferentes. Use parágrafos longos para preencher pelo menos 2 páginas por capítulo. Inclua uma página de referências ao final (pode ser inserida como página extra).`;
       } else if (modoConteudo === 'rigoroso') {
-          // ---- MODO RIGOROSO ----
+          // ---- MODO RIGOROSO (ATUALIZADO) ----
           regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
-          regraEstrutura = `Neste modo, IGNORE as regras de volume de páginas e molde de capítulos. Formate APENAS o que o usuário mandar, sem adicionar conteúdo.`;
-          regraEstiloCapitulos = `
-          MOLDE RIGOROSO: Use as tags HTML conforme o texto original. Não invente conteúdo.
+          regraEstrutura = `
+          Neste modo, você DEVE:
+          1. Corrigir APENAS erros de ortografia, pontuação e concordância – sem reescrever ou resumir.
+          2. Manter o conteúdo integralmente como foi fornecido.
+          3. Formatar o texto usando as tags HTML adequadas (h2, h3, p) de acordo com a estrutura original.
+          4. NÃO adicionar nem remover parágrafos, imagens ou qualquer elemento.
           `;
+          regraEstiloCapitulos = `
+          MOLDE RIGOROSO: Use as tags HTML conforme o texto original, mantendo a ordem e o conteúdo exato (após correções ortográficas). Não invente conteúdo.`;
       } else {
           // ---- MODO PADRÃO (EXPANDIDO) ----
           regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H1 ou H2) de todo capítulo gerado!`;
@@ -2028,7 +2066,7 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* NOVO: Tipo de Livro (inclui Acadêmico) */}
+                            {/* Tipo de Livro (inclui Acadêmico) */}
                             <div className="grid grid-cols-2 gap-3 mb-3">
                                 <div>
                                     <label className="input-label text-[9px]">Tipo de Livro</label>
