@@ -485,7 +485,7 @@ export default function Home() {
   const [productContent, setProductContent] = useState('');
   
   // Modo de conteúdo expandido para incluir tipos de livro
-  const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso' | 'receitas' | 'historias'>('expandido');
+  const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso' | 'receitas' | 'historias' | 'academico'>('expandido');
   const [indexShowSubtopics, setIndexShowSubtopics] = useState(true);
 
   const [livrosSalvos, setLivrosSalvos] = useState<{id: string, titulo: string, data: string, html: string, prompt: string}[]>([]);
@@ -958,9 +958,12 @@ ${ebookStyles}
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
-  // BUSCADOR UNSPLASH AUTOMÁTICO
+  // BUSCADOR UNSPLASH AUTOMÁTICO - CORRIGIDO
   async function buscarImagemUnsplash() {
-      if (!elementoSelecionado) return;
+      if (!elementoSelecionado) {
+          (window as any).showNotification("Selecione um elemento (imagem ou fundo) primeiro.", "error");
+          return;
+      }
       (window as any).showNotification("Lendo contexto para buscar imagem perfeita no Unsplash...", "info");
       
       let keyword = "abstract"; 
@@ -978,9 +981,24 @@ ${ebookStyles}
 
       const timestamp = new Date().getTime(); 
       const url = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(keyword)},photography,realistic,human&sig=${timestamp}`;
-      let isBg = elementoSelecionado.tagName !== 'img';
       
-      atualizarElemento(isBg ? 'bgImage' : 'src', url);
+      // Verifica se é imagem ou fundo
+      const isImg = elementoSelecionado.tagName === 'img';
+      const field = isImg ? 'src' : 'bgImage';
+      
+      // Atualiza o elemento no iframe
+      const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
+      if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({
+              type: 'UPDATE_ELEMENT',
+              id: elementoSelecionado.id,
+              [field]: url,
+              forceTextUpdate: false
+          }, '*');
+      }
+      
+      // Atualiza o estado local
+      setElementoSelecionado((prev: any) => ({...prev, [field]: url}));
       (window as any).showNotification("Fotografia aplicada com sucesso!", "success");
   }
 
@@ -1181,15 +1199,17 @@ ${ebookStyles}
           regraTitulo = `NUNCA use a palavra "Capítulo". Use "Receita" ou apenas o nome da receita como título (H1 ou H2).`;
           regraEstrutura = `
           ESTRUTURA DE RECEITA (sem capítulos, sem tópicos fixos):
-          - Cada receita terá: Título (H1 ou H2), uma breve descrição, lista de ingredientes (ul), modo de preparo (p ou ol), e dicas extras (p ou blockquote).
-          - Não há limite de páginas; o sistema se adapta ao tamanho do conteúdo.
-          - O índice listará os títulos das receitas.
+          - Cada receita terá: Título (H1 ou H2), uma breve descrição, lista de ingredientes, modo de preparo e dicas.
+          - A página da receita deve conter a imagem (horizontal, proporção 16:9, mesma altura para todas) e os ingredientes (ul).
+          - O modo de preparo deve ficar em uma página separada (próxima página).
+          - Não há limite de páginas.
           `;
           regraEstiloCapitulos = `
-          MOLDE DA RECEITA:
+          MOLDE DA RECEITA (página com imagem + ingredientes):
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>RECEITA</span></div>
               <h2 id="ID_DA_RECEITA" class="chapter-title-inline">Nome da Receita</h2>
+              <img src="URL_DA_IMAGEM_HORIZONTAL_UNSPLASH" class="chapter-banner-img" alt="Imagem da receita" style="height: 300px; object-fit: cover;" />
               <p>[Descrição breve da receita...]</p>
               <h3>Ingredientes</h3>
               <ul>
@@ -1197,33 +1217,67 @@ ${ebookStyles}
                   <li>Ingrediente 2</li>
                   <li>Ingrediente 3</li>
               </ul>
+              <div class="page-footer">${regraRodape}</div>
+          </div>
+          <!-- PRÓXIMA PÁGINA: MODO DE PREPARO -->
+          <div class="page-container">
+              <div class="page-header"><span>${livroTitulo}</span><span>RECEITA - PREPARO</span></div>
               <h3>Modo de Preparo</h3>
-              <p>[Passo a passo detalhado...]</p>
-              <p>[Mais passos...]</p>
+              <p>[Passo 1...]</p>
+              <p>[Passo 2...]</p>
               <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          IMPORTANTE: Não use "Capítulo" em nenhum título. Use apenas o nome da receita.`;
+          IMPORTANTE: A página de imagem + ingredientes deve vir primeiro, seguida da página de preparo. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px).`;
       } else if (modoConteudo === 'historias') {
           // ---- MODO HISTÓRIAS ----
-          regraTitulo = `Use "Capítulo" nos títulos (H2), mas sem a obrigação de 3 tópicos por capítulo. O foco é a narrativa.`;
+          regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa.`;
           regraEstrutura = `
-          ESTRUTURA DE HISTÓRIA (livre):
-          - Cada capítulo deve ter um título (H2) e parágrafos narrativos.
-          - Não há exigência de subtópicos (H3) – podem ser usados opcionalmente para dividir cenas.
-          - O número de páginas varia conforme o conteúdo.
+          ESTRUTURA DE HISTÓRIA (livre, mas com conteúdo suficiente):
+          - Cada capítulo deve ter um título (H2) e parágrafos narrativos que ocupem pelo menos 2 páginas (ou seja, bastante texto).
+          - A imagem deve ser colocada logo abaixo do título (na primeira página do capítulo).
+          - Subtítulos (H3) podem ser usados para dividir cenas, mas não são obrigatórios.
           `;
           regraEstiloCapitulos = `
           MOLDE DO CAPÍTULO (História):
           <div class="page-container">
               <div class="page-header"><span>${livroTitulo}</span><span>CAPÍTULO</span></div>
               <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Título do Capítulo</h2>
+              <img src="URL_DA_IMAGEM_HORIZONTAL_UNSPLASH" class="chapter-banner-img" alt="Imagem do capítulo" style="height: 300px; object-fit: cover;" />
               <p>[Parágrafo narrativo...]</p>
               <p>[Mais parágrafos...]</p>
+              <p>[Continue com bastante texto para preencher pelo menos 2 páginas...]</p>
               <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação ou pensamento</blockquote>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          ATENÇÃO: Não use H3 obrigatoriamente. Use conforme a necessidade narrativa.`;
+          ATENÇÃO: O conteúdo deve ser extenso o suficiente para que o sistema corte em pelo menos 2 páginas. Use de 6 a 8 parágrafos por capítulo.`;
+      } else if (modoConteudo === 'academico') {
+          // ---- MODO ACADÊMICO ----
+          regraTitulo = `Use "Capítulo" nos títulos (H2). Estrutura formal com subtítulos (H3) para tópicos.`;
+          regraEstrutura = `
+          ESTRUTURA ACADÊMICA (formal):
+          - Cada capítulo deve ter um título (H2) e subtópicos (H3) para organizar o conteúdo.
+          - Incluir citações (blockquote) e referências (p ou ul) quando apropriado.
+          - Conclusão deve sintetizar os pontos principais.
+          - A página de referências deve ser a última (pode ser uma página extra).
+          `;
+          regraEstiloCapitulos = `
+          MOLDE DO CAPÍTULO (Acadêmico):
+          <div class="page-container">
+              <div class="page-header"><span>${livroTitulo}</span><span>CAPÍTULO</span></div>
+              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Título do Capítulo</h2>
+              <img src="URL_DA_IMAGEM_HORIZONTAL_UNSPLASH" class="chapter-banner-img" alt="Imagem ilustrativa" style="height: 200px; object-fit: cover;" />
+              <h3 class="subtopic-title">Subtítulo 1</h3>
+              <p>[Parágrafo acadêmico...]</p>
+              <p>[Mais parágrafos...]</p>
+              <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> "Citação relevante"</blockquote>
+              <h3 class="subtopic-title">Subtítulo 2</h3>
+              <p>[Parágrafo...]</p>
+              <p>[Parágrafo...]</p>
+              <div class="highlight-box"><i class="fas fa-lightbulb"></i> Conceito-chave</div>
+              <div class="page-footer">${regraRodape}</div>
+          </div>
+          ATENÇÃO: Use citações e referências para dar credibilidade. Inclua uma página de referências ao final.`;
       } else if (modoConteudo === 'rigoroso') {
           // ---- MODO RIGOROSO ----
           regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
@@ -1432,7 +1486,7 @@ ${ebookStyles}
       2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
       3. ESTRUTURA DO CONTEÚDO: 
          ${regraEstiloCapitulos}
-      4. QUANTIDADE: Gere EXATAMENTE 3 capítulos (se for no modo Padrão) ou a quantidade de receitas/histórias que couber, respeitando o tipo de livro escolhido.
+      4. QUANTIDADE: Gere EXATAMENTE 3 capítulos (se for no modo Padrão/Acadêmico) ou a quantidade de receitas/histórias que couber, respeitando o tipo de livro escolhido.
       `;
 
       const data = await chamarMotorIA(instrucao, [
@@ -1974,7 +2028,7 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* NOVO: Tipo de Livro */}
+                            {/* NOVO: Tipo de Livro (inclui Acadêmico) */}
                             <div className="grid grid-cols-2 gap-3 mb-3">
                                 <div>
                                     <label className="input-label text-[9px]">Tipo de Livro</label>
@@ -1983,6 +2037,7 @@ ${ebookStyles}
                                         <option value="rigoroso">Rigoroso (texto original)</option>
                                         <option value="receitas">Receitas</option>
                                         <option value="historias">Histórias</option>
+                                        <option value="academico">Acadêmico</option>
                                     </select>
                                 </div>
                                 <div>
@@ -2004,8 +2059,6 @@ ${ebookStyles}
                                 </button>
                                 <p className="text-[9px] text-slate-400 text-center mt-1.5">Adicione dedicatória, agradecimentos, etc.</p>
                             </div>
-
-                            {/* Ferramentas de Formatação - REMOVIDAS */}
 
                         </div>
 
