@@ -1212,7 +1212,7 @@ ${ebookStyles}
       (window as any).showNotification("Página extra inserida com sucesso!", "success");
   }
 
-  // ===== FUNÇÃO PARA OBTER INSTRUÇÕES DO PROMPT (ATUALIZADA) =====
+  // ===== FUNÇÃO PARA OBTER INSTRUÇÕES DO PROMPT (ATUALIZADA - UNIFICADA) =====
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
@@ -1224,8 +1224,8 @@ ${ebookStyles}
       let regraTitulo = "";
       let regraEstrutura = "";
 
+      // Modo RECEITAS (não usa capítulos)
       if (modoConteudo === 'receitas') {
-          // ---- MODO RECEITAS ----
           regraTitulo = `NUNCA use a palavra "Capítulo". Use "Receita" ou apenas o nome da receita como título (H1 ou H2).`;
           regraEstrutura = `
           ESTRUTURA DE RECEITA (sem capítulos, sem tópicos fixos):
@@ -1259,60 +1259,9 @@ ${ebookStyles}
               <div class="page-footer">${regraRodape}</div>
           </div>
           IMPORTANTE: A página de imagem + ingredientes deve vir primeiro, seguida da página de preparo. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px). Use a classe "receita-titulo" nos H3.`;
-      } else if (modoConteudo === 'historias') {
-          // ---- MODO HISTÓRIAS ----
-          regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa.`;
-          regraEstrutura = `
-          ESTRUTURA DE HISTÓRIA (livre, mas com conteúdo suficiente):
-          - Cada capítulo deve ter um título (H2) e parágrafos narrativos que ocupem pelo menos 2 páginas (ou seja, bastante texto).
-          - A imagem deve ser colocada logo abaixo do título (na primeira página do capítulo).
-          - Subtítulos (H3) podem ser usados para dividir cenas, mas não são obrigatórios.
-          `;
-          regraEstiloCapitulos = `
-          MOLDE DO CAPÍTULO (História):
-          <div class="page-container">
-              <div class="page-header"><span>${livroTitulo}</span><span>CAPÍTULO</span></div>
-              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Título do Capítulo</h2>
-              <img src="URL_DA_IMAGEM_HORIZONTAL_UNSPLASH" class="chapter-banner-img" alt="Imagem do capítulo" style="height: 300px; object-fit: cover;" />
-              <p>[Parágrafo narrativo...]</p>
-              <p>[Mais parágrafos...]</p>
-              <p>[Continue com bastante texto para preencher pelo menos 2 páginas...]</p>
-              <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação ou pensamento</blockquote>
-              <div class="page-footer">${regraRodape}</div>
-          </div>
-          ATENÇÃO: O conteúdo deve ser extenso o suficiente para que o sistema corte em pelo menos 2 páginas. Use de 6 a 8 parágrafos por capítulo.`;
-      } else if (modoConteudo === 'academico') {
-          // ---- MODO ACADÊMICO (ATUALIZADO) ----
-          regraTitulo = `Use "Capítulo" nos títulos (H2). Estrutura formal com subtítulos (H3) para tópicos.`;
-          regraEstrutura = `
-          ESTRUTURA ACADÊMICA (formal, com volume mínimo de 2 páginas por capítulo):
-          - Cada capítulo deve ter um título (H2) e subtópicos (H3) para organizar o conteúdo.
-          - Conteúdo denso: use de 6 a 8 parágrafos por capítulo para garantir pelo menos 2 páginas.
-          - Incluir citações (blockquote) e dicas (highlight-box com ícone) em páginas alternadas (NUNCA ambos na mesma página).
-          - A página de referências deve ser a última (pode ser uma página extra).
-          `;
-          regraEstiloCapitulos = `
-          MOLDE DO CAPÍTULO (Acadêmico – mínimo 2 páginas):
-          <div class="page-container">
-              <div class="page-header"><span>${livroTitulo}</span><span>CAPÍTULO</span></div>
-              <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Título do Capítulo</h2>
-              <img src="URL_DA_IMAGEM_ILUSTRATIVA_UNSPLASH" class="chapter-banner-img" alt="Imagem ilustrativa" style="height: 200px; object-fit: cover;" />
-              <h3 class="subtopic-title">Subtítulo 1</h3>
-              <p>[Parágrafo acadêmico denso...]</p>
-              <p>[Parágrafo acadêmico denso...]</p>
-              <h3 class="subtopic-title">Subtítulo 2</h3>
-              <p>[Parágrafo acadêmico denso...]</p>
-              <p>[Parágrafo acadêmico denso...]</p>
-              <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica relevante]</div>
-              <h3 class="subtopic-title">Subtítulo 3</h3>
-              <p>[Parágrafo acadêmico denso...]</p>
-              <p>[Parágrafo acadêmico denso...]</p>
-              <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> "Citação relevante"</blockquote>
-              <div class="page-footer">${regraRodape}</div>
-          </div>
-          ATENÇÃO: Distribua citações e dicas em páginas diferentes. Use parágrafos longos para preencher pelo menos 2 páginas por capítulo. Inclua uma página de referências ao final (pode ser inserida como página extra).`;
-      } else if (modoConteudo === 'rigoroso') {
-          // ---- MODO RIGOROSO (ATUALIZADO) ----
+      }
+      // Modo RIGOROSO – formata o texto original, sem adicionar capítulos
+      else if (modoConteudo === 'rigoroso') {
           regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
           regraEstrutura = `
           Neste modo, você DEVE:
@@ -1323,17 +1272,41 @@ ${ebookStyles}
           `;
           regraEstiloCapitulos = `
           MOLDE RIGOROSO: Use as tags HTML conforme o texto original, mantendo a ordem e o conteúdo exato (após correções ortográficas). Não invente conteúdo.`;
-      } else {
-          // ---- MODO PADRÃO (EXPANDIDO) ----
-          regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H1 ou H2) de todo capítulo gerado!`;
-          regraEstrutura = `
-          ESTRUTURA PADRÃO (3 tópicos por capítulo, 3 páginas por capítulo):
-          - O capítulo deve ter exatamente 3 subtópicos (H3).
-          - Em cada tópico, 2 a 3 parágrafos.
-          - A página de título do capítulo (com imagem) deve ter APENAS 2 parágrafos curtos.
-          - As demais páginas devem ter 4 parágrafos mais longos.
-          - O total por capítulo deve ser de exatamente 3 páginas de conteúdo.
-          `;
+      }
+      // Modos que usam capítulos: expandido, historias, academico
+      else {
+          // Definir título e estrutura específica para cada modo
+          if (modoConteudo === 'expandido') {
+              regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H1 ou H2) de todo capítulo gerado!`;
+              regraEstrutura = `
+              ESTRUTURA PADRÃO (3 tópicos por capítulo, 3 páginas por capítulo):
+              - O capítulo deve ter exatamente 3 subtópicos (H3).
+              - Em cada tópico, 2 a 3 parágrafos.
+              - A página de título do capítulo (com imagem) deve ter APENAS 2 parágrafos curtos.
+              - As demais páginas devem ter 4 parágrafos mais longos.
+              - O total por capítulo deve ser de exatamente 3 páginas de conteúdo.
+              `;
+          } else if (modoConteudo === 'historias') {
+              regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa, mas mantenha a estrutura de 3 tópicos por capítulo.`;
+              regraEstrutura = `
+              ESTRUTURA DE HISTÓRIA (com 3 tópicos por capítulo):
+              - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3) com parágrafos narrativos.
+              - A página de título do capítulo (com imagem) deve ter APENAS 2 parágrafos curtos.
+              - As demais páginas devem ter 4 parágrafos mais longos.
+              - O conteúdo deve ser extenso o suficiente para ocupar pelo menos 2 páginas por capítulo.
+              `;
+          } else if (modoConteudo === 'academico') {
+              regraTitulo = `Use "Capítulo" nos títulos (H2). Estrutura formal com 3 subtópicos (H3) por capítulo.`;
+              regraEstrutura = `
+              ESTRUTURA ACADÊMICA (com 3 tópicos por capítulo, mínimo 2 páginas):
+              - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3).
+              - A página de título (com imagem) deve ter APENAS 2 parágrafos curtos.
+              - As demais páginas devem ter 4 parágrafos mais longos.
+              - Incluir citações (blockquote) e dicas (highlight-box) em páginas alternadas (NUNCA ambos na mesma página).
+              `;
+          }
+
+          // Construir o molde com base em estiloCapitulos (box-arredondado ou inline)
           if (estiloCapitulos === 'box-arredondado') {
               regraEstiloCapitulos = `
               MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco):
@@ -1356,8 +1329,11 @@ ${ebookStyles}
                   <p>[4 parágrafos longos...]</p>
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação</blockquote>
                   <div class="page-footer">${regraRodape}</div>
-              </div>`;
+              </div>
+              ATENÇÃO: Distribua os parágrafos uniformemente para evitar que um parágrafo curto fique sozinho no final da página.
+              `;
           } else {
+              // Padrão inline-imagem
               regraEstiloCapitulos = `
               MOLDE PADRÃO (inline-imagem):
               <div class="page-container">
@@ -1375,7 +1351,8 @@ ${ebookStyles}
                   <p>[4 parágrafos longos...]</p>
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação</blockquote>
                   <div class="page-footer">${regraRodape}</div>
-              </div>`;
+              </div>
+              ATENÇÃO: Distribua os parágrafos uniformemente para evitar que um parágrafo curto fique sozinho no final da página.`;
           }
       }
 
@@ -1406,65 +1383,7 @@ ${ebookStyles}
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
   }
 
-  // ===== FUNÇÕES DE GERAÇÃO (MODIFICADAS) =====
-
-  // GERAR E-BOOK COMPLETO
-  async function gerarLivroCompleto() {
-    const content = productContent.trim();
-    if (!content) { (window as any).showNotification('Insira o texto base.', 'error'); return; }
-
-    const { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso } = obterInstrucoesBase();
-
-    // Montar estrutura base (com a página de aviso após a capa)
-    const estruturaBase = `
-    - 1. Capa: ${regraCapaHtml}
-    - 2. Aviso e Direitos Autorais: ${paginaAviso}
-    - 3. Índice: 
-      <div class="page-container">
-          <div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div>
-          <h2 class="chapter-title-inline">Índice</h2>
-          <div class="toc-container"></div>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
-    - 4. Introdução: 
-      <div class="page-container">
-          <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
-          <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-          <h3 class="subtopic-title">Visão Geral</h3>
-          <p>[Parágrafo...]</p>
-          <p>[Parágrafo...]</p>
-          <h3 class="subtopic-title">Propósito</h3>
-          <p>[Parágrafo...]</p>
-          <p>[Parágrafo...]</p>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
-    - 5. Capítulos/Conteúdo Principal:
-      ${regraEstiloCapitulos}
-    - 6. Conclusão:
-      <div class="page-container">
-          <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
-          <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-          <h3 class="subtopic-title">Fechamento</h3>
-          <p>[Conclusão...]</p>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
-    - 7. Página do Autor (será injetada automaticamente).
-    `;
-
-    const instrucao = `Gere o E-book COMPLETO em HTML puro.
-    ${regrasComuns}
-    ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
-    ${estruturaBase}
-    AVISO FINAL: O PROMPT ACABA AQUI. NUNCA CRIE PÁGINA DO AUTOR, APENAS FECHE A CONCLUSÃO. O SISTEMA INJETARÁ O AUTOR SOZINHO.
-    `;
-
-    const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA O E-BOOK:\n"""\n${content}\n"""` }], false);
-    if (data && data.html) {
-        let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
-        aplicarHtmlNovo(htmlFinal, false);
-        (window as any).showNotification("E-book completo gerado com sucesso!", "success");
-    }
-  }
+  // ===== FUNÇÕES DE GERAÇÃO (apenas etapas, sem "Completo") =====
 
   // INICIAR (PASSO 1) – Capa, Aviso, Índice, Introdução
   async function iniciarEbookEtapas() {
@@ -1627,7 +1546,7 @@ ${ebookStyles}
   }
 
   // ==========================================
-  // EFEITOS E INTERFACE (mantidos, com adição do modal)
+  // EFEITOS E INTERFACE
   // ==========================================
 
   useEffect(() => {
@@ -1971,13 +1890,7 @@ ${ebookStyles}
                                     <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y" placeholder="Descreva os capítulos ou cole seu texto aqui..."></textarea>
                                 </div>
 
-                                {/* Botão Gerar E-book Completo */}
-                                <div className="pt-2">
-                                    <button onClick={gerarLivroCompleto} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider py-3 rounded-xl shadow-lg shadow-indigo-200 transition flex items-center justify-center gap-2">
-                                        <i className="fas fa-magic text-yellow-300"></i> Gerar E-book Completo (IA)
-                                    </button>
-                                </div>
-
+                                {/* Botão Gerar E-book Completo REMOVIDO - restam apenas os três botões de etapas */}
                                 <div className="grid grid-cols-3 gap-2 pt-1">
                                     <button onClick={iniciarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
                                     <button onClick={continuarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
