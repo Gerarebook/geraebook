@@ -649,9 +649,9 @@ body {
 
 ${bgSegundaPaginaCss}
 
-/* Ajuste para página de texto após capa exclusiva do capítulo */
+/* Ajuste para página de texto após capa exclusiva do capítulo - aumentado o padding */
 .chapter-text-page {
-    padding-top: 15mm !important;
+    padding-top: 22mm !important;
 }
 
 /* Estilo para página de aviso/direitos */
@@ -1310,18 +1310,19 @@ ${ebookStyles}
           if (estiloCapitulos === 'box-arredondado') {
               regraEstiloCapitulos = `
               MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco):
-              <!-- PÁGINA DE CAPA -->
-              <div class="page-container cap-box-rounded" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('URL_FOTOGRAFIA_REAL_UNSPLASH_AQUI'); background-size: cover; background-position: center;">
+              <!-- PÁGINA DE CAPA DO CAPÍTULO (com imagem de fundo real) -->
+              <div class="page-container cap-box-rounded" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://source.unsplash.com/featured/1200x800/?nature,landscape,water,forest&sig=CAP1'); background-size: cover; background-position: center;">
                   <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
               </div>
               <!-- PÁGINAS DE TEXTO (NÃO REPETIR O TÍTULO) -->
               <div class="page-container chapter-text-page">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <!-- 2 parágrafos curtos na primeira página de texto -->
-                  <p>[Parágrafo curto...]</p>
-                  <p>[Parágrafo curto...]</p>
+                  <p>[Parágrafo curto de introdução ao capítulo, com 3 a 4 linhas...]</p>
+                  <p>[Segundo parágrafo curto, também com 3 a 4 linhas...]</p>
                   <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>[4 parágrafos longos...]</p>
+                  <p>[Parágrafo longo e denso com 6 a 8 linhas, preenchendo bem a página...]</p>
+                  <p>[Mais 3 parágrafos longos para completar a página...]</p>
                   <h3 class="subtopic-title">Segundo Tópico</h3>
                   <p>[4 parágrafos longos...]</p>
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
@@ -1330,10 +1331,9 @@ ${ebookStyles}
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: Distribua os parágrafos uniformemente para evitar que um parágrafo curto fique sozinho no final da página.
-              `;
+              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo. A primeira página de texto (com os 2 parágrafos curtos) deve ter conteúdo suficiente para ocupar pelo menos metade da página.`;
           } else {
-              // Padrão inline-imagem
+              // Padrão inline-imagem (banner)
               regraEstiloCapitulos = `
               MOLDE PADRÃO (inline-imagem):
               <div class="page-container">
@@ -1352,7 +1352,7 @@ ${ebookStyles}
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: Distribua os parágrafos uniformemente para evitar que um parágrafo curto fique sozinho no final da página.`;
+              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo.`;
           }
       }
 
