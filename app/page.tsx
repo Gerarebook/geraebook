@@ -453,6 +453,7 @@ export default function Home() {
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
   const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
+  const [htmlInspiracao, setHtmlInspiracao] = useState('');
 
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
@@ -481,11 +482,7 @@ export default function Home() {
   const [livrosSalvos, setLivrosSalvos] = useState<{id: string, titulo: string, data: string, html: string, prompt: string}[]>([]);
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
 
-  // Estado para o texto da revisão profissional
-  const [textoRevisao, setTextoRevisao] = useState('');
-
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const txtUploadRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const verificarAcesso = async () => {
@@ -796,19 +793,6 @@ ${ebookStyles}
       reader.readAsDataURL(file);
   }
 
-  function handleTxtUpload(e: React.ChangeEvent<HTMLInputElement>) {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-          const content = event.target?.result as string;
-          setTextoRevisao(content);
-          (window as any).showNotification("Arquivo .txt carregado com sucesso!", "success");
-      };
-      reader.readAsText(file);
-      if (txtUploadRef.current) txtUploadRef.current.value = '';
-  }
-
   function toggleInspetor() {
       const newMode = !modoInspetor;
       setModoInspetor(newMode);
@@ -925,80 +909,6 @@ ${ebookStyles}
       
       atualizarElemento(isBg ? 'bgImage' : 'src', url);
       (window as any).showNotification("Fotografia aplicada com sucesso!", "success");
-  }
-
-  // ===== NOVA REVISÃO PROFISSIONAL: CORRIGE ORTOGRAFIA E DEPOIS FORMATA =====
-  async function revisaoProfissional() {
-      if (!textoRevisao.trim()) {
-          (window as any).showNotification("Cole o texto ou faça upload de um arquivo .txt primeiro.", "error");
-          return;
-      }
-
-      const { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos } = obterInstrucoesBase();
-
-      const instrucao = `Você é um revisor ortográfico e gramatical especializado.
-
-      **ETAPA 1 (OBRIGATÓRIA): CORREÇÃO LEVE**
-      - Receba o texto bruto fornecido pelo usuário.
-      - Corrija APENAS erros de ortografia, pontuação e concordância verbal/nominal.
-      - PRESERVE ABSOLUTAMENTE todas as palavras, frases, estrutura e ordem do texto original.
-      - NÃO reescreva, não resuma, não adicione nem remova informações.
-      - O texto corrigido deve ser IDÊNTICO ao original, exceto pelos erros corrigidos.
-
-      **ETAPA 2 (FORMATAÇÃO):**
-      - Após a correção, organize o texto corrigido dentro da estrutura de ebook definida abaixo.
-      - Utilize o conteúdo corrigido para preencher os parágrafos, títulos e tópicos.
-      - NÃO crie novo conteúdo – use apenas o que foi corrigido.
-
-      REGRAS DE FORMATAÇÃO:
-      ${regrasComuns}
-
-      ESTRUTURA OBRIGATÓRIA DO E-BOOK:
-      1. CAPA: ${regraCapaHtml}
-      2. ÍNDICE: 
-         <div class="page-container">
-            <div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div>
-            <h2 class="chapter-title-inline">Índice</h2>
-            <div class="toc-container"></div>
-            <div class="page-footer">${regraRodape}</div>
-         </div>
-      3. INTRODUÇÃO: 
-         <div class="page-container">
-            <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
-            <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <h3 class="subtopic-title">Visão Geral</h3>
-            <p>[Parágrafo da introdução – use o texto corrigido]</p>
-            <p>[Parágrafo da introdução – use o texto corrigido]</p>
-            <h3 class="subtopic-title">Propósito</h3>
-            <p>[Parágrafo da introdução – use o texto corrigido]</p>
-            <p>[Parágrafo da introdução – use o texto corrigido]</p>
-            <div class="page-footer">${regraRodape}</div>
-         </div>
-      4. CAPÍTULOS: 
-         ${regraEstiloCapitulos}
-      5. CONCLUSÃO:
-         <div class="page-container">
-            <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
-            <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-            <h3 class="subtopic-title">Fechamento</h3>
-            <p>[Parágrafo da conclusão – use o texto corrigido]</p>
-            <div class="page-footer">${regraRodape}</div>
-         </div>
-
-      INSTRUÇÕES FINAIS:
-      - Use o texto fornecido como base. Extraia os capítulos, tópicos e parágrafos conforme a estrutura.
-      - NUNCA crie a página do autor – o sistema a injetará automaticamente.
-      - Retorne APENAS o HTML completo do ebook, com o texto já corrigido e formatado.
-      `;
-
-      const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BRUTO PARA O E-BOOK (corrija ortografia e pontuação, depois formate mantendo o conteúdo original):\n"""\n${textoRevisao}\n"""` }], false);
-
-      if (data && data.html) {
-          let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
-          aplicarHtmlNovo(htmlFinal, false);
-          setTextoRevisao('');
-          (window as any).showNotification("E-book gerado a partir do texto corrigido com sucesso!", "success");
-      }
   }
 
   // Mantida a função de aplicação local (modificação por página)
@@ -1480,7 +1390,6 @@ ${ebookStyles}
         `}} />
 
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
-        <input type="file" ref={txtUploadRef} onChange={handleTxtUpload} accept=".txt" className="hidden" />
 
         {statusApis.processing && (
             <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
@@ -1820,25 +1729,7 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* Ferramentas de Formatação */}
-                            <div className="mt-3 border-t border-slate-200 pt-3">
-                                <label className="input-label text-indigo-600 mb-2">Ferramentas de Formatação</label>
-                                <div className="flex flex-col gap-2">
-                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                                        <label className="input-label text-[9px] mb-1">📄 Revisão Profissional (Texto para E-book)</label>
-                                        <textarea rows={4} value={textoRevisao} onChange={(e) => setTextoRevisao(e.target.value)} className="input-standard text-xs resize-y" placeholder="Cole aqui o texto do seu ebook (capítulos, introdução, etc.)..."></textarea>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <button onClick={() => txtUploadRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-[9px] px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                                                <i className="fas fa-upload"></i> Upload .txt
-                                            </button>
-                                            <span className="text-[9px] text-slate-400">ou cole o texto acima</span>
-                                        </div>
-                                        <button onClick={revisaoProfissional} className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
-                                            <i className="fas fa-spell-check"></i> Gerar Ebook a partir do texto
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Ferramentas de Formatação - REMOVIDAS */}
                         </div>
 
                         {/* CONFIGURAÇÃO DE FUNDO DA 2ª PÁGINA */}
