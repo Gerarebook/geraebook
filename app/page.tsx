@@ -1447,14 +1447,14 @@ ${ebookStyles}
 
       // Regra comum para todos os modos
       let regrasComuns = `
-      DIRETRIZES DE ESTRUTURA EDITORIAL:
+      DIRETRIZES OBRIGATÓRIAS:
       1. TÍTULOS: ${regraTitulo}
-      2. REGRA SUPREMA DO USUÁRIO: Se o usuário pedir algo específico no prompt (como "crie apenas uma página de conteúdo" ou "adicione uma página de dedicatória"), OBEDEÇA AO PEDIDO DELE ACIMA DE QUALQUER REGRA DESTE SISTEMA.
-      3. ESTRUTURA: ${regraEstrutura}
-      4. ELEMENTOS VISUAIS OBRIGATÓRIOS (se aplicável): Em capítulos, insira um Quadro de Resumo e uma Citação. Distribua-os bem, nunca ambos na mesma página.
-      5. ÍNDICE DINÂMICO: Crie o bloco vazio do índice EXATAMENTE ASSIM: <div class="page-container"><div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div><h2 class="chapter-title-inline">Índice</h2><div class="toc-container"></div><div class="page-footer">${regraRodape}</div></div>.
-      6. IMAGENS REAIS: Use URLs do Unsplash com fotografias humanas e realistas (ex: https://source.unsplash.com/featured/1200x800/?people,photography,realistic). NUNCA gere a página "Sobre o Autor" (o sistema injeta automaticamente). NUNCA gere tags <br> ou <p>&nbsp;</p>.
-      7. ÍCONES: Use ícones do Font Awesome nos highlight-box, escolha um ícone temático (fa-lightbulb, fa-star, fa-gem, fa-rocket, etc.).
+      2. ESTRUTURA: ${regraEstrutura} Mantenha o espaço exato de uma linha entre os títulos dos tópicos e os parágrafos.
+      3. PARÁGRAFOS (MUITO CRÍTICO): É EXPRESSAMENTE PROIBIDO escrever parágrafos densos! Escreva SEMPRE parágrafos CURTOS (máximo de 3 a 4 linhas) para preencher a página A4 perfeitamente sem deixar buracos.
+      4. IMAGENS 100% FIÉIS AO TEXTO (CRÍTICO): Nos moldes acima existem os comandos data-keyword="[1_PALAVRA_EM_INGLES]".
+         - O termo escolhido DEVE representar o objeto principal da receita ou capítulo (Ex: se for bolo de chocolate, use 'chocolatecake'; se for pão, use 'bread'; se for finanças, use 'money' ou 'office'). 
+         - É ESTRITAMENTE PROIBIDO usar palavras abstratas, animais de estimação (gatos, cachorros) ou termos genéricos que gerem imagens erradas. A imagem precisa descrever visualmente o que está escrito no título.
+      5. NUNCA gere a página "Sobre o Autor" (ela é injetada automaticamente, com a biografia apenas no início).
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
