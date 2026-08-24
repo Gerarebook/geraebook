@@ -85,10 +85,10 @@ export async function POST(req: Request) {
       .eq('id', 1)
       .single();
 
-    if (adminConfig && adminConfig.master_gemini_ativa && adminConfig.master_gemini_key) {
-        // A API Paga Mestra está ativada pelo Administrador!
+    if (adminConfig && adminConfig.master_gemini_ativa) {
+        // A API Paga Mestra está ativada! Puxa direto da Variável de Ambiente protegida da Vercel
         apiAktivadaPaga = true;
-        geminiApiKeyToUse = adminConfig.master_gemini_key;
+        geminiApiKeyToUse = process.env.MASTER_GEMINI_KEY || null;
     } else {
         // Caso contrário, busca a chave individual do cliente logado
         const { data: clientKey } = await supabase
@@ -133,7 +133,6 @@ export async function POST(req: Request) {
 
           const modeloImgEscolhido = listaModelosImg[indiceImagemPago];
           
-          // Se for modelo de imagem flash do Gemini ou Imagen padrão
           let endpointUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modeloImgEscolhido}:generateContent?key=${geminiApiKeyToUse}`;
           let payloadBody: any = {
               contents: [{ parts: [{ text: textoUsuario }] }]
@@ -159,7 +158,6 @@ export async function POST(req: Request) {
               if (modeloImgEscolhido.includes('imagen')) {
                   base64Imagem = dataImg.predictions?.[0]?.bytesBase64Encoded;
               } else {
-                  // Extração genérica se o modelo flash retornar imagem em inlineData
                   base64Imagem = dataImg.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
               }
 

@@ -12,8 +12,6 @@ export default function AdminPanel() {
   const [permitirByok, setPermitirByok] = useState(true);
   const [suaChaveCentralPaga, setSuaChaveCentralPaga] = useState(true);
   const [chaveGlobalAdmin, setChaveGlobalAdmin] = useState(false);
-  const [masterGeminiKey, setMasterGeminiKey] = useState('');
-  const [masterUnsplashKey, setMasterUnsplashKey] = useState('');
 
   // Lista de Clientes e Financeiro
   const [clientes, setClientes] = useState<any[]>([]);
@@ -32,7 +30,7 @@ export default function AdminPanel() {
       }
       setAdminUser(session.user);
 
-      // Carrega Configuração Mestra
+      // Carrega Configuração Mestra do Banco (Apenas o status de ativação)
       const { data: adminConfig } = await supabase
         .from('admin_config')
         .select('*')
@@ -40,8 +38,6 @@ export default function AdminPanel() {
         .single();
 
       if (adminConfig) {
-        setMasterGeminiKey(adminConfig.master_gemini_key || '');
-        setMasterUnsplashKey(adminConfig.master_unsplash_key || '');
         setChaveGlobalAdmin(adminConfig.master_gemini_ativa || false);
       }
 
@@ -61,7 +57,7 @@ export default function AdminPanel() {
     }
   }
 
-  async function salvarControlesGlóbais() {
+  async function salvarControlesGlobais() {
     setSaving(true);
     try {
       const { error } = await supabase
@@ -69,8 +65,6 @@ export default function AdminPanel() {
         .upsert({
           id: 1,
           master_gemini_ativa: chaveGlobalAdmin,
-          master_gemini_key: masterGeminiKey,
-          master_unsplash_key: masterUnsplashKey,
           updated_at: new Date()
         });
 
@@ -147,26 +141,14 @@ export default function AdminPanel() {
             <div className={`p-4 rounded-xl border transition flex items-start justify-between ${chaveGlobalAdmin ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-200 bg-slate-50'}`}>
               <div>
                 <h3 className="text-xs font-bold text-slate-800 uppercase">Chave Global do Admin</h3>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Usa a chave mestre do Administrador para as requisições gerais.</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Usa a chave mestre de ambiente para requisições gerais.</p>
               </div>
               <input type="checkbox" checked={chaveGlobalAdmin} onChange={(e) => setChaveGlobalAdmin(e.target.checked)} className="mt-1 w-4 h-4 text-indigo-600 rounded cursor-pointer" />
             </div>
           </div>
 
-          {/* Inputs de Chaves Globais Mestre */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 mb-6">
-            <div>
-              <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1.5">Chave Gemini Mestra (Global)</label>
-              <input type="password" value={masterGeminiKey} onChange={(e) => setMasterGeminiKey(e.target.value)} placeholder="AIzaSy..." className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1.5">Chave Unsplash Mestra (Global)</label>
-              <input type="password" value={masterUnsplashKey} onChange={(e) => setMasterUnsplashKey(e.target.value)} placeholder="Client-ID..." className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500" />
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button onClick={salvarControlesGlóbais} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition flex items-center gap-2">
+          <div className="flex justify-end pt-4 border-t border-slate-100">
+            <button onClick={salvarControlesGlobais} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition flex items-center gap-2">
               <i className="fas fa-check"></i> Salvar Alterações Globais
             </button>
           </div>
@@ -200,13 +182,11 @@ export default function AdminPanel() {
                 ) : (
                   clientes.map((cliente) => (
                     <tr key={cliente.id} className="hover:bg-slate-50/80 transition">
-                      {/* Cliente / E-mail / Contato */}
                       <td className="py-4 px-6">
                         <div className="font-bold text-slate-800 flex items-center gap-1.5 text-sm">
                           {cliente.user_id.slice(0, 8)}... <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Conta Verificada"></i>
                         </div>
                         <div className="text-indigo-600 font-medium text-xs mt-0.5">{cliente.user_id}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {cliente.id}</div>
                         <button 
                           onClick={() => atualizarClienteCampo(cliente.id, 'status_ativa', !cliente.status_ativa)}
                           className={`mt-2 px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${cliente.status_ativa ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'}`}
@@ -214,48 +194,24 @@ export default function AdminPanel() {
                           {cliente.status_ativa ? 'Bloquear Conta' : 'Desbloquear Conta'}
                         </button>
                       </td>
-
-                      {/* Créditos */}
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded font-bold text-xs flex items-center gap-1">
-                            <i className="fas fa-bolt text-[10px]"></i> {cliente.creditos || 100}
-                          </span>
-                        </div>
+                        <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded font-bold text-xs flex items-center gap-1 w-max">
+                          <i className="fas fa-bolt text-[10px]"></i> {cliente.creditos || 100}
+                        </span>
                       </td>
-
-                      {/* Validade da Assinatura */}
-                      <td className="py-4 px-4">
-                        <div className="text-slate-700 font-medium">
-                          {cliente.validade_assinatura ? cliente.validade_assinatura : 'Sem plano ativo'}
-                        </div>
-                        <div className="mt-1.5 flex gap-1">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase ${cliente.status_ativa ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                            {cliente.status_ativa ? 'Ativo' : 'Inativo'}
-                          </span>
-                        </div>
+                      <td className="py-4 px-4 text-slate-700 font-medium">
+                        {cliente.validade_assinatura ? cliente.validade_assinatura : 'Sem plano ativo'}
                       </td>
-
-                      {/* Chave Gemini */}
                       <td className="py-4 px-4 font-mono text-slate-500 text-[11px]">
-                        {cliente.gemini_key ? `...${cliente.gemini_key.slice(-6)}` : <span className="text-slate-300 italic">Sem chave Gemini</span>}
+                        {cliente.gemini_key ? `...${cliente.gemini_key.slice(-6)}` : <span className="text-slate-300 italic">Sem chave</span>}
                       </td>
-
-                      {/* Chave Unsplash */}
                       <td className="py-4 px-4 font-mono text-slate-500 text-[11px]">
-                        {cliente.unsplash_key ? `...${cliente.unsplash_key.slice(-6)}` : <span className="text-slate-300 italic">Sem chave Unsplash</span>}
+                        {cliente.unsplash_key ? `...${cliente.unsplash_key.slice(-6)}` : <span className="text-slate-300 italic">Sem chave</span>}
                       </td>
-
-                      {/* Permissões Especiais */}
                       <td className="py-4 px-4 text-right space-y-1.5">
                         <div className="flex justify-end">
                           <button className="bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 px-3 py-1 rounded text-[10px] font-bold tracking-tight transition flex items-center gap-1">
                             <i className="fas fa-key"></i> Liberar BYOK
-                          </button>
-                        </div>
-                        <div className="flex justify-end">
-                          <button className="bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 px-3 py-1 rounded text-[10px] font-bold tracking-tight transition flex items-center gap-1">
-                            <i className="fas fa-user-shield"></i> Chave Teste Admin
                           </button>
                         </div>
                       </td>
