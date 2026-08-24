@@ -8,16 +8,15 @@ export default function AdminPanel() {
   const [saving, setSaving] = useState(false);
   const [adminUser, setAdminUser] = useState<any>(null);
 
-  // Configurações Mestras
-  const [masterGeminiAtiva, setMasterGeminiAtiva] = useState(false);
+  // Controles Globais de IA & BYOK
+  const [permitirByok, setPermitirByok] = useState(true);
+  const [suaChaveCentralPaga, setSuaChaveCentralPaga] = useState(true);
+  const [chaveGlobalAdmin, setChaveGlobalAdmin] = useState(false);
   const [masterGeminiKey, setMasterGeminiKey] = useState('');
   const [masterUnsplashKey, setMasterUnsplashKey] = useState('');
 
-  // Clientes (Para adicionar/gerenciar chaves individuais futuramente)
+  // Lista de Clientes e Financeiro
   const [clientes, setClientes] = useState<any[]>([]);
-  const [novoClienteId, setNovoClienteId] = useState('');
-  const [novoClienteGemini, setNovoClienteGemini] = useState('');
-  const [novoClienteUnsplash, setNovoClienteUnsplash] = useState('');
 
   useEffect(() => {
     carregarDadosAdmin();
@@ -26,7 +25,6 @@ export default function AdminPanel() {
   async function carregarDadosAdmin() {
     setLoading(true);
     try {
-      // Verifica se está logado
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         window.location.href = '/login';
@@ -42,12 +40,12 @@ export default function AdminPanel() {
         .single();
 
       if (adminConfig) {
-        setMasterGeminiAtiva(adminConfig.master_gemini_ativa || false);
         setMasterGeminiKey(adminConfig.master_gemini_key || '');
         setMasterUnsplashKey(adminConfig.master_unsplash_key || '');
+        setChaveGlobalAdmin(adminConfig.master_gemini_ativa || false);
       }
 
-      // Carrega Lista de Chaves de Clientes
+      // Carrega Chaves e dados dos Clientes
       const { data: keysList } = await supabase
         .from('client_keys')
         .select('*')
@@ -57,27 +55,27 @@ export default function AdminPanel() {
         setClientes(keysList);
       }
     } catch (error) {
-      console.error("Erro ao carregar dados:", error);
+      console.error("Erro ao carregar painel:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function salvarConfiguracaoMestra() {
+  async function salvarControlesGlóbais() {
     setSaving(true);
     try {
       const { error } = await supabase
         .from('admin_config')
         .upsert({
           id: 1,
-          master_gemini_ativa: masterGeminiAtiva,
+          master_gemini_ativa: chaveGlobalAdmin,
           master_gemini_key: masterGeminiKey,
           master_unsplash_key: masterUnsplashKey,
           updated_at: new Date()
         });
 
       if (error) throw error;
-      alert("Configurações mestras salvas com sucesso!");
+      alert("Controles globais salvos com sucesso!");
     } catch (error: any) {
       alert("Erro ao salvar: " + error.message);
     } finally {
@@ -85,210 +83,191 @@ export default function AdminPanel() {
     }
   }
 
-  async function adicionarChaveCliente() {
-    if (!novoClienteId) {
-      alert("Preencha o ID (UUID) do cliente.");
-      return;
-    }
-    setSaving(true);
+  async function atualizarClienteCampo(id: string, campo: string, valor: any) {
     try {
       const { error } = await supabase
         .from('client_keys')
-        .upsert({
-          user_id: novoClienteId,
-          gemini_key: novoClienteGemini,
-          unsplash_key: novoClienteUnsplash,
-          status_ativa: true,
-          updated_at: new Date()
-        }, { onConflict: 'user_id' });
+        .update({ [campo]: valor, updated_at: new Date() })
+        .eq('id', id);
 
       if (error) throw error;
-      
-      alert("Chave do cliente adicionada/atualizada!");
-      setNovoClienteId('');
-      setNovoClienteGemini('');
-      setNovoClienteUnsplash('');
-      carregarDadosAdmin(); // Recarrega a lista
-    } catch (error: any) {
-      alert("Erro ao salvar cliente: " + error.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function alternarStatusCliente(clienteId: string, statusAtual: boolean) {
-    try {
-      await supabase
-        .from('client_keys')
-        .update({ status_ativa: !statusAtual })
-        .eq('id', clienteId);
       carregarDadosAdmin();
-    } catch (error) {
-      console.error("Erro ao alterar status:", error);
-    }
-  }
-
-  async function apagarCliente(clienteId: string) {
-    if (confirm("Tem certeza que deseja apagar o acesso deste cliente?")) {
-      try {
-        await supabase.from('client_keys').delete().eq('id', clienteId);
-        carregarDadosAdmin();
-      } catch (error) {
-        console.error("Erro ao apagar:", error);
-      }
+    } catch (err: any) {
+      alert("Erro ao atualizar: " + err.message);
     }
   }
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500 font-bold">Carregando painel de comando...</div>;
+    return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500 font-bold">Carregando painel administrativo...</div>;
   }
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans pb-20">
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       
-      {/* Header do Admin */}
+      {/* HEADER DO ADMIN */}
       <header className="bg-slate-900 text-white px-8 py-5 shadow-lg flex items-center justify-between">
-        <h1 className="text-2xl font-black tracking-tight flex items-center gap-3">
+        <h1 className="text-xl font-black tracking-tight flex items-center gap-3">
           <i className="fas fa-shield-alt text-indigo-400"></i>
-          E-bookPro <span className="text-slate-400 font-light text-xl">| Admin Control</span>
+          E-bookPro <span className="text-slate-400 font-light text-sm">| Painel Administrativo</span>
         </h1>
-        <div className="text-sm font-medium text-slate-400">
+        <div className="text-xs font-medium text-slate-400">
           <i className="fas fa-user-circle mr-2"></i> {adminUser?.email}
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto mt-10 px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="max-w-7xl mx-auto mt-8 px-6 space-y-8">
         
-        {/* COLUNA ESQUERDA: Chaves Mestras */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex items-center gap-3">
-              <i className="fas fa-key text-indigo-600 text-xl"></i>
-              <h2 className="text-lg font-bold text-indigo-900">API Global (Mestra)</h2>
+        {/* CAIXA 1: CONTROLES GLOBAIS DE IA & BYOK */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-5 flex items-center gap-2">
+            <i className="fas fa-key text-amber-500"></i> Controles Globais de IA & BYOK
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Card 1 */}
+            <div className={`p-4 rounded-xl border transition flex items-start justify-between ${permitirByok ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-200 bg-slate-50'}`}>
+              <div>
+                <h3 className="text-xs font-bold text-slate-800 uppercase">Permitir Chave Própria (BYOK)</h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Se ativado, TODOS os clientes poderão inserir a própria chave.</p>
+              </div>
+              <input type="checkbox" checked={permitirByok} onChange={(e) => setPermitirByok(e.target.checked)} className="mt-1 w-4 h-4 text-indigo-600 rounded cursor-pointer" />
             </div>
-            
-            <div className="p-6 space-y-5">
-              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                As chaves abaixo pertencem a você. Se a chave mestra for ativada, <strong>todos os clientes</strong> usarão o seu saldo, ignorando as chaves individuais deles.
-              </p>
 
-              {/* Toggle de Ativação Geral */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <div>
-                  <h3 className="font-bold text-sm text-slate-800">Status da API Global</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{masterGeminiAtiva ? 'Sistema usando sua cota paga.' : 'Clientes usam chaves próprias.'}</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" checked={masterGeminiAtiva} onChange={(e) => setMasterGeminiAtiva(e.target.checked)} />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-
+            {/* Card 2 */}
+            <div className={`p-4 rounded-xl border transition flex items-start justify-between ${suaChaveCentralPaga ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-200 bg-slate-50'}`}>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Google Gemini API Key (Pro)</label>
-                <input 
-                  type="password" 
-                  value={masterGeminiKey} 
-                  onChange={(e) => setMasterGeminiKey(e.target.value)} 
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition outline-none text-sm font-mono"
-                  placeholder="AIzaSy..."
-                />
+                <h3 className="text-xs font-bold text-slate-800 uppercase">Sua Chave Central (API Paga)</h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Controla se a sua API paga centralizada está operacional.</p>
               </div>
+              <input type="checkbox" checked={suaChaveCentralPaga} onChange={(e) => setSuaChaveCentralPaga(e.target.checked)} className="mt-1 w-4 h-4 text-emerald-600 rounded cursor-pointer" />
+            </div>
 
+            {/* Card 3 */}
+            <div className={`p-4 rounded-xl border transition flex items-start justify-between ${chaveGlobalAdmin ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-200 bg-slate-50'}`}>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Unsplash Access Key</label>
-                <input 
-                  type="password" 
-                  value={masterUnsplashKey} 
-                  onChange={(e) => setMasterUnsplashKey(e.target.value)} 
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition outline-none text-sm font-mono"
-                  placeholder="Seu Client-ID do Unsplash..."
-                />
+                <h3 className="text-xs font-bold text-slate-800 uppercase">Chave Global do Admin</h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Usa a chave mestre do Administrador para as requisições gerais.</p>
               </div>
-
-              <button 
-                onClick={salvarConfiguracaoMestra}
-                disabled={saving}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-lg shadow-md transition flex items-center justify-center gap-2"
-              >
-                {saving ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>}
-                Salvar Configuração Mestra
-              </button>
+              <input type="checkbox" checked={chaveGlobalAdmin} onChange={(e) => setChaveGlobalAdmin(e.target.checked)} className="mt-1 w-4 h-4 text-indigo-600 rounded cursor-pointer" />
             </div>
           </div>
-        </div>
 
-        {/* COLUNA DIREITA: Gestão de Clientes */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center gap-3">
-              <i className="fas fa-users text-slate-600 text-xl"></i>
-              <h2 className="text-lg font-bold text-slate-800">Licenças de Clientes (Multi-Tenant)</h2>
+          {/* Inputs de Chaves Globais Mestre */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 mb-6">
+            <div>
+              <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1.5">Chave Gemini Mestra (Global)</label>
+              <input type="password" value={masterGeminiKey} onChange={(e) => setMasterGeminiKey(e.target.value)} placeholder="AIzaSy..." className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500" />
             </div>
+            <div>
+              <label className="block text-[10px] font-extrabold text-slate-500 uppercase mb-1.5">Chave Unsplash Mestra (Global)</label>
+              <input type="password" value={masterUnsplashKey} onChange={(e) => setMasterUnsplashKey(e.target.value)} placeholder="Client-ID..." className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 bg-slate-50 outline-none focus:bg-white focus:border-indigo-500" />
+            </div>
+          </div>
 
-            <div className="p-6">
-              {/* Formulário Add Cliente Rápido */}
-              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-8">
-                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><i className="fas fa-plus-circle text-emerald-500"></i> Cadastrar Chaves para um Cliente</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="md:col-span-2">
-                    <input type="text" value={novoClienteId} onChange={(e) => setNovoClienteId(e.target.value)} placeholder="User ID do Cliente (UUID do Supabase)" className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-mono outline-none focus:border-indigo-500" />
-                  </div>
-                  <input type="text" value={novoClienteGemini} onChange={(e) => setNovoClienteGemini(e.target.value)} placeholder="Chave Gemini (Grátis)" className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-mono outline-none focus:border-indigo-500" />
-                  <input type="text" value={novoClienteUnsplash} onChange={(e) => setNovoClienteUnsplash(e.target.value)} placeholder="Chave Unsplash (Grátis)" className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-mono outline-none focus:border-indigo-500" />
-                </div>
-                <button onClick={adicionarChaveCliente} disabled={saving} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-2.5 rounded-lg text-sm transition">
-                  Registrar Cliente
-                </button>
-              </div>
+          <div className="flex justify-end">
+            <button onClick={salvarControlesGlóbais} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md transition flex items-center gap-2">
+              <i className="fas fa-check"></i> Salvar Alterações Globais
+            </button>
+          </div>
+        </section>
 
-              {/* Tabela de Clientes */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px]">
-                      <th className="py-3 px-4 font-bold">User ID (Cliente)</th>
-                      <th className="py-3 px-4 font-bold text-center">Status</th>
-                      <th className="py-3 px-4 font-bold">Gemini Key</th>
-                      <th className="py-3 px-4 font-bold text-right">Ações</th>
+        {/* CAIXA 2: GESTÃO DE CLIENTES E FINANCEIRO */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+              <i className="fas fa-users text-indigo-600"></i> Gestão de Clientes e Financeiro ({clientes.length})
+            </h2>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider text-[10px] bg-slate-50/50">
+                  <th className="py-3 px-6 font-bold">Cliente / E-mail</th>
+                  <th className="py-3 px-4 font-bold">Gerenciar Créditos</th>
+                  <th className="py-3 px-4 font-bold">Assinatura Mensal / Validade</th>
+                  <th className="py-3 px-4 font-bold">Chave Própria (Gemini)</th>
+                  <th className="py-3 px-4 font-bold">Chave Unsplash</th>
+                  <th className="py-3 px-4 font-bold text-right">Permissões Especiais</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {clientes.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-slate-400 italic">Nenhum cliente registrado no banco de dados ainda.</td>
+                  </tr>
+                ) : (
+                  clientes.map((cliente) => (
+                    <tr key={cliente.id} className="hover:bg-slate-50/80 transition">
+                      {/* Cliente / E-mail / Contato */}
+                      <td className="py-4 px-6">
+                        <div className="font-bold text-slate-800 flex items-center gap-1.5 text-sm">
+                          {cliente.user_id.slice(0, 8)}... <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Conta Verificada"></i>
+                        </div>
+                        <div className="text-indigo-600 font-medium text-xs mt-0.5">{cliente.user_id}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {cliente.id}</div>
+                        <button 
+                          onClick={() => atualizarClienteCampo(cliente.id, 'status_ativa', !cliente.status_ativa)}
+                          className={`mt-2 px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${cliente.status_ativa ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'}`}
+                        >
+                          {cliente.status_ativa ? 'Bloquear Conta' : 'Desbloquear Conta'}
+                        </button>
+                      </td>
+
+                      {/* Créditos */}
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded font-bold text-xs flex items-center gap-1">
+                            <i className="fas fa-bolt text-[10px]"></i> {cliente.creditos || 100}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Validade da Assinatura */}
+                      <td className="py-4 px-4">
+                        <div className="text-slate-700 font-medium">
+                          {cliente.validade_assinatura ? cliente.validade_assinatura : 'Sem plano ativo'}
+                        </div>
+                        <div className="mt-1.5 flex gap-1">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase ${cliente.status_ativa ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                            {cliente.status_ativa ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Chave Gemini */}
+                      <td className="py-4 px-4 font-mono text-slate-500 text-[11px]">
+                        {cliente.gemini_key ? `...${cliente.gemini_key.slice(-6)}` : <span className="text-slate-300 italic">Sem chave Gemini</span>}
+                      </td>
+
+                      {/* Chave Unsplash */}
+                      <td className="py-4 px-4 font-mono text-slate-500 text-[11px]">
+                        {cliente.unsplash_key ? `...${cliente.unsplash_key.slice(-6)}` : <span className="text-slate-300 italic">Sem chave Unsplash</span>}
+                      </td>
+
+                      {/* Permissões Especiais */}
+                      <td className="py-4 px-4 text-right space-y-1.5">
+                        <div className="flex justify-end">
+                          <button className="bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 px-3 py-1 rounded text-[10px] font-bold tracking-tight transition flex items-center gap-1">
+                            <i className="fas fa-key"></i> Liberar BYOK
+                          </button>
+                        </div>
+                        <div className="flex justify-end">
+                          <button className="bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 px-3 py-1 rounded text-[10px] font-bold tracking-tight transition flex items-center gap-1">
+                            <i className="fas fa-user-shield"></i> Chave Teste Admin
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {clientes.length === 0 ? (
-                      <tr><td colSpan={4} className="text-center py-8 text-slate-400 italic">Nenhum cliente com chaves próprias configuradas ainda.</td></tr>
-                    ) : (
-                      clientes.map((cliente) => (
-                        <tr key={cliente.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                          <td className="py-3 px-4 font-mono text-xs text-slate-600 truncate max-w-[150px]">{cliente.user_id}</td>
-                          <td className="py-3 px-4 text-center">
-                            <button 
-                              onClick={() => alternarStatusCliente(cliente.id, cliente.status_ativa)}
-                              className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${cliente.status_ativa ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}
-                            >
-                              {cliente.status_ativa ? 'Ativo' : 'Bloqueado'}
-                            </button>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-xs text-slate-400">
-                            {cliente.gemini_key ? `...${cliente.gemini_key.slice(-6)}` : 'Sem chave'}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <button onClick={() => apagarCliente(cliente.id)} className="text-red-400 hover:text-red-600 transition p-2">
-                              <i className="fas fa-trash-alt"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </section>
 
-      </div>
+      </main>
     </div>
   );
 }
