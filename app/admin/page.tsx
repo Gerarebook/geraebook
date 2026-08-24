@@ -28,6 +28,17 @@ export default function AdminPanel() {
         window.location.href = '/login';
         return;
       }
+
+      // =====================================================================
+      // 🔒 TRAVA DE SEGURANÇA: DIGITE SEU E-MAIL DE ADMIN ABAIXO
+      // =====================================================================
+      const ADMIN_EMAIL = 'seu-email-admin@gmail.com'; // <--- ALTERE PARA O SEU E-MAIL
+      if (session.user.email !== ADMIN_EMAIL) {
+        alert('Acesso negado. Esta área é restrita ao administrador.');
+        window.location.href = '/';
+        return;
+      }
+
       setAdminUser(session.user);
 
       // Carrega Configuração Mestra do Banco (Apenas o status de ativação)

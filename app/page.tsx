@@ -459,7 +459,7 @@ export default function Home() {
   
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   const [tipoCapa, setTipoCapa] = useState<'imagem-texto' | 'imagem-pura' | 'texto'>('imagem-texto');
-  const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=80');
+  const [imagemCapaUrl, setImagemCapaUrl] = useState('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80');
   const [htmlInspiracao, setHtmlInspiracao] = useState('');
 
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'manual'>('classico');
@@ -963,7 +963,9 @@ ${ebookStyles}
           if (prevEl) prevEl.srcdoc = '';
           setLivroTitulo('');
           setProductContent('');
-          (window as any).showNotification("Novo documento em branco criado.", "info");
+          // Reseta a capa para a imagem neutra padrão
+          setImagemCapaUrl('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80');
+          (window as any).showNotification("Novo documento em branco criado com capa neutra.", "info");
       }
   }
 
