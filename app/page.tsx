@@ -554,7 +554,6 @@ export default function Home() {
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const capaInputRef = useRef<HTMLInputElement>(null);
 
   const [recarregarIframe, setRecarregarIframe] = useState(true);
 
@@ -976,84 +975,6 @@ ${ebookStyles}
           if (imageInputRef.current) imageInputRef.current.value = '';
       };
       reader.readAsDataURL(file);
-  }
-
-  // Upload de capa para Supabase Storage (bucket 'public')
-  async function handleCapaUpload(e: React.ChangeEvent<HTMLInputElement>) {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) throw new Error('Usuário não autenticado');
-
-          // Gerar nome único
-          const fileExt = file.name.split('.').pop();
-          const fileName = `capa_${Date.now()}.${fileExt}`;
-          const filePath = `public/${fileName}`; // pasta 'public' dentro do bucket 'public'
-
-          // Upload para bucket 'public'
-          const { data, error } = await supabase.storage
-              .from('covers') // bucket público padrão
-              .upload(filePath, file, {
-                  cacheControl: '3600',
-                  upsert: false,
-                  contentType: file.type,
-              });
-
-          if (error) throw error;
-
-          // Obter URL pública
-          const { data: publicUrlData } = supabase.storage
-    .from('covers')   // mesmo nome
-    .getPublicUrl(filePath);
-
-          if (!publicUrlData || !publicUrlData.publicUrl) throw new Error('Falha ao obter URL pública');
-
-          const publicUrl = publicUrlData.publicUrl;
-          setImagemCapaUrl(publicUrl);
-
-          // Atualizar o iframe via mensagem (não recarrega)
-          if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-              previewFrameRef.current.contentWindow.postMessage({
-                  type: 'UPDATE_COVER_IMAGE',
-                  url: publicUrl
-              }, '*');
-          }
-
-          // Atualizar o estado htmlAtual com a nova capa (para persistência)
-          atualizarHtmlComNovaCapa(publicUrl);
-
-          (window as any).showNotification("Capa enviada com sucesso! (A4 recomendado)", "success");
-      } catch (error: any) {
-          console.error('Erro no upload da capa:', error);
-          (window as any).showNotification(`Erro ao enviar capa: ${error.message}`, 'error');
-      }
-
-      if (capaInputRef.current) capaInputRef.current.value = '';
-  }
-
-  // Atualiza o htmlAtual com a nova URL da capa, preservando o conteúdo
-  function atualizarHtmlComNovaCapa(novaUrl: string) {
-      if (!htmlAtual) return;
-      // Extrai o conteúdo interno (as páginas) do htmlAtual
-      const containerMatch = htmlAtual.match(/<div id="ebook-container">([\s\S]*?)<\/div>/i);
-      let conteudo = '';
-      if (containerMatch && containerMatch[1]) {
-          conteudo = containerMatch[1].trim();
-      } else {
-          // Fallback: tenta extrair entre <body> e </body>
-          const bodyMatch = htmlAtual.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-          if (bodyMatch && bodyMatch[1]) {
-              const inner = bodyMatch[1].replace(/<div id="ebook-container">/i, '').replace(/<\/div>\s*$/i, '').trim();
-              conteudo = inner;
-          }
-      }
-      if (!conteudo) return;
-      // Reaplica a moldura com a nova capa
-      const novoHtml = moldarApresentacaoHtml(conteudo);
-      setHtmlAtual(novoHtml);
-      localStorage.setItem('ebook_draft_html', novoHtml);
   }
 
   function handleExtraImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1938,7 +1859,6 @@ ${ebookStyles}
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
         <input type="file" ref={extraImageInputRef} onChange={handleExtraImageUpload} accept="image/*" className="hidden" />
         <input type="file" ref={uploadInputRef} onChange={handleUploadFile} accept=".html,.htm" className="hidden" />
-        <input type="file" ref={capaInputRef} onChange={handleCapaUpload} accept="image/*" className="hidden" />
 
         {statusApis.processing && (
             <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
@@ -2238,6 +2158,7 @@ ${ebookStyles}
                                         <option value="Lora">Lora</option>
                                         <option value="EB Garamond">Garamond</option>
                                         <option value="Verdana">Verdana</option>
+                                        <option value="Arial">Arial</option>
                                     </select>
                                 </div>
                                 <div>
@@ -2328,14 +2249,20 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* Botão de upload de capa */}
-                            <div className="mt-3 border-t border-slate-200 pt-3">
-                                <button onClick={() => capaInputRef.current?.click()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
-                                    <i className="fas fa-image"></i> Enviar Capa (A4)
-                                </button>
-                                <p className="text-[9px] text-slate-400 text-center mt-1.5">Substitua a capa por uma imagem no formato A4</p>
+                            {/* NOVO: Seletor de bordas */}
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label className="input-label text-[9px]">Borda das Páginas</label>
+                                    <select value={tipoBorda} onChange={(e: any) => setTipoBorda(e.target.value)} className="input-standard text-[10px]">
+                                        <option value="none">Sem borda</option>
+                                        <option value="single">Linha fina</option>
+                                        <option value="medium">Linha média</option>
+                                        <option value="double-thin">Linha dupla fina</option>
+                                    </select>
+                                </div>
                             </div>
 
+                            {/* Botão "Inserir Página Extra" */}
                             <div className="mt-3 border-t border-slate-200 pt-3">
                                 <button onClick={() => setShowModalPagina(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
                                     <i className="fas fa-plus-circle"></i> Inserir Página Extra
