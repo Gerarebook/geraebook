@@ -233,6 +233,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             }
         }
 
+        // Remoção de páginas vazias - preserva capas e páginas especiais
         document.querySelectorAll('.page-container').forEach(page => {
             const contentNodes = Array.from(page.children).filter(el => 
                 !el.classList.contains('page-header') && 
@@ -241,6 +242,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             );
             if (contentNodes.length > 0) return;
             
+            // Preserva capas e páginas especiais mesmo vazias
             const isSpecial = page.classList.contains('page-cover-pura') || 
                               page.classList.contains('page-cover-img') || 
                               page.classList.contains('page-cover-text') || 
@@ -398,6 +400,8 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                         el.style.outlineOffset = '';
                     }
                 });
+                // Após sair do modo edição, força reflow para estabilizar
+                triggerSmartReflow();
             }
         }
         if (event.data.type === 'DELETE_ELEMENT') {
@@ -500,8 +504,8 @@ export default function Home() {
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   // Capa fixa: apenas imagem-texto
   const tipoCapa = 'imagem-texto';
-  // Capa neutra (gradiente suave)
-  const [imagemCapaUrl, setImagemCapaUrl] = useState('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%23e2e8f0;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%23cbd5e1;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E');
+  // Capa neutra profissional (gradiente azul escuro)
+  const [imagemCapaUrl, setImagemCapaUrl] = useState('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="50%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E');
   const [htmlInspiracao, setHtmlInspiracao] = useState('');
 
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'manual'>('classico');
@@ -542,6 +546,7 @@ export default function Home() {
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const capaInputRef = useRef<HTMLInputElement>(null); // input específico para capa
 
   const [recarregarIframe, setRecarregarIframe] = useState(true);
 
@@ -958,9 +963,31 @@ ${ebookStyles}
               (window as any).showNotification("Fundo substituído com sucesso!", "success");
           } else {
               setImagemCapaUrl(base64Img);
-              (window as any).showNotification("Capa atualizada com sucesso!", "success");
+              (window as any).showNotification("Capa atualizada com sucesso! (Formato A4 recomendado)", "success");
           }
           if (imageInputRef.current) imageInputRef.current.value = '';
+      };
+      reader.readAsDataURL(file);
+  }
+
+  // Upload específico para capa
+  function handleCapaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const base64Img = event.target?.result as string;
+          setImagemCapaUrl(base64Img);
+          // Atualiza a página de capa se já existir
+          if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+              // Força recarregamento para aplicar a nova capa
+              setRecarregarIframe(true);
+              if (htmlAtual) {
+                  previewFrameRef.current.srcdoc = moldarApresentacaoHtml(htmlAtual) + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+              }
+          }
+          (window as any).showNotification("Capa substituída com sucesso! (Formato A4 recomendado)", "success");
+          if (capaInputRef.current) capaInputRef.current.value = '';
       };
       reader.readAsDataURL(file);
   }
@@ -1041,7 +1068,12 @@ ${ebookStyles}
           setHtmlAtual('');
           setLivroTitulo('');
           setProductContent('');
-          setImagemCapaUrl('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%23e2e8f0;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%23cbd5e1;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E');
+          // Mantém a capa escolhida pelo usuário ou a padrão
+          if (!imagemCapaUrl.includes('gradient')) {
+              // se já tinha uma capa personalizada, mantém
+          } else {
+              setImagemCapaUrl('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="50%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E');
+          }
           if (previewFrameRef.current) {
               previewFrameRef.current.srcdoc = '';
           }
@@ -1838,6 +1870,7 @@ ${ebookStyles}
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
         <input type="file" ref={extraImageInputRef} onChange={handleExtraImageUpload} accept="image/*" className="hidden" />
         <input type="file" ref={uploadInputRef} onChange={handleUploadFile} accept=".html,.htm" className="hidden" />
+        <input type="file" ref={capaInputRef} onChange={handleCapaUpload} accept="image/*" className="hidden" />
 
         {statusApis.processing && (
             <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
@@ -2225,6 +2258,14 @@ ${ebookStyles}
                                         <option value="1.2em">1.2em</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            {/* Botão de upload de capa */}
+                            <div className="mt-3 border-t border-slate-200 pt-3">
+                                <button onClick={() => capaInputRef.current?.click()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
+                                    <i className="fas fa-image"></i> Enviar Capa (A4)
+                                </button>
+                                <p className="text-[9px] text-slate-400 text-center mt-1.5">Substitua a capa por uma imagem no formato A4</p>
                             </div>
 
                             <div className="mt-3 border-t border-slate-200 pt-3">
