@@ -1178,7 +1178,7 @@ ${ebookStyles}
       
       let keyword = "abstract"; 
       try {
-          const instrucao = "Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra.";
+          const instrucao = "Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais (cat, dog, pet, animal, etc.)**.";
           const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
           
           if (data && data.html) {
@@ -1269,6 +1269,9 @@ ${ebookStyles}
 
   // CORREÇÃO: validação de parágrafos na segunda página de cada capítulo
   function validarParagrafos(html: string): string {
+    // CORREÇÃO: se estiver no modo receitas, retorna o HTML sem modificar
+    if (modoConteudo === 'receitas') return html;
+
     // Identifica todas as páginas que são de capítulo (contêm h2.chapter-title-inline) e não são capa, índice, etc.
     const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
     let novoHtml = html;
@@ -1298,7 +1301,7 @@ ${ebookStyles}
       }
     }
     return novoHtml;
-  }
+}
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
       console.log("aplicarHtmlNovo chamado, isInjetar:", isInjetar, "recarregar:", recarregar);
@@ -1466,44 +1469,39 @@ ${ebookStyles}
 
       // MODO RECEITAS - forçar banner, sem capítulos, 2 parágrafos na primeira página
       if (modoConteudo === 'receitas') {
-          regraTitulo = `PROIBIDO usar a palavra "Capítulo" nos títulos. Use apenas o nome da receita como título (H2).`;
-          regraEstrutura = `
-          ESTRUTURA DE RECEITA (somente banner, sem capa exclusiva):
-          - Cada receita terá: Título (H2) com o nome da receita, uma imagem de banner, e 2 parágrafos abaixo da imagem.
-          - As páginas seguintes (preparo) terão 4 parágrafos e podem incluir dicas.
-          - NUNCA use a palavra "Capítulo" em nenhum título.
-          - A imagem deve ser buscada com palavras-chave relacionadas ao título da receita, PROIBIDO animais (gatos, cães, etc.).
-          `;
-          regraEstiloCapitulos = `
-          MOLDE DA RECEITA (SOMENTE BANNER):
-          <!-- PÁGINA 1: Título + Banner + 2 parágrafos -->
-          <div class="page-container">
-              <div class="page-header"><span>${livroTitulo}</span><span>RECEITA</span></div>
-              <h2 id="ID_DA_RECEITA" class="chapter-title-inline">Nome da Receita</h2>
-              <img src="URL_DA_IMAGEM_UNSPLASH_BASEADA_NO_TITULO" class="chapter-banner-img" alt="Imagem da receita" style="height: 370px; object-fit: cover;" />
-              <p>[Primeiro parágrafo sobre a receita, 2-3 linhas]</p>
-              <p>[Segundo parágrafo sobre a receita, 2-3 linhas]</p>
-              <div class="page-footer">${regraRodape}</div>
-          </div>
-          <!-- PÁGINA 2: Ingredientes (opcional) e preparo (4 parágrafos) -->
-          <div class="page-container">
-              <div class="page-header"><span>${livroTitulo}</span><span>RECEITA - PREPARO</span></div>
-              <h3 class="subtopic-title">Ingredientes</h3>
-              <ul>
-                  <li>Ingrediente 1</li>
-                  <li>Ingrediente 2</li>
-                  <li>Ingrediente 3</li>
-              </ul>
-              <h3 class="subtopic-title">Modo de Preparo</h3>
-              <p>[Passo 1 - 3-4 linhas]</p>
-              <p>[Passo 2 - 3-4 linhas]</p>
-              <p>[Passo 3 - 3-4 linhas]</p>
-              <p>[Passo 4 - 3-4 linhas]</p>
-              <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
-              <div class="page-footer">${regraRodape}</div>
-          </div>
-          IMPORTANTE: A imagem de banner deve ser buscada com palavras-chave do título, por exemplo, se for "Bolo de Chocolate", usar "chocolate cake". NUNCA use animais.
-          `;
+    regraTitulo = `PROIBIDO usar a palavra "Capítulo" nos títulos. Use apenas o nome da receita como título (H2).`;
+    regraEstrutura = `
+    ESTRUTURA DE RECEITA (somente banner, sem capa exclusiva):
+    - Cada receita terá: Título (H2) com o nome da receita, uma imagem de banner, e 2 parágrafos introdutórios na primeira página.
+    - A página seguinte (preparo) terá um subtítulo (H3) "Modo de Preparo" e 4 parágrafos detalhando o preparo, além de um box de dica.
+    - NUNCA use a palavra "Capítulo" em nenhum título.
+    - A imagem deve ser buscada com palavras-chave relacionadas ao título da receita, PROIBIDO animais (gatos, cães, etc.) – use termos como "food", "dish", "cooking".
+    `;
+    regraEstiloCapitulos = `
+    MOLDE DA RECEITA (SOMENTE BANNER):
+    <!-- PÁGINA 1: Título + Banner + 2 parágrafos introdutórios -->
+    <div class="page-container">
+        <div class="page-header"><span>${livroTitulo}</span><span>RECEITA</span></div>
+        <h2 id="ID_DA_RECEITA" class="chapter-title-inline">Nome da Receita</h2>
+        <img src="URL_DA_IMAGEM_UNSPLASH_BASEADA_NO_TITULO" class="chapter-banner-img" alt="Imagem da receita" style="height: 370px; object-fit: cover;" />
+        <p>[Parágrafo introdutório sobre a receita – 3 a 4 linhas]</p>
+        <p>[Segundo parágrafo introdutório – 3 a 4 linhas]</p>
+        <div class="page-footer">${regraRodape}</div>
+    </div>
+    <!-- PÁGINA 2: Modo de preparo (subtítulo + 4 parágrafos + dica) -->
+    <div class="page-container">
+        <div class="page-header"><span>${livroTitulo}</span><span>RECEITA - PREPARO</span></div>
+        <h3 class="subtopic-title">Modo de Preparo</h3>
+        <p>[Passo 1 – 3 a 4 linhas]</p>
+        <p>[Passo 2 – 3 a 4 linhas]</p>
+        <p>[Passo 3 – 3 a 4 linhas]</p>
+        <p>[Passo 4 – 3 a 4 linhas]</p>
+        <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
+        <div class="page-footer">${regraRodape}</div>
+    </div>
+    IMPORTANTE: A imagem de banner deve ser buscada com palavras-chave do título, por exemplo, se for "Bolo de Chocolate", usar "chocolate cake". NUNCA use animais ou imagem sem sentido.
+    `;
+}
       }
       else if (modoConteudo === 'rigoroso') {
           regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
