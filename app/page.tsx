@@ -465,6 +465,13 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         if (event.data.type === 'TOGGLE_BG') {
             toggleAllBg();
         }
+        // NOVO: atualizar imagem de capa
+        if (event.data.type === 'UPDATE_COVER_IMAGE') {
+            const cover = document.querySelector('.page-cover-img');
+            if (cover) {
+                cover.style.backgroundImage = \`url('\${event.data.url}')\`;
+            }
+        }
     });
 
     document.addEventListener('click', (e) => {
@@ -971,7 +978,7 @@ ${ebookStyles}
       reader.readAsDataURL(file);
   }
 
-  // Upload de capa para Supabase Storage
+  // Upload de capa para Supabase Storage (bucket 'public')
   async function handleCapaUpload(e: React.ChangeEvent<HTMLInputElement>) {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -983,11 +990,11 @@ ${ebookStyles}
           // Gerar nome único
           const fileExt = file.name.split('.').pop();
           const fileName = `capa_${Date.now()}.${fileExt}`;
-          const filePath = `public/${fileName}`;
+          const filePath = `public/${fileName}`; // pasta 'public' dentro do bucket 'public'
 
-          // Upload para bucket 'covers'
+          // Upload para bucket 'public'
           const { data, error } = await supabase.storage
-              .from('covers')
+              .from('public') // bucket público padrão
               .upload(filePath, file, {
                   cacheControl: '3600',
                   upsert: false,
@@ -998,7 +1005,7 @@ ${ebookStyles}
 
           // Obter URL pública
           const { data: publicUrlData } = supabase.storage
-              .from('covers')
+              .from('public')
               .getPublicUrl(filePath);
 
           if (!publicUrlData || !publicUrlData.publicUrl) throw new Error('Falha ao obter URL pública');
@@ -1006,11 +1013,16 @@ ${ebookStyles}
           const publicUrl = publicUrlData.publicUrl;
           setImagemCapaUrl(publicUrl);
 
-          // Atualizar o iframe com a nova capa
-          if (previewFrameRef.current && htmlAtual) {
-              const novoHtml = moldarApresentacaoHtml(htmlAtual);
-              previewFrameRef.current.srcdoc = novoHtml + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+          // Atualizar o iframe via mensagem (não recarrega)
+          if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+              previewFrameRef.current.contentWindow.postMessage({
+                  type: 'UPDATE_COVER_IMAGE',
+                  url: publicUrl
+              }, '*');
           }
+
+          // Atualizar o estado htmlAtual com a nova capa (para persistência)
+          atualizarHtmlComNovaCapa(publicUrl);
 
           (window as any).showNotification("Capa enviada com sucesso! (A4 recomendado)", "success");
       } catch (error: any) {
@@ -1019,6 +1031,29 @@ ${ebookStyles}
       }
 
       if (capaInputRef.current) capaInputRef.current.value = '';
+  }
+
+  // Atualiza o htmlAtual com a nova URL da capa, preservando o conteúdo
+  function atualizarHtmlComNovaCapa(novaUrl: string) {
+      if (!htmlAtual) return;
+      // Extrai o conteúdo interno (as páginas) do htmlAtual
+      const containerMatch = htmlAtual.match(/<div id="ebook-container">([\s\S]*?)<\/div>/i);
+      let conteudo = '';
+      if (containerMatch && containerMatch[1]) {
+          conteudo = containerMatch[1].trim();
+      } else {
+          // Fallback: tenta extrair entre <body> e </body>
+          const bodyMatch = htmlAtual.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          if (bodyMatch && bodyMatch[1]) {
+              const inner = bodyMatch[1].replace(/<div id="ebook-container">/i, '').replace(/<\/div>\s*$/i, '').trim();
+              conteudo = inner;
+          }
+      }
+      if (!conteudo) return;
+      // Reaplica a moldura com a nova capa
+      const novoHtml = moldarApresentacaoHtml(conteudo);
+      setHtmlAtual(novoHtml);
+      localStorage.setItem('ebook_draft_html', novoHtml);
   }
 
   function handleExtraImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1056,11 +1091,10 @@ ${ebookStyles}
       if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
           previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
       }
+      // NÃO recarregamos o iframe ao desativar, para não perder a capa nem a posição de rolagem
       if (!newMode) {
-          setRecarregarIframe(true);
-          if (htmlAtual && previewFrameRef.current) {
-              previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-          }
+          // Apenas assegura que o modo edição foi desligado
+          setRecarregarIframe(false);
       } else {
           setRecarregarIframe(false);
       }
@@ -1483,16 +1517,16 @@ ${ebookStyles}
               regraEstrutura = `
               ESTRUTURA PADRÃO (3 tópicos por capítulo, 3 páginas de conteúdo):
               - O capítulo deve ter exatamente 3 subtópicos (H3).
-              - A primeira página (com imagem e título) terá EXATAMENTE 2 parágrafos (curtos, 2-3 linhas cada).
+              - A primeira página (com imagem e título) terá EXATAMENTE 3 parágrafos (cada um com 3-4 linhas) e um subtítulo (H3) logo após a imagem.
               - As páginas seguintes (páginas 2, 3 e 4) terão cada uma um subtítulo e 4 parágrafos longos (4-6 linhas cada).
-              - O total por capítulo é: 1 página de abertura (título+imagem+2 parágrafos) + 3 páginas de conteúdo (cada uma com um subtópico).
+              - O total por capítulo é: 1 página de abertura (título+imagem+subtítulo+3 parágrafos) + 3 páginas de conteúdo (cada uma com um subtópico).
               `;
           } else if (modoConteudo === 'historias') {
               regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa.`;
               regraEstrutura = `
               ESTRUTURA DE HISTÓRIA (com 3 tópicos por capítulo):
               - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3) com parágrafos narrativos.
-              - A primeira página (com imagem) terá 2 parágrafos curtos.
+              - A primeira página (com imagem) terá 3 parágrafos curtos (3-4 linhas) e um subtítulo (H3) após a imagem.
               - As demais páginas terão 4 parágrafos longos.
               `;
           } else if (modoConteudo === 'academico') {
@@ -1500,7 +1534,7 @@ ${ebookStyles}
               regraEstrutura = `
               ESTRUTURA ACADÊMICA:
               - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3).
-              - A primeira página (com imagem) terá 2 parágrafos curtos.
+              - A primeira página (com imagem) terá 3 parágrafos curtos (3-4 linhas) e um subtítulo (H3) após a imagem.
               - As páginas seguintes terão 4 parágrafos longos.
               - Incluir citações (blockquote) e dicas (highlight-box) em páginas alternadas (NUNCA ambos na mesma página).
               `;
@@ -1549,16 +1583,18 @@ ${ebookStyles}
               ATENÇÃO: A capa do capítulo é a página com imagem de fundo (sem banner). As três páginas seguintes têm cada uma um subtítulo e 4 parágrafos longos. A última deve ter um blockquote.
               `;
           } else {
-              // inline-imagem (padrão)
+              // inline-imagem (padrão) - agora com subtítulo e 3 parágrafos
               regraEstiloCapitulos = `
               MOLDE PADRÃO (com banner de imagem):
-              <!-- PÁGINA 1: Capa do capítulo com imagem e 2 parágrafos -->
+              <!-- PÁGINA 1: Capa do capítulo com imagem, subtítulo e 3 parágrafos -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo do Capítulo</h2>
                   <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
-                  <p>[Parágrafo curto 1 - 2 a 3 linhas]</p>
-                  <p>[Parágrafo curto 2 - 2 a 3 linhas]</p>
+                  <h3 class="subtopic-title">Subtítulo do Capítulo (resumo do tema)</h3>
+                  <p>[Parágrafo 1 - 3 a 4 linhas]</p>
+                  <p>[Parágrafo 2 - 3 a 4 linhas]</p>
+                  <p>[Parágrafo 3 - 3 a 4 linhas]</p>
                   <div class="page-footer">${regraRodape}</div>
               </div>
               <!-- PÁGINA 2: Primeiro subtópico -->
@@ -1593,7 +1629,7 @@ ${ebookStyles}
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: A primeira página deve ter EXATAMENTE 2 parágrafos curtos. As demais páginas têm 4 parágrafos longos. O blockquote aparece apenas na última página.
+              ATENÇÃO: A primeira página deve ter EXATAMENTE 3 parágrafos curtos e um subtítulo (H3). As demais páginas têm 4 parágrafos longos. O blockquote aparece apenas na última página.
               `;
           }
       }
