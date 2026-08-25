@@ -1418,8 +1418,11 @@ ${ebookStyles}
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
-      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { regraRodape = `<span>${livroAutores}</span>${numSpan}`; } 
-      else { regraRodape = `${numSpan}`; }
+      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { 
+          regraRodape = `<span>${livroAutores}</span>${numSpan}`; 
+      } else { 
+          regraRodape = `${numSpan}`; 
+      }
 
       let regraEstiloCapitulos = "";
       let regraTitulo = "";
@@ -1458,7 +1461,8 @@ ${ebookStyles}
               <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          IMPORTANTE: A página de imagem + ingredientes deve vir primeiro. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px).`;
+          IMPORTANTE: A imagem deve ser de uma sobremesa/doce profissional. Use a busca "dessert" como base. NUNCA use imagens de animais para receitas.
+          `;
       }
       else if (modoConteudo === 'rigoroso') {
           regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
@@ -1602,8 +1606,12 @@ ${ebookStyles}
       let regrasComuns = `
       DIRETRIZES DE LAYOUT E CONTEÚDO:
       1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
-      2. ESTRUTURA DOS CAPÍTULOS: Siga os moldes fornecidos abaixo, respeitando o tipo de estilo escolhido (inline-imagem ou box-arredondado).
-      3. NÃO INCLUA NENHUM TEXTO EXTRA COMO "CAPA:", "ÍNDICE:", etc. Apenas o HTML dos elementos.
+      2. ESCOLHA DA IMAGEM: 
+         - Para capítulos de receitas, a palavra-chave deve ser SEMPRE "dessert, food, pastry, confectionery" ou similar.
+         - Para capítulos genéricos, use palavras-chave extraídas do título do capítulo, mas SEMPRE em INGLÊS.
+         - NUNCA use palavras que não tenham relação com o tema. Se não houver correspondência clara, não insira imagem (deixe o src vazio ou use uma imagem padrão de "food").
+      3. ESTRUTURA DOS CAPÍTULOS: Siga os moldes fornecidos abaixo, respeitando o tipo de estilo escolhido (inline-imagem ou box-arredondado).
+      4. NÃO INCLUA NENHUM TEXTO EXTRA COMO "CAPA:", "ÍNDICE:", etc. Apenas o HTML dos elementos.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
