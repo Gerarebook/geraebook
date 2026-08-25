@@ -72,10 +72,12 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             const a = document.createElement('a');
             a.className = 'toc-item';
             
-            if (titleEl.tagName === 'H2' || titleEl.tagName === 'H1') {
+           if (titleEl.tagName === 'H2' || titleEl.tagName === 'H1') {
+                a.classList.add('toc-main-chapter');
                 a.style.fontWeight = ${indexShowSubtopics ? "'700'" : "'400'"};
                 a.style.color = 'var(--color-primary)';
             } else if (titleEl.tagName === 'H3') {
+                a.classList.add('toc-subtopic');
                 a.style.paddingLeft = '20px';
                 a.style.fontSize = '0.9em';
                 a.style.opacity = '0.85';
@@ -583,8 +585,8 @@ export default function Home() {
       return clean.trim();
   }
 
-  function getEstilosFormato() {
-      return { width: '210mm', height: '297mm', padding: '32mm 20mm 25mm 20mm' }; 
+function getEstilosFormato() {
+      return { width: '210mm', height: '297mm', padding: '22mm 20mm 25mm 20mm' }; 
   }
 
   function moldarApresentacaoHtml(rawHtml: string) {
@@ -626,7 +628,26 @@ body {
 }
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
+/* 1. MÁGICA DO ÍNDICE: ESCONDE OS SUBTÓPICOS À FORÇA */
+${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 
+/* 2. FORÇA A ALTURA DA IMAGEM E ANULA QUALQUER OUTRA REGRA */
+img.chapter-banner-img { 
+    width: 100% !important; 
+    height: 370px !important; 
+    min-height: 370px !important;
+    max-height: 370px !important; 
+    object-fit: cover !important; 
+    border-radius: 8px !important; 
+    margin-bottom: 1.5rem !important;
+    display: block !important;
+}
+
+/* 3. REMOVE O BURACO BRANCO DO TOPO DOS TÍTULOS */
+.page-container > h3.subtopic-title:first-of-type,
+.page-container > .page-header + h3.subtopic-title {
+    margin-top: 0 !important;
+}
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, 
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
     background-color: var(--color-bg);
@@ -1463,47 +1484,46 @@ ${ebookStyles}
 
 // Regra comum para todos os modos
       let regrasComuns = `
-      DIRETRIZES DE LAYOUT, PAGINAÇÃO E CONTEÚDO (SIGA O MOLDE HTML ESTRITAMENTE):
+      DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
 
-      1. REGRA DE FOTOGRAFIA: Use SEMPRE FOTOGRAFIAS REAIS (humanos, ambientes, objetos). É terminantemente PROIBIDO usar ilustrações, desenhos, 3D ou gráficos animados.
+      1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
       
-      2. ESPAÇAMENTO DE TÓPICOS: Mantenha espaço de uma linha de respiro entre o título do tópico e o parágrafo.
-
-      3. MOLDE OBRIGATÓRIO DOS CAPÍTULOS (COPIE ESTA ESTRUTURA ESTRITAMENTE):
-         TODO capítulo DEVE ter EXATAMENTE 3 páginas. Preencha os colchetes com conteúdo denso. NUNCA exclua uma página.
+      2. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
+         Todo capítulo DEVE ter EXATAMENTE 3 páginas. Preencha os colchetes rigorosamente. Não adicione páginas extras.
 
          <!-- PÁGINA 1 -->
          <div class="page-container">
              <div class="page-header"><span>...</span><span>...</span></div>
              <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-             <img class="chapter-banner-img" src="..." data-keyword="[FOTO_REAL_AQUI]" style="width: 100%; height: 370px !important; max-height: none !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-             <h3 class="subtopic-title" style="margin-top: 0.5rem; margin-bottom: 1rem;">[Subtítulo 1]</h3>
-             <p>[Exatamente 2 parágrafos densos (4-6 linhas) para encostar no rodapé]</p>
+             <img class="chapter-banner-img" src="..." data-keyword="[FOTO_REAL_AQUI]" alt="Banner">
+             <h3 class="subtopic-title">[Subtítulo 1]</h3>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
              <div class="page-footer"><span></span><span class="page-number"></span></div>
          </div>
 
          <!-- PÁGINA 2 -->
          <div class="page-container">
              <div class="page-header"><span>...</span><span>...</span></div>
-             <h3 class="subtopic-title" style="margin-top: 0.2rem; margin-bottom: 1rem;">[Subtítulo 2]</h3>
-             <p>[Conteúdo denso com parágrafos de 4-6 linhas. Preencha bem a página]</p>
-             <div class="highlight-box">...</div>
-             <p>[Mais 2 ou 3 parágrafos densos]</p>
+             <h3 class="subtopic-title">[Subtítulo 2]</h3>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
              <div class="page-footer"><span></span><span class="page-number"></span></div>
          </div>
 
          <!-- PÁGINA 3 -->
          <div class="page-container">
              <div class="page-header"><span>...</span><span>...</span></div>
-             <h3 class="subtopic-title" style="margin-top: 0.2rem; margin-bottom: 1rem;">[Subtítulo 3]</h3>
-             <p>[Conteúdo denso com parágrafos de 4-6 linhas]</p>
-             <p>[Parágrafo adicional]</p>
-             <p>[Parágrafo adicional]</p>
-             <p>[ACRESCENTE MAIS UM PARÁGRAFO EXTRA AQUI NO FINAL PARA PREENCHER TOTALMENTE O BURACO DO RODAPÉ DESTA ÚLTIMA PÁGINA]</p>
+             <h3 class="subtopic-title">[Subtítulo 3]</h3>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo extra e denso de 4-6 linhas focado em preencher todo o buraco do rodapé da última página]</p>
              <div class="page-footer"><span></span><span class="page-number"></span></div>
          </div>
-         
-      4. CONTROLE DO ÍNDICE: Se não solicitado pelo sistema, omita os subtópicos.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
