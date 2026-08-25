@@ -502,11 +502,12 @@ export default function Home() {
   const [recuoParagrafo, setRecuoParagrafo] = useState('20px');
   
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
-  // Capa fixa: apenas imagem-texto
   const tipoCapa = 'imagem-texto';
-  // Capa neutra profissional (gradiente azul escuro)
-  const [imagemCapaUrl, setImagemCapaUrl] = useState('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="50%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E');
-  const [htmlInspiracao, setHtmlInspiracao] = useState('');
+  
+  // Capa inicial impactante (gradiente escuro com toque metálico)
+  const [imagemCapaUrl, setImagemCapaUrl] = useState(
+    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="30%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="70%25" style="stop-color:%230a2342;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E'
+  );
 
   const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
@@ -546,7 +547,7 @@ export default function Home() {
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const capaInputRef = useRef<HTMLInputElement>(null); // input específico para capa
+  const capaInputRef = useRef<HTMLInputElement>(null);
 
   const [recarregarIframe, setRecarregarIframe] = useState(true);
 
@@ -970,26 +971,54 @@ ${ebookStyles}
       reader.readAsDataURL(file);
   }
 
-  // Upload específico para capa
-  function handleCapaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  // Upload de capa para Supabase Storage
+  async function handleCapaUpload(e: React.ChangeEvent<HTMLInputElement>) {
       const file = e.target.files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-          const base64Img = event.target?.result as string;
-          setImagemCapaUrl(base64Img);
-          // Atualiza a página de capa se já existir
-          if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-              // Força recarregamento para aplicar a nova capa
-              setRecarregarIframe(true);
-              if (htmlAtual) {
-                  previewFrameRef.current.srcdoc = moldarApresentacaoHtml(htmlAtual) + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-              }
+
+      try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) throw new Error('Usuário não autenticado');
+
+          // Gerar nome único
+          const fileExt = file.name.split('.').pop();
+          const fileName = `capa_${Date.now()}.${fileExt}`;
+          const filePath = `public/${fileName}`;
+
+          // Upload para bucket 'covers'
+          const { data, error } = await supabase.storage
+              .from('covers')
+              .upload(filePath, file, {
+                  cacheControl: '3600',
+                  upsert: false,
+                  contentType: file.type,
+              });
+
+          if (error) throw error;
+
+          // Obter URL pública
+          const { data: publicUrlData } = supabase.storage
+              .from('covers')
+              .getPublicUrl(filePath);
+
+          if (!publicUrlData || !publicUrlData.publicUrl) throw new Error('Falha ao obter URL pública');
+
+          const publicUrl = publicUrlData.publicUrl;
+          setImagemCapaUrl(publicUrl);
+
+          // Atualizar o iframe com a nova capa
+          if (previewFrameRef.current && htmlAtual) {
+              const novoHtml = moldarApresentacaoHtml(htmlAtual);
+              previewFrameRef.current.srcdoc = novoHtml + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
           }
-          (window as any).showNotification("Capa substituída com sucesso! (Formato A4 recomendado)", "success");
-          if (capaInputRef.current) capaInputRef.current.value = '';
-      };
-      reader.readAsDataURL(file);
+
+          (window as any).showNotification("Capa enviada com sucesso! (A4 recomendado)", "success");
+      } catch (error: any) {
+          console.error('Erro no upload da capa:', error);
+          (window as any).showNotification(`Erro ao enviar capa: ${error.message}`, 'error');
+      }
+
+      if (capaInputRef.current) capaInputRef.current.value = '';
   }
 
   function handleExtraImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1068,16 +1097,11 @@ ${ebookStyles}
           setHtmlAtual('');
           setLivroTitulo('');
           setProductContent('');
-          // Mantém a capa escolhida pelo usuário ou a padrão
-          if (!imagemCapaUrl.includes('gradient')) {
-              // se já tinha uma capa personalizada, mantém
-          } else {
-              setImagemCapaUrl('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="50%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E');
-          }
+          // Mantém a capa atual (não resetar)
           if (previewFrameRef.current) {
               previewFrameRef.current.srcdoc = '';
           }
-          (window as any).showNotification("Novo documento em branco criado com capa neutra.", "info");
+          (window as any).showNotification("Novo documento em branco criado.", "info");
       }
   }
 
