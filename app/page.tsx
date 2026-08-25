@@ -775,8 +775,13 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-.chapter-banner-img { width: 100%; height: 370px; object-fit: cover; border-radius: 8px; margin: 0.5rem 0 1.2rem 0; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
+.chapter-banner-img { 
+    width: 100%; 
+    height: 380px !important; 
+    object-fit: cover; 
+    border-radius: 8px; 
+    margin-bottom: 1rem;
+}.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1.5rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
 
@@ -1449,29 +1454,29 @@ ${ebookStyles}
       let regrasComuns = `
       DIRETRIZES OBRIGATÓRIAS DE LAYOUT E PAGINAÇÃO (MÁXIMO RIGOR):
 
-      1. LIMITE DE PÁGINAS (CRÍTICO): 
-         - A "Introdução" e a "Conclusão" DEVEM ter EXATAMENTE 1 página de conteúdo cada. 
-         - Os "Capítulos" normais DEVEM ter EXATAMENTE 3 páginas de conteúdo cada (nunca gere 4 ou 5 páginas por capítulo).
+      1. ESCOPO E LIMITE DE PÁGINAS (CRÍTICO): 
+         - GERE APENAS O CONTEÚDO SOLICITADO NA ETAPA ATUAL. Se for solicitado o Capítulo 2, pare EXATAMENTE no final do Capítulo 2. É EXPRESSAMENTE PROIBIDO gerar capítulos adicionais ou a Conclusão por conta própria.
+         - A "Introdução" DEVE ter EXATAMENTE 1 página de conteúdo. 
+         - A "Conclusão" DEVE ter EXATAMENTE 2 páginas de conteúdo, e só deve ser gerada quando solicitada. A página "Sobre o Autor" deve ser a última página do livro, gerada apenas junto com a Conclusão.
+         - Os "Capítulos" normais DEVEM ter EXATAMENTE 3 páginas de conteúdo cada (nunca 4 ou 5).
 
-      2. REGRA DE IMAGENS (BANNERS):
-         - É EXPRESSAMENTE PROIBIDO colocar imagens/banners na "Introdução" e na "Conclusão". Estas seções são apenas texto.
-         - Nos Capítulos normais, a PRIMEIRA PÁGINA DEVE ter a imagem banner. Use EXATAMENTE esta tag com altura de 380px:
-           <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES]" style="width: 100%; height: 380px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-           O data-keyword deve ser uma palavra literal e visual (ex: laptop, kitchen, money). Sem palavras abstratas.
+      2. REGRA DE IMAGENS E BANNERS (ALTURA FIXA):
+         - É EXPRESSAMENTE PROIBIDO colocar imagens/banners na "Introdução" e na "Conclusão".
+         - Nos Capítulos normais, a PRIMEIRA PÁGINA DEVE ter a imagem banner. Use EXATAMENTE esta tag com a altura forçada de 380px:
+           <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES]" style="width: 100%; height: 380px !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+         - A palavra-chave (data-keyword) deve focar em fotografias humanas reais ou objetos palpáveis (ex: businessman, coffee, office). Nunca use termos que remetam a desenhos, animações ou tecnologia 3D.
 
-      3. TAMANHO DOS PARÁGRAFOS (ATENÇÃO): 
-         - NUNCA crie parágrafos gigantescos e exagerados! 
-         - Mantenha parágrafos dinâmicos e fáceis de ler, com no máximo 4 a 6 linhas de texto cada.
+      3. PADRONIZAÇÃO DOS PARÁGRAFOS (ATENÇÃO): 
+         - Mantenha parágrafos dinâmicos e consistentes do início ao fim (com 4 a 6 linhas de texto cada). 
+         - É proibido encolher os parágrafos nos capítulos finais. A proporção e o tamanho devem ser idênticos aos dos capítulos iniciais.
 
       4. ESTRUTURA DA PRIMEIRA PÁGINA DO CAPÍTULO (A PÁGINA DA IMAGEM):
          - Logo abaixo da imagem de 380px, inicie OBRIGATORIAMENTE com um subtítulo (<h3 class="subtopic-title">).
-         - Abaixo desse subtítulo, escreva EXATAMENTE 2 parágrafos. Essa matemática é obrigatória para que o texto termine perfeitamente no rodapé desta página sem vazar para a próxima.
+         - Abaixo desse subtítulo, escreva EXATAMENTE 2 parágrafos. Essa matemática é obrigatória para que o texto termine perfeitamente no rodapé desta página, sem vazar.
 
-      5. PREENCHIMENTO DAS DEMAIS PÁGINAS (Páginas 2 e 3 dos Capítulos):
+      5. PREENCHIMENTO DAS DEMAIS PÁGINAS:
          - Preencha o espaço limite da folha A4 de forma harmônica utilizando subtítulos (<h3 class="subtopic-title">), parágrafos normais (4-6 linhas) e as caixas de destaque (<blockquote>, <div class="highlight-box">).
-         - Mantenha sempre o espaço exato de 1 linha de respiro entre um título de tópico e o parágrafo que vem abaixo dele.
-
-      6. SOBRE O AUTOR: NUNCA gere a página "Sobre o Autor" no meio do conteúdo (ela é criada externamente).
+         - Mantenha SEMPRE o espaço exato de uma linha de respiro entre o título de um tópico e o parágrafo logo abaixo dele.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
