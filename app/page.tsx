@@ -450,7 +450,7 @@ export default function Home() {
   const [modoInspetor, setModoInspetor] = useState(false);
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
-  const [mostrarSubtopicosIndice, setMostrarSubtopicosIndice] = useState(true);
+  const [mostrarSubtopicosIndice, setMostrarSubtopicosIndice] = useState(false);
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -1451,7 +1451,7 @@ ${ebookStyles}
       const paginaAviso = gerarPaginaAviso();
 
       // Regra comum para todos os modos
-     let regrasComuns = `
+let regrasComuns = `
       DIRETRIZES OBRIGATÓRIAS DE LAYOUT E PAGINAÇÃO (ESTRUTURA HTML CRÍTICA):
 
       1. ESTRUTURA EXATA DE PÁGINAS (LEI MATEMÁTICA): 
@@ -1475,10 +1475,13 @@ ${ebookStyles}
 
       4. REGRAS VISUAIS DE TEXTO E FOTOS:
          - É estritamente obrigatório deixar um espaço exato de uma linha entre os títulos dos tópicos e o início dos parágrafos logo abaixo deles.
-         - Para a palavra-chave (data-keyword) da imagem, escolha termos que busquem imagens 100% reais de fotografia. É absolutamente proibido o uso de palavras que remetam a desenhos, gráficos animados ou imagens estilo tecnologia futurista/3D. Queremos imagens REAIS e palpáveis (ex: businessman, coffee, real-office).
+         - Para a palavra-chave (data-keyword) da imagem, escolha termos que busquem imagens 100% reais de fotografia. É absolutamente proibido o uso de palavras que remetam a desenhos, gráficos animados ou imagens estilo tecnologia futurista/3D. Queremos imagens REAIS e palpáveis.
 
-      5. CONTROLE DO ÍNDICE:
-         ${mostrarSubtopicosIndice ? '- No sumário/índice, você deve listar os Capítulos principais e também os seus respectivos subtópicos.' : '- No sumário/índice, liste APENAS os títulos dos Capítulos principais. É EXPRESSAMENTE PROIBIDO listar os subtópicos no índice.'}
+      5. CONTROLE DO ÍNDICE (SUMÁRIO):
+         ${mostrarSubtopicosIndice 
+           ? '- No sumário/índice, crie uma lista detalhada contendo os Capítulos e, abaixo de cada um, os seus respectivos subtópicos.' 
+           : '- REGRA ABSOLUTA PARA O SUMÁRIO: O índice deve ser MINIMALISTA. Liste APENAS o nome do Capítulo e a página (em uma única linha <li>). É TOTALMENTE PROIBIDO e inaceitável incluir subtópicos, resumos ou tópicos secundários no índice. Pule direto de um Capítulo para o próximo.'
+         }
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
