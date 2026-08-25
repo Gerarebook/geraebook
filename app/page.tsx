@@ -2307,7 +2307,7 @@ ${ebookStyles}
             <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
                 <div className="flex items-center gap-3">
                     <button onClick={() => uploadInputRef.current?.click()} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5">
-                        <i className="fas fa-file-upload"></i> Importar HTML
+                        <i className="fas fa-file-upload"></i> Importar Ebook
                     </button>
                     <button onClick={toggleBackground} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5">
                         <i className="fas fa-image"></i> Fundo 2ª Pág
