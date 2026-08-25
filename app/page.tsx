@@ -1644,7 +1644,7 @@ ${ebookStyles}
 
       const paginaAviso = gerarPaginaAviso();
 
-      let regrasComuns = `
+          let regrasComuns = `
       DIRETRIZES DE LAYOUT E CONTEÚDO:
       1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
       2. ESCOLHA DA IMAGEM: 
@@ -1655,10 +1655,12 @@ ${ebookStyles}
       4. NÃO INCLUA NENHUM TEXTO EXTRA COMO "CAPA:", "ÍNDICE:", etc. Apenas o HTML dos elementos.
       5. QUANTIDADE DE PARÁGRAFOS: Respeite rigorosamente o número de parágrafos especificado em cada página. Não invente nem reduza.
       6. MODO RECEITAS: OBRIGATORIAMENTE use o molde com banner e 2 parágrafos na primeira página. NUNCA use capa exclusiva.
+      7. PROIBIDO ABSOLUTAMENTE gerar qualquer página de autor, biografia, "Sobre o Autor", ou elementos similares, a menos que seja explicitamente solicitado pelo usuário. Não insira essa página em nenhum passo automático.
       `;
 
-      return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
-  }
+    return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
+}
+
 
   // ==================== FUNÇÕES DE GERAÇÃO (ETAPAS) ====================
 
