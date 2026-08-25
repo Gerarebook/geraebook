@@ -994,7 +994,7 @@ ${ebookStyles}
 
           // Upload para bucket 'public'
           const { data, error } = await supabase.storage
-              .from('public') // bucket público padrão
+              .from('covers') // bucket público padrão
               .upload(filePath, file, {
                   cacheControl: '3600',
                   upsert: false,
@@ -1005,8 +1005,8 @@ ${ebookStyles}
 
           // Obter URL pública
           const { data: publicUrlData } = supabase.storage
-              .from('public')
-              .getPublicUrl(filePath);
+    .from('covers')   // mesmo nome
+    .getPublicUrl(filePath);
 
           if (!publicUrlData || !publicUrlData.publicUrl) throw new Error('Falha ao obter URL pública');
 
