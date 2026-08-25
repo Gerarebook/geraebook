@@ -956,6 +956,28 @@ ${ebookStyles}
 
   // ==================== FUNÇÕES DE AÇÃO ====================
 
+  // CORREÇÃO: Função para atualizar a capa no HTML quando título ou autor mudam
+  function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
+    if (!html) return html;
+    // Procura o elemento da capa (page-cover-img, page-cover-text, etc.)
+    // e substitui o texto do título e autor
+    const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
+    const match = html.match(regexCapa);
+    if (!match) return html;
+
+    let capaContent = match[2];
+    // Substitui título
+    capaContent = capaContent.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1>${novoTitulo || 'Meu E-book'}</h1>`);
+    // Substitui autor (se existir)
+    capaContent = capaContent.replace(/<p[^>]*>.*?<\/p>/i, `<p>Por ${novoAutor || 'Autor'}</p>`);
+    // Caso não tenha encontrado, insere o autor
+    if (!capaContent.includes('<p>')) {
+      capaContent = capaContent.replace(/<\/h1>/i, `</h1><p>Por ${novoAutor || 'Autor'}</p>`);
+    }
+
+    return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
+  }
+
   function handleImageUploadBtn(e: React.ChangeEvent<HTMLInputElement>) {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -1012,9 +1034,7 @@ ${ebookStyles}
       if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
           previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
       }
-      // NÃO recarregamos o iframe ao desativar, para não perder a capa nem a posição de rolagem
       if (!newMode) {
-          // Apenas assegura que o modo edição foi desligado
           setRecarregarIframe(false);
       } else {
           setRecarregarIframe(false);
@@ -1052,7 +1072,6 @@ ${ebookStyles}
           setHtmlAtual('');
           setLivroTitulo('');
           setProductContent('');
-          // Mantém a capa atual (não resetar)
           if (previewFrameRef.current) {
               previewFrameRef.current.srcdoc = '';
           }
@@ -1222,10 +1241,48 @@ ${ebookStyles}
       return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
+  // CORREÇÃO: validação de parágrafos na segunda página de cada capítulo
+  function validarParagrafos(html: string): string {
+    // Identifica todas as páginas que são de capítulo (contêm h2.chapter-title-inline) e não são capa, índice, etc.
+    const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
+    let novoHtml = html;
+    let match;
+    while ((match = regexPaginas.exec(html)) !== null) {
+      const paginaCompleta = match[0];
+      const conteudo = match[2];
+      // Verifica se é uma página de capítulo (tem h2.chapter-title-inline)
+      if (conteudo.includes('chapter-title-inline') && !conteudo.includes('Índice') && !conteudo.includes('índice') && !conteudo.includes('Sumário') && !conteudo.includes('sumário')) {
+        // Conta quantos parágrafos <p> existem
+        const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
+        // Se tiver entre 1 e 3 parágrafos, e NÃO for a primeira página (que pode ter 3), consideramos que pode ser a segunda página
+        // Vamos assumir que a primeira página do capítulo tem 3 parágrafos, e as seguintes devem ter 4.
+        // Se tiver menos de 4 e for uma página que já tem um subtítulo (h3), provavelmente é a segunda página
+        if (paragrafos.length < 4 && conteudo.includes('<h3')) {
+          // Adiciona parágrafos faltantes
+          const paragrafosFaltando = 4 - paragrafos.length;
+          let novosParagrafos = '';
+          for (let i = 0; i < paragrafosFaltando; i++) {
+            novosParagrafos += `<p>[Parágrafo adicional ${i+1} - preencha com conteúdo relevante]</p>\n`;
+          }
+          // Insere antes do último elemento (geralmente o footer)
+          const ultimoElemento = conteudo.lastIndexOf('</div>');
+          if (ultimoElemento !== -1) {
+            const novoConteudo = conteudo.substring(0, ultimoElemento) + novosParagrafos + conteudo.substring(ultimoElemento);
+            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+          }
+        }
+      }
+    }
+    return novoHtml;
+  }
+
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
       console.log("aplicarHtmlNovo chamado, isInjetar:", isInjetar, "recarregar:", recarregar);
       let novoConteudo = purificarHTML(htmlCru);
       
+      // CORREÇÃO: validar e corrigir parágrafos
+      novoConteudo = validarParagrafos(novoConteudo);
+
       let htmlFinal = "";
       if (isInjetar) {
           htmlFinal = injetarHtmlNoFinal(htmlAtual || '', novoConteudo);
@@ -1505,6 +1562,7 @@ ${ebookStyles}
               `;
           } else {
               // inline-imagem (padrão) - agora com subtítulo e 3 parágrafos
+              // CORREÇÃO: Reforçar o número de parágrafos
               regraEstiloCapitulos = `
               MOLDE PADRÃO (com banner de imagem):
               <!-- PÁGINA 1: Capa do capítulo com imagem, subtítulo e 3 parágrafos -->
@@ -1513,49 +1571,49 @@ ${ebookStyles}
                   <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo do Capítulo</h2>
                   <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
                   <h3 class="subtopic-title">Subtítulo do Capítulo (resumo do tema)</h3>
-                  <p>[Parágrafo 1 - 3 a 4 linhas]</p>
-                  <p>[Parágrafo 2 - 3 a 4 linhas]</p>
-                  <p>[Parágrafo 3 - 3 a 4 linhas]</p>
+                  <p>OBRIGATORIAMENTE parágrafo 1 - 3 a 4 linhas</p>
+                  <p>OBRIGATORIAMENTE parágrafo 2 - 3 a 4 linhas</p>
+                  <p>OBRIGATORIAMENTE parágrafo 3 - 3 a 4 linhas</p>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- PÁGINA 2: Primeiro subtópico -->
+              <!-- PÁGINA 2: Primeiro subtópico (DEVE TER 4 PARÁGRAFOS) -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>[Parágrafo longo 1]</p>
-                  <p>[Parágrafo longo 2]</p>
-                  <p>[Parágrafo longo 3]</p>
-                  <p>[Parágrafo longo 4]</p>
+                  <p>OBRIGATORIAMENTE parágrafo 1 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 2 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 3 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 4 (longo)</p>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- PÁGINA 3: Segundo subtópico -->
+              <!-- PÁGINA 3: Segundo subtópico (DEVE TER 4 PARÁGRAFOS) -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Segundo Tópico</h3>
-                  <p>[Parágrafo longo 1]</p>
-                  <p>[Parágrafo longo 2]</p>
-                  <p>[Parágrafo longo 3]</p>
-                  <p>[Parágrafo longo 4]</p>
+                  <p>OBRIGATORIAMENTE parágrafo 1 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 2 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 3 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 4 (longo)</p>
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- PÁGINA 4: Terceiro subtópico + blockquote -->
+              <!-- PÁGINA 4: Terceiro subtópico + blockquote (DEVE TER 4 PARÁGRAFOS) -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Terceiro Tópico</h3>
-                  <p>[Parágrafo longo 1]</p>
-                  <p>[Parágrafo longo 2]</p>
-                  <p>[Parágrafo longo 3]</p>
-                  <p>[Parágrafo longo 4]</p>
+                  <p>OBRIGATORIAMENTE parágrafo 1 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 2 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 3 (longo)</p>
+                  <p>OBRIGATORIAMENTE parágrafo 4 (longo)</p>
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: A primeira página deve ter EXATAMENTE 3 parágrafos curtos e um subtítulo (H3). As demais páginas têm 4 parágrafos longos. O blockquote aparece apenas na última página.
+              ATENÇÃO: A primeira página tem EXATAMENTE 3 parágrafos. As páginas 2, 3 e 4 têm OBRIGATORIAMENTE 4 parágrafos cada. O blockquote aparece apenas na última página.
               `;
           }
       }
 
-      // Capa fixa (imagem-texto)
+      // Capa fixa (imagem-texto) - atualizada com os dados atuais
       const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
 
       const paginaAviso = gerarPaginaAviso();
@@ -1569,6 +1627,7 @@ ${ebookStyles}
          - NUNCA use palavras que não tenham relação com o tema. Se não houver correspondência clara, não insira imagem (deixe o src vazio ou use uma imagem padrão de "food").
       3. ESTRUTURA DOS CAPÍTULOS: Siga os moldes fornecidos abaixo, respeitando o tipo de estilo escolhido (inline-imagem ou box-arredondado).
       4. NÃO INCLUA NENHUM TEXTO EXTRA COMO "CAPA:", "ÍNDICE:", etc. Apenas o HTML dos elementos.
+      5. QUANTIDADE DE PARÁGRAFOS: Respeite rigorosamente o número de parágrafos especificado em cada página. Não invente nem reduza.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
@@ -1633,6 +1692,7 @@ ${ebookStyles}
       3. ESTRUTURA DO CONTEÚDO: 
          ${regraEstiloCapitulos}
       4. QUANTIDADE: Gere EXATAMENTE 3 capítulos (se for no modo Padrão/Acadêmico) ou a quantidade de receitas/histórias que couber, respeitando o tipo de livro escolhido.
+      5. NÚMERO DE PARÁGRAFOS: Cada página de conteúdo (após a primeira) deve ter OBRIGATORIAMENTE 4 parágrafos. A primeira página do capítulo deve ter 3 parágrafos. 
       `;
 
       const data = await chamarMotorIA(instrucao, [
@@ -1785,6 +1845,21 @@ ${ebookStyles}
     }
   }, []);
 
+  // CORREÇÃO: Atualizar a capa quando título ou autor mudarem
+  useEffect(() => {
+    if (htmlAtual && (livroTitulo || livroAutores)) {
+      const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
+      if (htmlAtualizado !== htmlAtual) {
+        setHtmlAtual(htmlAtualizado);
+        localStorage.setItem('ebook_draft_html', htmlAtualizado);
+        setRecarregarIframe(true);
+        if (previewFrameRef.current) {
+          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+        }
+      }
+    }
+  }, [livroTitulo, livroAutores]);
+
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
         if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
@@ -1826,7 +1901,7 @@ ${ebookStyles}
         localStorage.setItem('ebook_draft_html', htmlFinal);
         setRecarregarIframe(true);
     }
-  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, livroTitulo, livroAutores, estiloCapitulos]);
+  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, estiloCapitulos]);
 
   const isTextElement = elementoSelecionado ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(elementoSelecionado.tagName.toLowerCase()) : false;
 
@@ -2249,7 +2324,6 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* NOVO: Seletor de bordas */}
                             <div className="grid grid-cols-2 gap-3 mb-3">
                                 <div>
                                     <label className="input-label text-[9px]">Borda das Páginas</label>
@@ -2262,7 +2336,6 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* Botão "Inserir Página Extra" */}
                             <div className="mt-3 border-t border-slate-200 pt-3">
                                 <button onClick={() => setShowModalPagina(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
                                     <i className="fas fa-plus-circle"></i> Inserir Página Extra
