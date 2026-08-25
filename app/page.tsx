@@ -252,6 +252,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 chIndex++; 
             }
 
+            // Aplica o fundo SOMENTE se a opção estiver ativada
             if (chIndex === 2 && ${ativarBgSegundaPagina} && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
                 p.classList.add('chapter-page-2');
                 let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
@@ -404,6 +405,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                     el.classList.remove('text-left', 'text-center', 'text-right', 'text-justify');
                     if(event.data.textAlign) el.classList.add(event.data.textAlign);
                 }
+                // Envia o HTML atualizado para o pai, mas NÃO recarrega o iframe (o pai controla)
                 sendCleanHtml();
             }
         }
@@ -497,6 +499,9 @@ export default function Home() {
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
 
+  // Controle de recarregamento do iframe
+  const [recarregarIframe, setRecarregarIframe] = useState(true);
+
   // ==================== FUNÇÕES DE ESTILO E UTILITÁRIOS ====================
 
   function getPaletaObj() {
@@ -575,6 +580,7 @@ function getEstilosFormato() {
       let capBoxTextColor = isBoxDark ? '#ffffff' : 'var(--color-primary)';
       if (estiloCapitulos === 'box-arredondado') capBoxTextColor = '#ffffff';
 
+      // A URL de fundo é usada apenas se a opção estiver ativada; se não, não aplicamos no CSS.
       const urlFundo2 = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : 'https://images.unsplash.com/photo-1607513746994-6c36195fb27f?auto=format&fit=crop&w=1200&q=80';
       const bgSegundaPaginaCss = ativarBgSegundaPagina ? `
       .chapter-page-2 {
@@ -939,6 +945,16 @@ ${ebookStyles}
       if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
           previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
       }
+      // Se sair do modo editor, forçar recarregamento para garantir que tudo está sincronizado
+      if (!newMode) {
+          setRecarregarIframe(true);
+          if (htmlAtual && previewFrameRef.current) {
+              previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+          }
+      } else {
+          // Ao entrar no modo editor, não recarregar automaticamente
+          setRecarregarIframe(false);
+      }
   }
 
   function atualizarElemento(field: string, value: string | number | boolean, forceTextUpdate = false) {
@@ -1009,6 +1025,19 @@ ${ebookStyles}
       }
   }
 
+  // Função para baixar o arquivo HTML
+  function baixarArquivo(html: string, titulo: string) {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${titulo || 'ebook'}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  }
+
   function desfazerCodigo() {
     if (historicoCodigo.length === 0) { (window as any).showNotification("Nenhuma alteração para desfazer.", "error"); return; }
     const novoHistorico = [...historicoCodigo];
@@ -1017,6 +1046,8 @@ ${ebookStyles}
     if (estadoAnterior) {
         setHtmlAtual(estadoAnterior);
         localStorage.setItem('ebook_draft_html', estadoAnterior);
+        // Recarrega o iframe com o estado anterior
+        setRecarregarIframe(true);
         if (previewFrameRef.current) {
             previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
         }
@@ -1123,11 +1154,10 @@ ${ebookStyles}
       return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  // Função central para aplicar novo HTML (seja sobrescrevendo ou injetando)
-  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean) {
-      console.log("aplicarHtmlNovo chamado, isInjetar:", isInjetar);
+  // Função central para aplicar novo HTML (sobrescrevendo ou injetando)
+  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
+      console.log("aplicarHtmlNovo chamado, isInjetar:", isInjetar, "recarregar:", recarregar);
       let novoConteudo = purificarHTML(htmlCru);
-      console.log("Conteúdo purificado (início):", novoConteudo.substring(0, 200));
       
       let htmlFinal = "";
       if (isInjetar) {
@@ -1135,19 +1165,21 @@ ${ebookStyles}
       } else {
           htmlFinal = moldarApresentacaoHtml(novoConteudo);
       }
-      console.log("HTML final montado (início):", htmlFinal.substring(0, 200));
 
       // Salva o estado atual no histórico antes de substituir
       setHistoricoCodigo((prev) => [...prev, htmlAtual]);
       setHtmlAtual(htmlFinal);
       localStorage.setItem('ebook_draft_html', htmlFinal);
       
-      // Atualiza o iframe com o script de edição
-      if (previewFrameRef.current) {
+      // Se recarregar for true, atualiza o iframe
+      if (recarregar && previewFrameRef.current) {
+          setRecarregarIframe(true);
           const script = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
           previewFrameRef.current.srcdoc = htmlFinal + script;
       } else {
-          console.warn("previewFrameRef.current é nulo");
+          // Se não recarregar, apenas atualiza o estado sem afetar o iframe
+          // (útil para edições em modo inspetor)
+          setRecarregarIframe(false);
       }
   }
 
@@ -1384,10 +1416,11 @@ ${ebookStyles}
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
                   <h3 class="subtopic-title">Terceiro Tópico</h3>
                   <p>[4 parágrafos longos...]</p>
-                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação</blockquote>
+                  <!-- OBRIGATÓRIO: Incluir uma citação (blockquote) na terceira página -->
+                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo. A primeira página de texto (com os 2 parágrafos curtos) deve ter conteúdo suficiente para ocupar pelo menos metade da página.`;
+              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo. A primeira página de texto (com os 2 parágrafos curtos) deve ter conteúdo suficiente para ocupar pelo menos metade da página. IMPORTANTE: Na última página de cada capítulo, inclua obrigatoriamente um blockquote com uma citação pertinente ao conteúdo.`;
           } else {
               regraEstiloCapitulos = `
               MOLDE PADRÃO (inline-imagem):
@@ -1404,10 +1437,11 @@ ${ebookStyles}
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
                   <h3 class="subtopic-title">Terceiro Tópico</h3>
                   <p>[4 parágrafos longos...]</p>
-                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> Citação</blockquote>
+                  <!-- OBRIGATÓRIO: Incluir uma citação (blockquote) na terceira página -->
+                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo.`;
+              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo. IMPORTANTE: Na última página de cada capítulo, inclua obrigatoriamente um blockquote com uma citação pertinente ao conteúdo.`;
           }
       }
 
@@ -1461,6 +1495,8 @@ ${ebookStyles}
              <p>[Parágrafo denso de 4-6 linhas]</p>
              <p>[Parágrafo denso de 4-6 linhas]</p>
              <p>[Parágrafo extra e denso de 4-6 linhas focado em preencher todo o buraco do rodapé da última página]</p>
+             <!-- OBRIGATÓRIO: Incluir uma citação (blockquote) na terceira página -->
+             <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
              <div class="page-footer"><span></span><span class="page-number"></span></div>
          </div>
       `;
@@ -1505,7 +1541,7 @@ ${ebookStyles}
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
       if (data && data.html) {
-          aplicarHtmlNovo(data.html, false);
+          aplicarHtmlNovo(data.html, false, true);
           (window as any).showNotification("Passo 1 Concluído! Capa, Aviso, Índice e Introdução gerados.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
@@ -1536,7 +1572,7 @@ ${ebookStyles}
       ], false);
       
       if (data && data.html) {
-          aplicarHtmlNovo(data.html, true);
+          aplicarHtmlNovo(data.html, true, true);
           (window as any).showNotification("Passo 2 Concluído! Conteúdo adicionado.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
@@ -1568,7 +1604,7 @@ ${ebookStyles}
       const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
       if (data && data.html) {
           let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
-          aplicarHtmlNovo(htmlFinal, true);
+          aplicarHtmlNovo(htmlFinal, true, true);
           (window as any).showNotification("Passo 3 Concluído! Conclusão e Autor gerados.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
@@ -1681,34 +1717,48 @@ ${ebookStyles}
         if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
         if (e.data.type === 'HTML_SYNC') {
             const htmlLimpo = moldarApresentacaoHtml(e.data.html);
-            setHistoricoCodigo((prev: string[]) => {
-                if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
-                return [...prev, htmlAtual]; 
-            });
-            setHtmlAtual(htmlLimpo);
-            localStorage.setItem('ebook_draft_html', htmlLimpo);
+            // Se estiver em modo inspetor, apenas atualiza o estado sem recarregar o iframe
+            if (modoInspetor) {
+                // Atualiza o histórico e o estado, mas não recarrega
+                setHistoricoCodigo((prev) => {
+                    if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
+                    return [...prev, htmlAtual];
+                });
+                setHtmlAtual(htmlLimpo);
+                localStorage.setItem('ebook_draft_html', htmlLimpo);
+                // Não recarrega o iframe para manter a edição
+                setRecarregarIframe(false);
+            } else {
+                // Se não estiver em modo inspetor, recarrega normalmente
+                setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+                setHtmlAtual(htmlLimpo);
+                localStorage.setItem('ebook_draft_html', htmlLimpo);
+                setRecarregarIframe(true);
+                if (previewFrameRef.current) {
+                    previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+                }
+            }
         }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [modoInspetor, htmlAtual]);
 
-  // Atualiza o iframe sempre que htmlAtual ou as configs de edição mudarem
+  // Atualiza o iframe apenas quando recarregarIframe for true e houver htmlAtual
   useEffect(() => {
-    if (htmlAtual && previewFrameRef.current) {
+    if (recarregarIframe && htmlAtual && previewFrameRef.current) {
         previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
-  }, [htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
+  }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
-  // Reaplica o HTML quando configurações visuais mudam (fontes, cores, etc.)
+  // Reaplica o HTML quando configurações visuais mudam (fontes, cores, etc.) - sempre recarrega
   useEffect(() => {
     if (htmlAtual) {
         const htmlFinal = moldarApresentacaoHtml(htmlAtual);
         setHtmlAtual(htmlFinal);
         localStorage.setItem('ebook_draft_html', htmlFinal);
-        if (previewFrameRef.current) {
-            previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-        }
+        // Força recarregamento
+        setRecarregarIframe(true);
     }
   }, [fontFamily, tamanhoFonteBase, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, livroTitulo, livroAutores, estiloCapitulos]);
 
@@ -1820,6 +1870,7 @@ ${ebookStyles}
                                         </div>
                                         <div className="flex gap-2">
                                             <button onClick={() => carregarDaBiblioteca(livro)} className="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white font-bold px-4 py-2 rounded-lg text-xs transition">Carregar</button>
+                                            <button onClick={() => baixarArquivo(livro.html, livro.titulo)} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"><i className="fas fa-download"></i> Salvar arquivo</button>
                                             <button onClick={() => excluirDaBiblioteca(livro.id)} className="bg-red-50 text-red-500 hover:bg-red-50 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"><i className="fas fa-trash"></i></button>
                                         </div>
                                     </div>
@@ -2153,6 +2204,7 @@ ${ebookStyles}
                                     </div>
                                 </div>
                             )}
+                            <p className="text-[9px] text-slate-400 mt-2">Esta opção afeta apenas o fundo visual, sem alterar a estrutura de páginas ou o conteúdo.</p>
                         </div>
                     </div>
                 )}
