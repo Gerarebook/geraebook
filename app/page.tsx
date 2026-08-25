@@ -450,7 +450,7 @@ export default function Home() {
   const [modoInspetor, setModoInspetor] = useState(false);
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
-  const [mostrarSubtopicosIndice, setMostrarSubtopicosIndice] = useState(false);
+  
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -486,7 +486,7 @@ export default function Home() {
   
   // Modo de conteúdo expandido para incluir tipos de livro
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso' | 'receitas' | 'historias' | 'academico'>('expandido');
-  const [indexShowSubtopics, setIndexShowSubtopics] = useState(true);
+  const [indexShowSubtopics, setIndexShowSubtopics] = useState(false);
 
   const [livrosSalvos, setLivrosSalvos] = useState<{id: string, titulo: string, data: string, html: string, prompt: string}[]>([]);
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
@@ -1451,37 +1451,49 @@ ${ebookStyles}
       const paginaAviso = gerarPaginaAviso();
 
       // Regra comum para todos os modos
-let regrasComuns = `
-      DIRETRIZES OBRIGATÓRIAS DE LAYOUT E PAGINAÇÃO (ESTRUTURA HTML CRÍTICA):
+// Regra comum para todos os modos
+      let regrasComuns = `
+      DIRETRIZES DE LAYOUT, PAGINAÇÃO E CONTEÚDO (SIGA O MOLDE HTML ESTRITAMENTE):
 
-      1. ESTRUTURA EXATA DE PÁGINAS (LEI MATEMÁTICA): 
-         - O motor do e-book cria as páginas lendo a tag <div class="page-container">. 
-         - Para CADA Capítulo, você DEVE gerar EXATAMENTE 3 (três) blocos de <div class="page-container">. Nunca gere 2, nem 4, nem 5. 
+      1. REGRA DE FOTOGRAFIA: Para as imagens (data-keyword), use SEMPRE termos que busquem FOTOGRAFIAS REAIS (humanos, objetos, ambientes reais). É terminantemente PROIBIDO usar tecnologia, desenhos, 3D ou gráficos animados.
+      
+      2. ESPAÇAMENTO DE TÓPICOS: Você DEVE manter EXATAMENTE o espaço de uma linha de respiro entre os títulos dos tópicos (<h3>) e o início do primeiro parágrafo abaixo dele. Adicione margin-bottom de 1rem nos títulos para garantir isso.
 
-      2. A PRIMEIRA PÁGINA DO CAPÍTULO (Obrigatório seguir esta ordem):
-         Na PRIMEIRA <div class="page-container"> do capítulo, coloque EXATAMENTE nesta ordem:
-         A) O Cabeçalho.
-         B) O Título do Capítulo (<h2>).
-         C) A Imagem Banner OBRIGATÓRIA usando EXATAMENTE este código HTML (não altere a altura):
-            <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES_AQUI]" style="width: 100%; height: 380px !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-         D) Um Subtítulo do tópico (<h3>).
-         E) EXATAMENTE 2 (dois) parágrafos (com 4 a 6 linhas cada).
-         F) Feche esta primeira página (</div>).
+      3. MOLDE OBRIGATÓRIO DOS CAPÍTULOS (COPIE ESTA ESTRUTURA ESTRITAMENTE):
+         Independente de o usuário pedir imagem de fundo na segunda página ou não, TODO capítulo DEVE ter EXATAMENTE 3 páginas. Copie a estrutura HTML abaixo e preencha os colchetes com conteúdo de alta qualidade. NUNCA exclua uma página deste molde.
 
-      3. A SEGUNDA E TERCEIRA PÁGINAS DO CAPÍTULO (RIGOR DE PREENCHIMENTO):
-         - INDEPENDENTE de o usuário ter ativado ou não uma imagem de fundo na segunda página, a quantidade total do capítulo continua sendo EXATAMENTE 3 páginas (<div class="page-container">).
-         - Quando NÃO houver imagem de fundo na segunda página, você DEVE preencher todo o espaço vazio com CONTEÚDO TEXTUAL BEM DESENVOLVIDO.
-         - É EXPRESSAMENTE PROIBIDO criar páginas com apenas um parágrafo solto. Preencha as folhas A4 (páginas 2 e 3) até o final usando subtópicos (<h3>), parágrafos consistentes (4 a 6 linhas) e caixas de destaque (<blockquote>, <div class="highlight-box">).
-         - Nunca deixe grandes buracos em branco. Compense a falta da imagem escrevendo mais conteúdo de valor.
+         <!-- PÁGINA 1 -->
+         <div class="page-container">
+             <div class="page-header"><span>...</span><span>...</span></div>
+             <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
+             <img class="chapter-banner-img" src="..." data-keyword="[FOTO_REAL_AQUI]" style="width: 100%; height: 380px !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+             <h3 class="subtopic-title" style="margin-top: 0.5rem; margin-bottom: 1rem;">[Subtítulo 1]</h3>
+             <p>[Exatamente 2 parágrafos densos (4-6 linhas cada) aqui para encostar perfeitamente no rodapé]</p>
+             <div class="page-footer"><span></span><span class="page-number"></span></div>
+         </div>
 
-      4. REGRAS VISUAIS DE TEXTO E FOTOS:
-         - É estritamente obrigatório deixar um espaço exato de UMA LINHA entre os títulos dos tópicos e o início dos parágrafos logo abaixo deles.
-         - Para a palavra-chave (data-keyword) da imagem, escolha termos que busquem fotografias humanas reais ou objetos palpáveis. É ABSOLUTAMENTE PROIBIDO o uso de palavras que remetam a desenhos, gráficos animados ou imagens estilo tecnologia futurista/3D. Queremos apenas imagens REAIS.
+         <!-- PÁGINA 2 -->
+         <div class="page-container">
+             <div class="page-header"><span>...</span><span>...</span></div>
+             <h3 class="subtopic-title" style="margin-top: 0.5rem; margin-bottom: 1rem;">[Subtítulo 2]</h3>
+             <p>[Conteúdo denso com parágrafos de 4-6 linhas. Preencha a folha A4 completamente. Não deixe espaços em branco no final.]</p>
+             <div class="highlight-box">...</div>
+             <p>[Mais parágrafos densos]</p>
+             <div class="page-footer"><span></span><span class="page-number"></span></div>
+         </div>
 
-      5. CONTROLE DO ÍNDICE (SUMÁRIO):
-         ${mostrarSubtopicosIndice 
-           ? '- No sumário/índice, crie uma lista detalhada contendo os Capítulos e, abaixo de cada um, os seus respectivos subtópicos.' 
-           : '- REGRA ABSOLUTA PARA O SUMÁRIO: O índice deve ser MINIMALISTA. Liste APENAS o nome do Capítulo e a página (em uma única linha <li>). É TOTALMENTE PROIBIDO e inaceitável incluir subtópicos, resumos ou tópicos secundários no índice. Pule direto de um Capítulo para o próximo.'
+         <!-- PÁGINA 3 -->
+         <div class="page-container">
+             <div class="page-header"><span>...</span><span>...</span></div>
+             <h3 class="subtopic-title" style="margin-top: 0.5rem; margin-bottom: 1rem;">[Subtítulo 3]</h3>
+             <p>[Conteúdo denso com parágrafos de 4-6 linhas. Preencha a folha A4 completamente. Use o espaço total de forma profissional.]</p>
+             <div class="page-footer"><span></span><span class="page-number"></span></div>
+         </div>
+         
+      4. CONTROLE DO ÍNDICE (SUMÁRIO):
+         ${indexShowSubtopics 
+           ? '- No sumário/índice, crie uma lista detalhada contendo os Capítulos e os seus respectivos subtópicos.' 
+           : '- REGRA ABSOLUTA PARA O SUMÁRIO: Liste APENAS o nome do Capítulo (em uma única linha <li>). É TOTALMENTE PROIBIDO incluir subtópicos.'
          }
       `;
 
