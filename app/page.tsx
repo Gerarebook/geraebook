@@ -1455,208 +1455,218 @@ ${ebookStyles}
   // ==================== INSTRUÇÕES PARA IA ====================
 
   function obterInstrucoesBase() {
-      let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
-      let regraRodape = "";
-      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { 
-          regraRodape = `<span>${livroAutores}</span>${numSpan}`; 
-      } else { 
-          regraRodape = `${numSpan}`; 
-      }
+    let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
+    let regraRodape = "";
+    if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { 
+        regraRodape = `<span>${livroAutores}</span>${numSpan}`; 
+    } else { 
+        regraRodape = `${numSpan}`; 
+    }
 
-      let regraEstiloCapitulos = "";
-      let regraTitulo = "";
-      let regraEstrutura = "";
-
-      // MODO RECEITAS - forçar banner, sem capítulos, 2 parágrafos na primeira página
-      if (modoConteudo === 'receitas') {
-    regraTitulo = `PROIBIDO usar a palavra "Capítulo" nos títulos. Use apenas o nome da receita como título (H2).`;
-    regraEstrutura = `
-    ESTRUTURA DE RECEITA (somente banner, sem capa exclusiva):
-    - Cada receita terá: Título (H2) com o nome da receita, uma imagem de banner, e 2 parágrafos introdutórios na primeira página.
-    - A página seguinte (preparo) terá um subtítulo (H3) "Modo de Preparo" e 4 parágrafos detalhando o preparo, além de um box de dica.
-    - NUNCA use a palavra "Capítulo" em nenhum título.
-    - A imagem deve ser buscada com palavras-chave relacionadas ao título da receita, PROIBIDO animais (gatos, cães, etc.) – use termos como "food", "dish", "cooking".
+    // REGRA GERAL DE IMAGEM (aplicada a todos os modos)
+    const regraImagem = `
+    REGRAS PARA URLs DE IMAGENS (IMPORTANTE):
+    - Use sempre o formato: https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig={timestamp}
+    - Para RECEITAS, as palavras-chave devem ser o nome da receita em INGLÊS + "food" (ex: "chocolate cake food"). NUNCA use "cat", "dog", "animal", "pet" ou qualquer termo relacionado a animais.
+    - Para CAPÍTULOS GERAIS, use palavras-chave relevantes do título do capítulo em INGLÊS, sempre evitando animais. Prefira termos como "nature", "city", "people", "business", etc.
+    - Substitua {timestamp} por um número aleatório para evitar cache (ex: Date.now()).
+    - Se não tiver certeza, use "food" para receitas ou "abstract" para outros.
+    - PROIBIDO ABSOLUTAMENTE usar imagens com animais em qualquer contexto.
     `;
-    regraEstiloCapitulos = `
-    MOLDE DA RECEITA (SOMENTE BANNER):
-    <!-- PÁGINA 1: Título + Banner + 2 parágrafos introdutórios -->
-    <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>RECEITA</span></div>
-        <h2 id="ID_DA_RECEITA" class="chapter-title-inline">Nome da Receita</h2>
-        <img src="URL_DA_IMAGEM_UNSPLASH_BASEADA_NO_TITULO" class="chapter-banner-img" alt="Imagem da receita" style="height: 370px; object-fit: cover;" />
-        <p>[Parágrafo introdutório sobre a receita – 3 a 4 linhas]</p>
-        <p>[Segundo parágrafo introdutório – 3 a 4 linhas]</p>
-        <div class="page-footer">${regraRodape}</div>
-    </div>
-    <!-- PÁGINA 2: Modo de preparo (subtítulo + 4 parágrafos + dica) -->
-    <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>RECEITA - PREPARO</span></div>
-        <h3 class="subtopic-title">Modo de Preparo</h3>
-        <p>[Passo 1 – 3 a 4 linhas]</p>
-        <p>[Passo 2 – 3 a 4 linhas]</p>
-        <p>[Passo 3 – 3 a 4 linhas]</p>
-        <p>[Passo 4 – 3 a 4 linhas]</p>
-        <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
-        <div class="page-footer">${regraRodape}</div>
-    </div>
-    IMPORTANTE: A imagem de banner deve ser buscada com palavras-chave do título, por exemplo, se for "Bolo de Chocolate", usar "chocolate cake". NUNCA use animais ou imagem sem sentido.
+
+    let regraEstiloCapitulos = "";
+    let regraTitulo = "";
+    let regraEstrutura = "";
+
+    if (modoConteudo === 'receitas') {
+        regraTitulo = `PROIBIDO usar a palavra "Capítulo" nos títulos. Use apenas o nome da receita como título (H2).`;
+        regraEstrutura = `
+        ESTRUTURA DE RECEITA (somente banner, sem capa exclusiva):
+        - Cada receita terá: Título (H2) com o nome da receita, uma imagem de banner, e 2 parágrafos introdutórios na primeira página.
+        - A página seguinte (preparo) terá um subtítulo (H3) "Modo de Preparo" e 4 parágrafos detalhando o preparo, além de um box de dica.
+        - NUNCA use a palavra "Capítulo" em nenhum título.
+        - A imagem deve ser buscada com palavras-chave relacionadas ao título da receita + "food", PROIBIDO animais (gatos, cães, etc.).
+        `;
+        regraEstiloCapitulos = `
+        MOLDE DA RECEITA (SOMENTE BANNER):
+        <!-- PÁGINA 1: Título + Banner + 2 parágrafos introdutórios -->
+        <div class="page-container">
+            <div class="page-header"><span>${livroTitulo}</span><span>RECEITA</span></div>
+            <h2 id="ID_DA_RECEITA" class="chapter-title-inline">Nome da Receita</h2>
+            <img src="https://source.unsplash.com/featured/1200x800/?{NOME_DA_RECEITA_EM_INGLES},food&sig=${Date.now()}" class="chapter-banner-img" alt="Imagem da receita" style="height: 370px; object-fit: cover;" />
+            <p>[Parágrafo introdutório sobre a receita – 3 a 4 linhas]</p>
+            <p>[Segundo parágrafo introdutório – 3 a 4 linhas]</p>
+            <div class="page-footer">${regraRodape}</div>
+        </div>
+        <!-- PÁGINA 2: Modo de preparo (subtítulo + 4 parágrafos + dica) -->
+        <div class="page-container">
+            <div class="page-header"><span>${livroTitulo}</span><span>RECEITA - PREPARO</span></div>
+            <h3 class="subtopic-title">Modo de Preparo</h3>
+            <p>[Passo 1 – 3 a 4 linhas]</p>
+            <p>[Passo 2 – 3 a 4 linhas]</p>
+            <p>[Passo 3 – 3 a 4 linhas]</p>
+            <p>[Passo 4 – 3 a 4 linhas]</p>
+            <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
+            <div class="page-footer">${regraRodape}</div>
+        </div>
+        IMPORTANTE: A URL da imagem DEVE conter o nome da receita em inglês seguido de "food". Exemplo: para "Bolo de Chocolate", use "chocolate cake food". NUNCA use animais.
+        `;
+    }
+    else if (modoConteudo === 'rigoroso') {
+        regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
+        regraEstrutura = `
+        Neste modo, você DEVE:
+        1. Corrigir APENAS erros de ortografia, pontuação e concordância – sem reescrever ou resumir.
+        2. Manter o conteúdo integralmente como foi fornecido.
+        3. Formatar o texto usando as tags HTML adequadas (h2, h3, p) de acordo com a estrutura original.
+        4. NÃO adicionar nem remover parágrafos, imagens ou qualquer elemento.
+        `;
+        regraEstiloCapitulos = `
+        MOLDE RIGOROSO: Use as tags HTML conforme o texto original, mantendo a ordem e o conteúdo exato (após correções ortográficas). Não invente conteúdo.
+        `;
+    }
+    else {
+        // Modos: expandido, historias, academico
+        if (modoConteudo === 'expandido') {
+            regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H2) de todo capítulo gerado!`;
+            regraEstrutura = `
+            ESTRUTURA PADRÃO (3 tópicos por capítulo, 3 páginas de conteúdo):
+            - O capítulo deve ter exatamente 3 subtópicos (H3).
+            - A primeira página (com imagem e título) terá EXATAMENTE 2 parágrafos (cada um com 3-4 linhas) e um subtítulo (H3) logo após a imagem.
+            - As páginas seguintes (páginas 2, 3 e 4) terão cada uma um subtítulo e 4 parágrafos longos (4-6 linhas cada).
+            - O total por capítulo é: 1 página de abertura (título+imagem+subtítulo+2 parágrafos) + 3 páginas de conteúdo.
+            `;
+        } else if (modoConteudo === 'historias') {
+            regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa.`;
+            regraEstrutura = `
+            ESTRUTURA DE HISTÓRIA (com 3 tópicos por capítulo):
+            - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3) com parágrafos narrativos.
+            - A primeira página (com imagem) terá 2 parágrafos curtos (3-4 linhas) e um subtítulo (H3) após a imagem.
+            - As demais páginas terão 4 parágrafos longos.
+            `;
+        } else if (modoConteudo === 'academico') {
+            regraTitulo = `Use "Capítulo" nos títulos (H2). Estrutura formal com 3 subtópicos (H3) por capítulo.`;
+            regraEstrutura = `
+            ESTRUTURA ACADÊMICA:
+            - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3).
+            - A primeira página (com imagem) terá 2 parágrafos curtos (3-4 linhas) e um subtítulo (H3) após a imagem.
+            - As páginas seguintes terão 4 parágrafos longos.
+            - Incluir citações (blockquote) e dicas (highlight-box) em páginas alternadas (NUNCA ambos na mesma página).
+            `;
+        }
+
+        // Moldes conforme estiloCapitulos (exceto receitas, que já tratamos)
+        if (estiloCapitulos === 'box-arredondado' && modoConteudo !== 'receitas') {
+            regraEstiloCapitulos = `
+            MOLDE DO CAPÍTULO EXCLUSIVO (Box Arredondado):
+            <!-- PÁGINA DE CAPA DO CAPÍTULO (ocupa a página inteira com imagem de fundo) -->
+            <div class="page-container cap-box-rounded" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://source.unsplash.com/featured/1200x800/?{palavras_chave_do_titulo},photography&sig=${Date.now()}'); background-size: cover; background-position: center;">
+                <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
+            </div>
+            <!-- PÁGINA 1: Primeiro subtópico -->
+            <div class="page-container chapter-text-page">
+                <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+                <h3 class="subtopic-title">Primeiro Tópico</h3>
+                <p>[Parágrafo longo 1]</p>
+                <p>[Parágrafo longo 2]</p>
+                <p>[Parágrafo longo 3]</p>
+                <p>[Parágrafo longo 4]</p>
+                <div class="page-footer">${regraRodape}</div>
+            </div>
+            <!-- PÁGINA 2: Segundo subtópico -->
+            <div class="page-container chapter-text-page">
+                <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+                <h3 class="subtopic-title">Segundo Tópico</h3>
+                <p>[Parágrafo longo 1]</p>
+                <p>[Parágrafo longo 2]</p>
+                <p>[Parágrafo longo 3]</p>
+                <p>[Parágrafo longo 4]</p>
+                <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
+                <div class="page-footer">${regraRodape}</div>
+            </div>
+            <!-- PÁGINA 3: Terceiro subtópico + blockquote -->
+            <div class="page-container chapter-text-page">
+                <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+                <h3 class="subtopic-title">Terceiro Tópico</h3>
+                <p>[Parágrafo longo 1]</p>
+                <p>[Parágrafo longo 2]</p>
+                <p>[Parágrafo longo 3]</p>
+                <p>[Parágrafo longo 4]</p>
+                <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
+                <div class="page-footer">${regraRodape}</div>
+            </div>
+            ATENÇÃO: A capa do capítulo é a página com imagem de fundo (sem banner). As três páginas seguintes têm cada uma um subtítulo e 4 parágrafos longos. A última deve ter um blockquote. Use palavras-chave em INGLÊS para a imagem, SEMPRE evitando animais.
+            `;
+        } else {
+            // inline-imagem (padrão) – para todos os modos exceto receitas
+            regraEstiloCapitulos = `
+            MOLDE PADRÃO (com banner de imagem):
+            <!-- PÁGINA 1: Capa do capítulo com imagem, subtítulo e 2 parágrafos -->
+            <div class="page-container">
+                <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+                <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">${modoConteudo === 'receitas' ? 'Nome da Receita' : 'Capítulo X: Nome Exclusivo do Capítulo'}</h2>
+                <img src="https://source.unsplash.com/featured/1200x800/?{palavras_chave_do_titulo},photography&sig=${Date.now()}" class="chapter-banner-img" alt="Fotografia do Capítulo" />
+                <h3 class="subtopic-title">Subtítulo do Capítulo (resumo do tema)</h3>
+                <p>Parágrafo 1 - 3 a 4 linhas</p>
+                <p>Parágrafo 2 - 3 a 4 linhas</p>
+                <div class="page-footer">${regraRodape}</div>
+            </div>
+            <!-- PÁGINA 2: Primeiro subtópico (DEVE TER 4 PARÁGRAFOS) -->
+            <div class="page-container">
+                <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+                <h3 class="subtopic-title">Primeiro Tópico</h3>
+                <p>Parágrafo 1 (longo)</p>
+                <p>Parágrafo 2 (longo)</p>
+                <p>Parágrafo 3 (longo)</p>
+                <p>Parágrafo 4 (longo)</p>
+                <div class="page-footer">${regraRodape}</div>
+            </div>
+            <!-- PÁGINA 3: Segundo subtópico (DEVE TER 4 PARÁGRAFOS) -->
+            <div class="page-container">
+                <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+                <h3 class="subtopic-title">Segundo Tópico</h3>
+                <p>Parágrafo 1 (longo)</p>
+                <p>Parágrafo 2 (longo)</p>
+                <p>Parágrafo 3 (longo)</p>
+                <p>Parágrafo 4 (longo)</p>
+                <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
+                <div class="page-footer">${regraRodape}</div>
+            </div>
+            <!-- PÁGINA 4: Terceiro subtópico + blockquote (DEVE TER 4 PARÁGRAFOS) -->
+            <div class="page-container">
+                <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
+                <h3 class="subtopic-title">Terceiro Tópico</h3>
+                <p>Parágrafo 1 (longo)</p>
+                <p>Parágrafo 2 (longo)</p>
+                <p>Parágrafo 3 (longo)</p>
+                <p>Parágrafo 4 (longo)</p>
+                <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
+                <div class="page-footer">${regraRodape}</div>
+            </div>
+            ATENÇÃO: A primeira página tem EXATAMENTE 2 parágrafos. As páginas 2, 3 e 4 têm OBRIGATORIAMENTE 4 parágrafos cada. O blockquote aparece apenas na última página. A URL da imagem deve usar palavras-chave em INGLÊS relacionadas ao título do capítulo, SEMPRE evitando animais.
+            `;
+        }
+    }
+
+    // Capa fixa (imagem-texto) - atualizada com os dados atuais
+    const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
+
+    const paginaAviso = gerarPaginaAviso();
+
+    let regrasComuns = `
+    DIRETRIZES DE LAYOUT E CONTEÚDO:
+    ${regraImagem}
+    1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
+    2. ESCOLHA DA IMAGEM: 
+       - Para capítulos de receitas, a palavra-chave deve ser SEMPRE relacionada ao título da receita + "food" (ex: "chocolate cake food") e NUNCA conter "animal", "cat", "dog", etc.
+       - Para capítulos genéricos, use palavras-chave extraídas do título do capítulo, mas SEMPRE em INGLÊS.
+       - NUNCA use palavras que não tenham relação com o tema. Se não houver correspondência clara, use "abstract".
+    3. ESTRUTURA DOS CAPÍTULOS: Siga os moldes fornecidos abaixo, respeitando o tipo de estilo escolhido (inline-imagem ou box-arredondado).
+    4. NÃO INCLUA NENHUM TEXTO EXTRA COMO "CAPA:", "ÍNDICE:", etc. Apenas o HTML dos elementos.
+    5. QUANTIDADE DE PARÁGRAFOS: Respeite rigorosamente o número de parágrafos especificado em cada página. Não invente nem reduza.
+    6. MODO RECEITAS: OBRIGATORIAMENTE use o molde com banner e 2 parágrafos na primeira página. NUNCA use capa exclusiva.
+    7. PROIBIDO ABSOLUTAMENTE gerar qualquer página de autor, biografia, "Sobre o Autor", ou elementos similares, a menos que seja explicitamente solicitado pelo usuário. Não insira essa página em nenhum passo automático.
     `;
-}
-      }
-      else if (modoConteudo === 'rigoroso') {
-          regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
-          regraEstrutura = `
-          Neste modo, você DEVE:
-          1. Corrigir APENAS erros de ortografia, pontuação e concordância – sem reescrever ou resumir.
-          2. Manter o conteúdo integralmente como foi fornecido.
-          3. Formatar o texto usando as tags HTML adequadas (h2, h3, p) de acordo com a estrutura original.
-          4. NÃO adicionar nem remover parágrafos, imagens ou qualquer elemento.
-          `;
-          regraEstiloCapitulos = `
-          MOLDE RIGOROSO: Use as tags HTML conforme o texto original, mantendo a ordem e o conteúdo exato (após correções ortográficas). Não invente conteúdo.
-          `;
-      }
-      else {
-          // Modos: expandido, historias, academico
-          if (modoConteudo === 'expandido') {
-              regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H2) de todo capítulo gerado!`;
-              regraEstrutura = `
-              ESTRUTURA PADRÃO (3 tópicos por capítulo, 3 páginas de conteúdo):
-              - O capítulo deve ter exatamente 3 subtópicos (H3).
-              - A primeira página (com imagem e título) terá EXATAMENTE 2 parágrafos (cada um com 3-4 linhas) e um subtítulo (H3) logo após a imagem.
-              - As páginas seguintes (páginas 2, 3 e 4) terão cada uma um subtítulo e 4 parágrafos longos (4-6 linhas cada).
-              - O total por capítulo é: 1 página de abertura (título+imagem+subtítulo+2 parágrafos) + 3 páginas de conteúdo.
-              `;
-          } else if (modoConteudo === 'historias') {
-              regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa.`;
-              regraEstrutura = `
-              ESTRUTURA DE HISTÓRIA (com 3 tópicos por capítulo):
-              - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3) com parágrafos narrativos.
-              - A primeira página (com imagem) terá 2 parágrafos curtos (3-4 linhas) e um subtítulo (H3) após a imagem.
-              - As demais páginas terão 4 parágrafos longos.
-              `;
-          } else if (modoConteudo === 'academico') {
-              regraTitulo = `Use "Capítulo" nos títulos (H2). Estrutura formal com 3 subtópicos (H3) por capítulo.`;
-              regraEstrutura = `
-              ESTRUTURA ACADÊMICA:
-              - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3).
-              - A primeira página (com imagem) terá 2 parágrafos curtos (3-4 linhas) e um subtítulo (H3) após a imagem.
-              - As páginas seguintes terão 4 parágrafos longos.
-              - Incluir citações (blockquote) e dicas (highlight-box) em páginas alternadas (NUNCA ambos na mesma página).
-              `;
-          }
-
-          // Moldes conforme estiloCapitulos (exceto receitas, que forçamos banner)
-          if (estiloCapitulos === 'box-arredondado' && modoConteudo !== 'receitas') {
-              regraEstiloCapitulos = `
-              MOLDE DO CAPÍTULO EXCLUSIVO (Box Arredondado):
-              <!-- PÁGINA DE CAPA DO CAPÍTULO (ocupa a página inteira com imagem de fundo) -->
-              <div class="page-container cap-box-rounded" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://source.unsplash.com/featured/1200x800/?nature,landscape,water,forest&sig=CAP1'); background-size: cover; background-position: center;">
-                  <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
-              </div>
-              <!-- PÁGINA 1: Primeiro subtópico -->
-              <div class="page-container chapter-text-page">
-                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>[Parágrafo longo 1]</p>
-                  <p>[Parágrafo longo 2]</p>
-                  <p>[Parágrafo longo 3]</p>
-                  <p>[Parágrafo longo 4]</p>
-                  <div class="page-footer">${regraRodape}</div>
-              </div>
-              <!-- PÁGINA 2: Segundo subtópico -->
-              <div class="page-container chapter-text-page">
-                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <h3 class="subtopic-title">Segundo Tópico</h3>
-                  <p>[Parágrafo longo 1]</p>
-                  <p>[Parágrafo longo 2]</p>
-                  <p>[Parágrafo longo 3]</p>
-                  <p>[Parágrafo longo 4]</p>
-                  <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
-                  <div class="page-footer">${regraRodape}</div>
-              </div>
-              <!-- PÁGINA 3: Terceiro subtópico + blockquote -->
-              <div class="page-container chapter-text-page">
-                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <h3 class="subtopic-title">Terceiro Tópico</h3>
-                  <p>[Parágrafo longo 1]</p>
-                  <p>[Parágrafo longo 2]</p>
-                  <p>[Parágrafo longo 3]</p>
-                  <p>[Parágrafo longo 4]</p>
-                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
-                  <div class="page-footer">${regraRodape}</div>
-              </div>
-              ATENÇÃO: A capa do capítulo é a página com imagem de fundo (sem banner). As três páginas seguintes têm cada uma um subtítulo e 4 parágrafos longos. A última deve ter um blockquote.
-              `;
-          } else {
-              // inline-imagem (padrão) – para todos os modos exceto receitas (que já tratamos)
-              regraEstiloCapitulos = `
-              MOLDE PADRÃO (com banner de imagem):
-              <!-- PÁGINA 1: Capa do capítulo com imagem, subtítulo e 2 parágrafos -->
-              <div class="page-container">
-                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">${modoConteudo === 'receitas' ? 'Nome da Receita' : 'Capítulo X: Nome Exclusivo do Capítulo'}</h2>
-                  <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
-                  <h3 class="subtopic-title">Subtítulo do Capítulo (resumo do tema)</h3>
-                  <p>Parágrafo 1 - 3 a 4 linhas</p>
-                  <p>Parágrafo 2 - 3 a 4 linhas</p>
-                  <div class="page-footer">${regraRodape}</div>
-              </div>
-              <!-- PÁGINA 2: Primeiro subtópico (DEVE TER 4 PARÁGRAFOS) -->
-              <div class="page-container">
-                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>Parágrafo 1 (longo)</p>
-                  <p>Parágrafo 2 (longo)</p>
-                  <p>Parágrafo 3 (longo)</p>
-                  <p>Parágrafo 4 (longo)</p>
-                  <div class="page-footer">${regraRodape}</div>
-              </div>
-              <!-- PÁGINA 3: Segundo subtópico (DEVE TER 4 PARÁGRAFOS) -->
-              <div class="page-container">
-                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <h3 class="subtopic-title">Segundo Tópico</h3>
-                  <p>Parágrafo 1 (longo)</p>
-                  <p>Parágrafo 2 (longo)</p>
-                  <p>Parágrafo 3 (longo)</p>
-                  <p>Parágrafo 4 (longo)</p>
-                  <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
-                  <div class="page-footer">${regraRodape}</div>
-              </div>
-              <!-- PÁGINA 4: Terceiro subtópico + blockquote (DEVE TER 4 PARÁGRAFOS) -->
-              <div class="page-container">
-                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <h3 class="subtopic-title">Terceiro Tópico</h3>
-                  <p>Parágrafo 1 (longo)</p>
-                  <p>Parágrafo 2 (longo)</p>
-                  <p>Parágrafo 3 (longo)</p>
-                  <p>Parágrafo 4 (longo)</p>
-                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
-                  <div class="page-footer">${regraRodape}</div>
-              </div>
-              ATENÇÃO: A primeira página tem EXATAMENTE 2 parágrafos. As páginas 2, 3 e 4 têm OBRIGATORIAMENTE 4 parágrafos cada. O blockquote aparece apenas na última página.
-              `;
-          }
-      }
-
-      // Capa fixa (imagem-texto) - atualizada com os dados atuais
-      const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
-
-      const paginaAviso = gerarPaginaAviso();
-
-          let regrasComuns = `
-      DIRETRIZES DE LAYOUT E CONTEÚDO:
-      1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
-      2. ESCOLHA DA IMAGEM: 
-         - Para capítulos de receitas, a palavra-chave deve ser SEMPRE relacionada ao título da receita (ex: "chocolate cake") e NUNCA conter "animal", "cat", "dog", etc.
-         - Para capítulos genéricos, use palavras-chave extraídas do título do capítulo, mas SEMPRE em INGLÊS.
-         - NUNCA use palavras que não tenham relação com o tema. Se não houver correspondência clara, não insira imagem.
-      3. ESTRUTURA DOS CAPÍTULOS: Siga os moldes fornecidos abaixo, respeitando o tipo de estilo escolhido (inline-imagem ou box-arredondado).
-      4. NÃO INCLUA NENHUM TEXTO EXTRA COMO "CAPA:", "ÍNDICE:", etc. Apenas o HTML dos elementos.
-      5. QUANTIDADE DE PARÁGRAFOS: Respeite rigorosamente o número de parágrafos especificado em cada página. Não invente nem reduza.
-      6. MODO RECEITAS: OBRIGATORIAMENTE use o molde com banner e 2 parágrafos na primeira página. NUNCA use capa exclusiva.
-      7. PROIBIDO ABSOLUTAMENTE gerar qualquer página de autor, biografia, "Sobre o Autor", ou elementos similares, a menos que seja explicitamente solicitado pelo usuário. Não insira essa página em nenhum passo automático.
-      `;
 
     return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
 }
