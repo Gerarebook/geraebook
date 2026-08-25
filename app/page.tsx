@@ -450,7 +450,7 @@ export default function Home() {
   const [modoInspetor, setModoInspetor] = useState(false);
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
-
+  const [mostrarSubtopicosIndice, setMostrarSubtopicosIndice] = useState(true);
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -1451,32 +1451,34 @@ ${ebookStyles}
       const paginaAviso = gerarPaginaAviso();
 
       // Regra comum para todos os modos
-      let regrasComuns = `
-      DIRETRIZES OBRIGATÓRIAS DE LAYOUT E PAGINAÇÃO (MÁXIMO RIGOR):
+     let regrasComuns = `
+      DIRETRIZES OBRIGATÓRIAS DE LAYOUT E PAGINAÇÃO (ESTRUTURA HTML CRÍTICA):
 
-      1. ESCOPO E LIMITE DE PÁGINAS (CRÍTICO): 
-         - GERE APENAS O CONTEÚDO SOLICITADO NA ETAPA ATUAL. Se for solicitado o Capítulo 2, pare EXATAMENTE no final do Capítulo 2. É EXPRESSAMENTE PROIBIDO gerar capítulos adicionais ou a Conclusão por conta própria.
-         - A "Introdução" DEVE ter EXATAMENTE 1 página de conteúdo. 
-         - A "Conclusão" DEVE ter EXATAMENTE 2 páginas de conteúdo, e só deve ser gerada quando solicitada. A página "Sobre o Autor" deve ser a última página do livro, gerada apenas junto com a Conclusão.
-         - Os "Capítulos" normais DEVEM ter EXATAMENTE 3 páginas de conteúdo cada (nunca 4 ou 5).
+      1. ESTRUTURA EXATA DE PÁGINAS (LEI MATEMÁTICA): 
+         - O motor do e-book cria as páginas lendo a tag <div class="page-container">. 
+         - Para CADA Capítulo, você DEVE gerar EXATAMENTE 3 (três) blocos de <div class="page-container">. Nunca gere 2, nem 4, nem 5. 
 
-      2. REGRA DE IMAGENS E BANNERS (ALTURA FIXA):
-         - É EXPRESSAMENTE PROIBIDO colocar imagens/banners na "Introdução" e na "Conclusão".
-         - Nos Capítulos normais, a PRIMEIRA PÁGINA DEVE ter a imagem banner. Use EXATAMENTE esta tag com a altura forçada de 380px:
-           <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES]" style="width: 100%; height: 380px !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-         - A palavra-chave (data-keyword) deve focar em fotografias humanas reais ou objetos palpáveis (ex: businessman, coffee, office). Nunca use termos que remetam a desenhos, animações ou tecnologia 3D.
+      2. A PRIMEIRA PÁGINA DO CAPÍTULO (Obrigatório seguir esta ordem):
+         Na PRIMEIRA <div class="page-container"> do capítulo, você deve colocar EXATAMENTE nesta ordem:
+         A) O Cabeçalho.
+         B) O Título do Capítulo (<h2>).
+         C) A Imagem Banner OBRIGATÓRIA usando EXATAMENTE este código HTML (não altere a altura):
+            <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES_AQUI]" style="width: 100%; height: 380px !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+         D) Um Subtítulo do tópico (<h3>).
+         E) EXATAMENTE 2 (dois) parágrafos (com 4 a 6 linhas cada).
+         F) Feche esta primeira página (</div>).
 
-      3. PADRONIZAÇÃO DOS PARÁGRAFOS (ATENÇÃO): 
-         - Mantenha parágrafos dinâmicos e consistentes do início ao fim (com 4 a 6 linhas de texto cada). 
-         - É proibido encolher os parágrafos nos capítulos finais. A proporção e o tamanho devem ser idênticos aos dos capítulos iniciais.
+      3. A SEGUNDA E TERCEIRA PÁGINAS DO CAPÍTULO:
+         - Na segunda e na terceira <div class="page-container">, preencha o espaço da folha A4 com conteúdo utilizando subtópicos, caixas de destaque e parágrafos normais (4 a 6 linhas).
+         - É proibido usar imagens nessas páginas, elas são apenas para texto.
+         - Nunca encolha os parágrafos. Mantenha a mesma proporção inicial de 4 a 6 linhas.
 
-      4. ESTRUTURA DA PRIMEIRA PÁGINA DO CAPÍTULO (A PÁGINA DA IMAGEM):
-         - Logo abaixo da imagem de 380px, inicie OBRIGATORIAMENTE com um subtítulo (<h3 class="subtopic-title">).
-         - Abaixo desse subtítulo, escreva EXATAMENTE 2 parágrafos. Essa matemática é obrigatória para que o texto termine perfeitamente no rodapé desta página, sem vazar.
+      4. REGRAS VISUAIS DE TEXTO E FOTOS:
+         - É estritamente obrigatório deixar um espaço exato de uma linha entre os títulos dos tópicos e o início dos parágrafos logo abaixo deles.
+         - Para a palavra-chave (data-keyword) da imagem, escolha termos que busquem imagens 100% reais de fotografia. É absolutamente proibido o uso de palavras que remetam a desenhos, gráficos animados ou imagens estilo tecnologia futurista/3D. Queremos imagens REAIS e palpáveis (ex: businessman, coffee, real-office).
 
-      5. PREENCHIMENTO DAS DEMAIS PÁGINAS:
-         - Preencha o espaço limite da folha A4 de forma harmônica utilizando subtítulos (<h3 class="subtopic-title">), parágrafos normais (4-6 linhas) e as caixas de destaque (<blockquote>, <div class="highlight-box">).
-         - Mantenha SEMPRE o espaço exato de uma linha de respiro entre o título de um tópico e o parágrafo logo abaixo dele.
+      5. CONTROLE DO ÍNDICE:
+         ${mostrarSubtopicosIndice ? '- No sumário/índice, você deve listar os Capítulos principais e também os seus respectivos subtópicos.' : '- No sumário/índice, liste APENAS os títulos dos Capítulos principais. É EXPRESSAMENTE PROIBIDO listar os subtópicos no índice.'}
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
@@ -1994,6 +1996,15 @@ ${ebookStyles}
                                         </button>
                                     </div>
                                     <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y" placeholder="Descreva os capítulos ou cole seu texto aqui..."></textarea>
+                                   <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
+   <input 
+      type="checkbox" 
+      checked={mostrarSubtopicosIndice} 
+      onChange={(e) => setMostrarSubtopicosIndice(e.target.checked)} 
+      className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+   />
+   Mostrar Subtópicos no Índice
+</label> 
                                 </div>
 
                                 {/* Botão Gerar E-book Completo REMOVIDO - restam apenas os três botões de etapas */}
