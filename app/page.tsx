@@ -1388,12 +1388,11 @@ ${ebookStyles}
       let regraEstrutura = "";
 
       if (modoConteudo === 'receitas') {
-          regraTitulo = `NUNCA use a palavra "Capítulo". Use "Receita" ou apenas o nome da receita como título (H1 ou H2). ABSOLUTAMENTE PROIBIDO USAR "CAPÍTULO" EM QUALQUER TÍTULO.`;
+          regraTitulo = `NUNCA use a palavra "Capítulo". Use o nome da receita como título (H2). ABSOLUTAMENTE PROIBIDO USAR "CAPÍTULO" EM QUALQUER TÍTULO.`;
           regraEstrutura = `
-          ESTRUTURA DE RECEITA (sem capítulos, sem tópicos fixos):
-          - Cada receita terá: Título (H1 ou H2) com o nome da receita, uma breve descrição, lista de ingredientes, modo de preparo e dicas.
-          - A página da receita deve conter a imagem (horizontal, proporção 16:9, mesma altura para todas) e os ingredientes (ul).
-          - O modo de preparo deve ficar em uma página separada (próxima página).
+          ESTRUTURA DE RECEITA (sem capítulos):
+          - Cada receita terá: Título (H2) com o nome da receita, uma breve descrição, lista de ingredientes (ul) e uma imagem (horizontal) na mesma página.
+          - A página seguinte deve conter o modo de preparo (passos) e dicas.
           - Não há limite de páginas.
           `;
           regraEstiloCapitulos = `
@@ -1402,7 +1401,7 @@ ${ebookStyles}
               <div class="page-header"><span>${livroTitulo}</span><span>RECEITA</span></div>
               <h2 id="ID_DA_RECEITA" class="chapter-title-inline">Nome da Receita</h2>
               <img src="URL_DA_IMAGEM_HORIZONTAL_UNSPLASH" class="chapter-banner-img" alt="Imagem da receita" style="height: 300px; object-fit: cover;" />
-              <p>[Descrição breve da receita...]</p>
+              <p>[Descrição breve da receita, 2-3 linhas]</p>
               <h3 class="receita-titulo">Ingredientes</h3>
               <ul>
                   <li>Ingrediente 1</li>
@@ -1417,10 +1416,11 @@ ${ebookStyles}
               <h3 class="receita-titulo">Modo de Preparo</h3>
               <p>[Passo 1...]</p>
               <p>[Passo 2...]</p>
+              <p>[Passo 3...]</p>
               <div class="highlight-box"><i class="fas fa-lightbulb"></i> Dica: [dica especial]</div>
               <div class="page-footer">${regraRodape}</div>
           </div>
-          IMPORTANTE: A página de imagem + ingredientes deve vir primeiro, seguida da página de preparo. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px). Use a classe "receita-titulo" nos H3.`;
+          IMPORTANTE: A página de imagem + ingredientes deve vir primeiro. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px).`;
       }
       else if (modoConteudo === 'rigoroso') {
           regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
@@ -1435,122 +1435,127 @@ ${ebookStyles}
           MOLDE RIGOROSO: Use as tags HTML conforme o texto original, mantendo a ordem e o conteúdo exato (após correções ortográficas). Não invente conteúdo.`;
       }
       else {
+          // Modos: expandido, historias, academico
           if (modoConteudo === 'expandido') {
-              regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H1 ou H2) de todo capítulo gerado!`;
+              regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H2) de todo capítulo gerado!`;
               regraEstrutura = `
               ESTRUTURA PADRÃO (3 tópicos por capítulo, 3 páginas por capítulo):
               - O capítulo deve ter exatamente 3 subtópicos (H3).
-              - Em cada tópico, 2 a 3 parágrafos.
-              - A página de título do capítulo (com imagem) deve ter APENAS 2 parágrafos curtos.
-              - As demais páginas devem ter 4 parágrafos mais longos.
+              - A primeira página (com imagem) terá 3-4 parágrafos curtos para preencher bem o espaço após a imagem.
+              - As demais páginas terão 4 parágrafos longos cada.
               - O total por capítulo deve ser de exatamente 3 páginas de conteúdo.
               `;
           } else if (modoConteudo === 'historias') {
-              regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa, mas mantenha a estrutura de 3 tópicos por capítulo.`;
+              regraTitulo = `Use "Capítulo" nos títulos (H2). O foco é a narrativa.`;
               regraEstrutura = `
               ESTRUTURA DE HISTÓRIA (com 3 tópicos por capítulo):
               - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3) com parágrafos narrativos.
-              - A página de título do capítulo (com imagem) deve ter APENAS 2 parágrafos curtos.
-              - As demais páginas devem ter 4 parágrafos mais longos.
-              - O conteúdo deve ser extenso o suficiente para ocupar pelo menos 2 páginas por capítulo.
+              - A primeira página (com imagem) terá 3-4 parágrafos curtos.
+              - As demais páginas terão 4 parágrafos mais longos.
+              - O conteúdo deve ser extenso o suficiente para ocupar pelo menos 3 páginas por capítulo.
               `;
           } else if (modoConteudo === 'academico') {
               regraTitulo = `Use "Capítulo" nos títulos (H2). Estrutura formal com 3 subtópicos (H3) por capítulo.`;
               regraEstrutura = `
-              ESTRUTURA ACADÊMICA (com 3 tópicos por capítulo, mínimo 2 páginas):
+              ESTRUTURA ACADÊMICA (com 3 tópicos por capítulo, mínimo 3 páginas):
               - Cada capítulo deve ter um título (H2) e 3 subtópicos (H3).
-              - A página de título (com imagem) deve ter APENAS 2 parágrafos curtos.
-              - As demais páginas devem ter 4 parágrafos mais longos.
+              - A primeira página (com imagem) terá 3-4 parágrafos curtos.
+              - As demais páginas terão 4 parágrafos mais longos.
               - Incluir citações (blockquote) e dicas (highlight-box) em páginas alternadas (NUNCA ambos na mesma página).
               `;
           }
 
+          // Agora a estrutura varia conforme estiloCapitulos
           if (estiloCapitulos === 'box-arredondado') {
               regraEstiloCapitulos = `
-              MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco):
-              <!-- PÁGINA DE CAPA DO CAPÍTULO (com imagem de fundo real) -->
+              MOLDE DO CAPÍTULO EXCLUSIVO (Box Arredondado):
+              <!-- PÁGINA DE CAPA DO CAPÍTULO (ocupa a página inteira com imagem de fundo) -->
               <div class="page-container cap-box-rounded" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://source.unsplash.com/featured/1200x800/?nature,landscape,water,forest&sig=CAP1'); background-size: cover; background-position: center;">
                   <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
               </div>
-              <!-- PÁGINAS DE TEXTO (3 páginas, cada uma com um subtópico) -->
-              <!-- Página 1: primeiro subtópico -->
+              <!-- PÁGINA 1: Primeiro subtópico -->
               <div class="page-container chapter-text-page">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>[Parágrafo longo 1 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 2 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 3 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 4 com 4-6 linhas]</p>
+                  <p>[Parágrafo longo 1]</p>
+                  <p>[Parágrafo longo 2]</p>
+                  <p>[Parágrafo longo 3]</p>
+                  <p>[Parágrafo longo 4]</p>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- Página 2: segundo subtópico -->
+              <!-- PÁGINA 2: Segundo subtópico -->
               <div class="page-container chapter-text-page">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Segundo Tópico</h3>
-                  <p>[Parágrafo longo 1 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 2 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 3 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 4 com 4-6 linhas]</p>
+                  <p>[Parágrafo longo 1]</p>
+                  <p>[Parágrafo longo 2]</p>
+                  <p>[Parágrafo longo 3]</p>
+                  <p>[Parágrafo longo 4]</p>
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- Página 3: terceiro subtópico + blockquote -->
+              <!-- PÁGINA 3: Terceiro subtópico + blockquote -->
               <div class="page-container chapter-text-page">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Terceiro Tópico</h3>
-                  <p>[Parágrafo longo 1 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 2 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 3 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 4 com 4-6 linhas]</p>
-                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
+                  <p>[Parágrafo longo 1]</p>
+                  <p>[Parágrafo longo 2]</p>
+                  <p>[Parágrafo longo 3]</p>
+                  <p>[Parágrafo longo 4]</p>
+                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: Cada página de texto deve ter EXATAMENTE 4 parágrafos longos. A distribuição de conteúdo deve ser uniforme. O blockquote deve aparecer APENAS na terceira página.`;
+              ATENÇÃO: A capa do capítulo é a página com imagem de fundo (sem banner). As três páginas seguintes têm cada uma um subtítulo e 4 parágrafos longos. A última deve ter um blockquote.
+              `;
           } else {
+              // inline-imagem (padrão)
               regraEstiloCapitulos = `
-              MOLDE PADRÃO (inline-imagem):
-              <!-- PÁGINA 1 (capa do capítulo com imagem) -->
+              MOLDE PADRÃO (com banner de imagem):
+              <!-- PÁGINA 1: Capa do capítulo com imagem -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo do Capítulo</h2>
                   <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
                   <p>[Parágrafo curto 1 - 2 a 3 linhas]</p>
                   <p>[Parágrafo curto 2 - 2 a 3 linhas]</p>
+                  <p>[Parágrafo curto 3 - 2 a 3 linhas]</p>
+                  <p>[Parágrafo curto 4 - 2 a 3 linhas, para preencher a página]</p>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- PÁGINA 2: primeiro subtópico -->
+              <!-- PÁGINA 2: Primeiro subtópico -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>[Parágrafo longo 1 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 2 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 3 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 4 com 4-6 linhas]</p>
+                  <p>[Parágrafo longo 1]</p>
+                  <p>[Parágrafo longo 2]</p>
+                  <p>[Parágrafo longo 3]</p>
+                  <p>[Parágrafo longo 4]</p>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- PÁGINA 3: segundo subtópico -->
+              <!-- PÁGINA 3: Segundo subtópico -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Segundo Tópico</h3>
-                  <p>[Parágrafo longo 1 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 2 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 3 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 4 com 4-6 linhas]</p>
+                  <p>[Parágrafo longo 1]</p>
+                  <p>[Parágrafo longo 2]</p>
+                  <p>[Parágrafo longo 3]</p>
+                  <p>[Parágrafo longo 4]</p>
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              <!-- PÁGINA 4: terceiro subtópico + blockquote -->
+              <!-- PÁGINA 4: Terceiro subtópico + blockquote -->
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Terceiro Tópico</h3>
-                  <p>[Parágrafo longo 1 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 2 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 3 com 4-6 linhas]</p>
-                  <p>[Parágrafo longo 4 com 4-6 linhas]</p>
-                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
+                  <p>[Parágrafo longo 1]</p>
+                  <p>[Parágrafo longo 2]</p>
+                  <p>[Parágrafo longo 3]</p>
+                  <p>[Parágrafo longo 4]</p>
+                  <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: As páginas 2, 3 e 4 devem ter exatamente 4 parágrafos longos cada. O blockquote deve aparecer APENAS na última página de cada capítulo.`;
+              ATENÇÃO: A primeira página deve ter 4 parágrafos curtos (2-3 linhas) para preencher bem o espaço. As demais páginas têm 4 parágrafos longos. O blockquote aparece apenas na última página.
+              `;
           }
       }
 
@@ -1570,44 +1575,7 @@ ${ebookStyles}
 
       1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
       
-      2. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
-         Todo capítulo DEVE ter EXATAMENTE 3 páginas. Preencha os colchetes rigorosamente. Não adicione páginas extras.
-
-         <!-- PÁGINA 1 -->
-         <div class="page-container">
-             <div class="page-header"><span>...</span><span>...</span></div>
-             <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-             <img class="chapter-banner-img" src="..." data-keyword="[FOTO_REAL_AQUI]" alt="Banner">
-             <h3 class="subtopic-title">[Subtítulo 1]</h3>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <div class="page-footer"><span></span><span class="page-number"></span></div>
-         </div>
-
-         <!-- PÁGINA 2 -->
-         <div class="page-container">
-             <div class="page-header"><span>...</span><span>...</span></div>
-             <h3 class="subtopic-title">[Subtítulo 2]</h3>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <div class="page-footer"><span></span><span class="page-number"></span></div>
-         </div>
-
-         <!-- PÁGINA 3 -->
-         <div class="page-container">
-             <div class="page-header"><span>...</span><span>...</span></div>
-             <h3 class="subtopic-title">[Subtítulo 3]</h3>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <p>[Parágrafo denso de 4-6 linhas]</p>
-             <p>[Parágrafo extra e denso de 4-6 linhas focado em preencher todo o buraco do rodapé da última página]</p>
-             <!-- OBRIGATÓRIO: Incluir uma citação (blockquote) na terceira página -->
-             <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
-             <div class="page-footer"><span></span><span class="page-number"></span></div>
-         </div>
+      2. ESTRUTURA DOS CAPÍTULOS: Siga os moldes fornecidos abaixo, respeitando o tipo de estilo escolhido (inline-imagem ou box-arredondado).
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
@@ -1633,19 +1601,20 @@ ${ebookStyles}
             <div class="toc-container"></div>
             <div class="page-footer">${regraRodape}</div>
          </div>
-      4. INTRODUÇÃO: 
+      4. INTRODUÇÃO (UMA ÚNICA PÁGINA): 
          <div class="page-container">
             <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
             <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-            <h3 class="subtopic-title">Visão Geral</h3>
-            <p>[Parágrafo...]</p>
-            <p>[Parágrafo...]</p>
-            <h3 class="subtopic-title">Propósito</h3>
-            <p>[Parágrafo...]</p>
-            <p>[Parágrafo...]</p>
+            <h3 class="subtopic-title">[Primeiro tópico da introdução - relacionado ao conteúdo]</h3>
+            <p>[Parágrafo 1 - 3-4 linhas]</p>
+            <p>[Parágrafo 2 - 3-4 linhas]</p>
+            <h3 class="subtopic-title">[Segundo tópico da introdução - relacionado ao conteúdo]</h3>
+            <p>[Parágrafo 3 - 3-4 linhas]</p>
+            <p>[Parágrafo 4 - 3-4 linhas]</p>
             <div class="page-footer">${regraRodape}</div>
          </div>
       PARE AQUI! NÃO gere Capítulos ou Conclusão.
+      IMPORTANTE: A introdução deve ter exatamente 2 subtópicos (h3) e 4 parágrafos no total, preenchendo bem a página. Os tópicos devem ser específicos para o conteúdo do livro.
       `;
 
       const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
