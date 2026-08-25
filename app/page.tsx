@@ -601,8 +601,18 @@ function getEstilosFormato() {
       const conf = getEstilosFormato();
       const paleta = getPaletaObj();
       
-      const isBoxDark = isDarkColor(corBoxCapitulo);
-      const capBoxTextColor = isBoxDark ? '#ffffff' : 'var(--color-primary)';
+      // Força cor e remoção de borda para o modo box-arredondado
+      let capBoxBackground = corBoxCapitulo;
+      let capBoxBorder = '2px solid var(--color-primary)';
+      if (estiloCapitulos === 'box-arredondado') {
+          capBoxBackground = 'rgba(20, 20, 20, 0.45)';
+          capBoxBorder = 'none';
+      }
+      
+      const isBoxDark = isDarkColor(capBoxBackground);
+      // Se for box-arredondado, forçamos texto branco
+      let capBoxTextColor = isBoxDark ? '#ffffff' : 'var(--color-primary)';
+      if (estiloCapitulos === 'box-arredondado') capBoxTextColor = '#ffffff';
 
       const urlFundo2 = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : 'https://images.unsplash.com/photo-1607513746994-6c36195fb27f?auto=format&fit=crop&w=1200&q=80';
       const bgSegundaPaginaCss = ativarBgSegundaPagina ? `
@@ -795,7 +805,7 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
 
 .cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }
-.cap-box-inner { background: ${corBoxCapitulo}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 2px solid var(--color-primary); z-index: 10; position: relative; color: ${capBoxTextColor}; }
+.cap-box-inner { background: ${capBoxBackground}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: ${capBoxBorder}; z-index: 10; position: relative; color: ${capBoxTextColor}; }
 .cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: ${capBoxTextColor}; text-shadow: none; }
 
 .cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
@@ -820,7 +830,7 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-container > .page-header + h3.subtopic-title {
     margin-top: 0.2rem !important;
 }
-}.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
+.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1.5rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
 
@@ -2048,15 +2058,15 @@ ${ebookStyles}
                                         </button>
                                     </div>
                                     <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y" placeholder="Descreva os capítulos ou cole seu texto aqui..."></textarea>
-                                   <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
-   <input 
-      type="checkbox" 
-      checked={mostrarSubtopicosIndice} 
-      onChange={(e) => setMostrarSubtopicosIndice(e.target.checked)} 
-      className="w-4 h-4 text-indigo-600 rounded border-slate-300"
-   />
-   Mostrar Subtópicos no Índice
-</label> 
+                                    <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={indexShowSubtopics} 
+                                            onChange={(e) => setIndexShowSubtopics(e.target.checked)} 
+                                            className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                                        />
+                                        Mostrar Subtópicos no Índice
+                                    </label>
                                 </div>
 
                                 {/* Botão Gerar E-book Completo REMOVIDO - restam apenas os três botões de etapas */}
