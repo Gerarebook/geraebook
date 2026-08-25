@@ -53,7 +53,11 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         const titulosVistos = new Set(); 
 
         titles.forEach((titleEl) => {
+            // TRAVA DE SEGURANÇA MÁXIMA PARA O ÍNDICE:
+            if (${!indexShowSubtopics} && titleEl.tagName === 'H3') return;
+
             if (titleEl.tagName === 'H1' && !titleEl.id && titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+            // ... (o resto continua igual)
             
             let textContent = (titleEl.textContent || '').trim();
             if (textContent.toLowerCase() === 'índice' || textContent.toLowerCase() === 'sumário') return;
@@ -777,10 +781,18 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 
 .chapter-banner-img { 
     width: 100%; 
-    height: 380px !important; 
+    height: 370px !important; 
+    max-height: none !important; /* ISSO QUEBRA O BLOQUEIO DE ALTURA GLOBAL */
     object-fit: cover; 
     border-radius: 8px; 
     margin-bottom: 1rem;
+}
+
+/* REMOVE O BURACO BRANCO DO TOPO NAS PÁGINAS 2 E 3 */
+.page-container > h3.subtopic-title:first-of-type,
+.page-container > .page-header + h3.subtopic-title {
+    margin-top: 0.2rem !important;
+}
 }.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1.5rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
@@ -1450,51 +1462,49 @@ ${ebookStyles}
       // Página de aviso e direitos autorais (gerada separadamente)
       const paginaAviso = gerarPaginaAviso();
 
-      // Regra comum para todos os modos
 // Regra comum para todos os modos
       let regrasComuns = `
       DIRETRIZES DE LAYOUT, PAGINAÇÃO E CONTEÚDO (SIGA O MOLDE HTML ESTRITAMENTE):
 
-      1. REGRA DE FOTOGRAFIA: Para as imagens (data-keyword), use SEMPRE termos que busquem FOTOGRAFIAS REAIS (humanos, objetos, ambientes reais). É terminantemente PROIBIDO usar tecnologia, desenhos, 3D ou gráficos animados.
+      1. REGRA DE FOTOGRAFIA: Use SEMPRE FOTOGRAFIAS REAIS (humanos, ambientes, objetos). É terminantemente PROIBIDO usar ilustrações, desenhos, 3D ou gráficos animados.
       
-      2. ESPAÇAMENTO DE TÓPICOS: Você DEVE manter EXATAMENTE o espaço de uma linha de respiro entre os títulos dos tópicos (<h3>) e o início do primeiro parágrafo abaixo dele. Adicione margin-bottom de 1rem nos títulos para garantir isso.
+      2. ESPAÇAMENTO DE TÓPICOS: Mantenha espaço de uma linha de respiro entre o título do tópico e o parágrafo.
 
       3. MOLDE OBRIGATÓRIO DOS CAPÍTULOS (COPIE ESTA ESTRUTURA ESTRITAMENTE):
-         Independente de o usuário pedir imagem de fundo na segunda página ou não, TODO capítulo DEVE ter EXATAMENTE 3 páginas. Copie a estrutura HTML abaixo e preencha os colchetes com conteúdo de alta qualidade. NUNCA exclua uma página deste molde.
+         TODO capítulo DEVE ter EXATAMENTE 3 páginas. Preencha os colchetes com conteúdo denso. NUNCA exclua uma página.
 
          <!-- PÁGINA 1 -->
          <div class="page-container">
              <div class="page-header"><span>...</span><span>...</span></div>
              <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-             <img class="chapter-banner-img" src="..." data-keyword="[FOTO_REAL_AQUI]" style="width: 100%; height: 380px !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+             <img class="chapter-banner-img" src="..." data-keyword="[FOTO_REAL_AQUI]" style="width: 100%; height: 370px !important; max-height: none !important; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
              <h3 class="subtopic-title" style="margin-top: 0.5rem; margin-bottom: 1rem;">[Subtítulo 1]</h3>
-             <p>[Exatamente 2 parágrafos densos (4-6 linhas cada) aqui para encostar perfeitamente no rodapé]</p>
+             <p>[Exatamente 2 parágrafos densos (4-6 linhas) para encostar no rodapé]</p>
              <div class="page-footer"><span></span><span class="page-number"></span></div>
          </div>
 
          <!-- PÁGINA 2 -->
          <div class="page-container">
              <div class="page-header"><span>...</span><span>...</span></div>
-             <h3 class="subtopic-title" style="margin-top: 0.5rem; margin-bottom: 1rem;">[Subtítulo 2]</h3>
-             <p>[Conteúdo denso com parágrafos de 4-6 linhas. Preencha a folha A4 completamente. Não deixe espaços em branco no final.]</p>
+             <h3 class="subtopic-title" style="margin-top: 0.2rem; margin-bottom: 1rem;">[Subtítulo 2]</h3>
+             <p>[Conteúdo denso com parágrafos de 4-6 linhas. Preencha bem a página]</p>
              <div class="highlight-box">...</div>
-             <p>[Mais parágrafos densos]</p>
+             <p>[Mais 2 ou 3 parágrafos densos]</p>
              <div class="page-footer"><span></span><span class="page-number"></span></div>
          </div>
 
          <!-- PÁGINA 3 -->
          <div class="page-container">
              <div class="page-header"><span>...</span><span>...</span></div>
-             <h3 class="subtopic-title" style="margin-top: 0.5rem; margin-bottom: 1rem;">[Subtítulo 3]</h3>
-             <p>[Conteúdo denso com parágrafos de 4-6 linhas. Preencha a folha A4 completamente. Use o espaço total de forma profissional.]</p>
+             <h3 class="subtopic-title" style="margin-top: 0.2rem; margin-bottom: 1rem;">[Subtítulo 3]</h3>
+             <p>[Conteúdo denso com parágrafos de 4-6 linhas]</p>
+             <p>[Parágrafo adicional]</p>
+             <p>[Parágrafo adicional]</p>
+             <p>[ACRESCENTE MAIS UM PARÁGRAFO EXTRA AQUI NO FINAL PARA PREENCHER TOTALMENTE O BURACO DO RODAPÉ DESTA ÚLTIMA PÁGINA]</p>
              <div class="page-footer"><span></span><span class="page-number"></span></div>
          </div>
          
-      4. CONTROLE DO ÍNDICE (SUMÁRIO):
-         ${indexShowSubtopics 
-           ? '- No sumário/índice, crie uma lista detalhada contendo os Capítulos e os seus respectivos subtópicos.' 
-           : '- REGRA ABSOLUTA PARA O SUMÁRIO: Liste APENAS o nome do Capítulo (em uma única linha <li>). É TOTALMENTE PROIBIDO incluir subtópicos.'
-         }
+      4. CONTROLE DO ÍNDICE: Se não solicitado pelo sistema, omita os subtópicos.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
