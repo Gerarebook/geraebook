@@ -57,7 +57,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             if (${!indexShowSubtopics} && titleEl.tagName === 'H3') return;
 
             if (titleEl.tagName === 'H1' && !titleEl.id && titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
-            // ... (o resto continua igual)
             
             let textContent = (titleEl.textContent || '').trim();
             if (textContent.toLowerCase() === 'índice' || textContent.toLowerCase() === 'sumário') return;
