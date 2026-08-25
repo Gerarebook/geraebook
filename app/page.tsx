@@ -27,9 +27,16 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
 
     // 1. SINCRONIZADOR DE ÍNDICE MESTRE
     function sincronizarIndice() {
-        document.querySelectorAll('p').forEach(p => {
-            if(p.innerHTML.trim() === '' || p.innerHTML.trim() === '&nbsp;') p.remove();
+        // >>> TRAVA NUCLEAR CONTRA LISTAS FALSAS DA IA <<<
+        document.querySelectorAll('.page-container').forEach(page => {
+            const title = page.querySelector('h2');
+            if (title && (title.innerText.toLowerCase().includes('índice') || title.innerText.toLowerCase().includes('sumário'))) {
+                // Destrói fisicamente qualquer lista (ul/ol) que a IA tentou injetar à força
+                page.querySelectorAll('ul, ol').forEach(list => list.remove());
+            }
         });
+
+        // ... aqui continua o document.querySelectorAll('p').forEach(...)
 
         const allTocs = document.querySelectorAll('.toc-container');
         if (allTocs.length === 0) return;
