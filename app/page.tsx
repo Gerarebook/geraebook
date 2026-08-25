@@ -1447,14 +1447,20 @@ ${ebookStyles}
 
       // Regra comum para todos os modos
       let regrasComuns = `
-      DIRETRIZES OBRIGATÓRIAS:
+      DIRETRIZES OBRIGATÓRIAS DE LAYOUT E CONTEÚDO:
       1. TÍTULOS: ${regraTitulo}
-      2. ESTRUTURA: ${regraEstrutura} Mantenha o espaço exato de uma linha entre os títulos dos tópicos e os parágrafos.
-      3. PARÁGRAFOS (MUITO CRÍTICO): É EXPRESSAMENTE PROIBIDO escrever parágrafos densos! Escreva SEMPRE parágrafos CURTOS (máximo de 3 a 4 linhas) para preencher a página A4 perfeitamente sem deixar buracos.
-      4. IMAGENS 100% FIÉIS AO TEXTO (CRÍTICO): Nos moldes acima existem os comandos data-keyword="[1_PALAVRA_EM_INGLES]".
-         - O termo escolhido DEVE representar o objeto principal da receita ou capítulo (Ex: se for bolo de chocolate, use 'chocolatecake'; se for pão, use 'bread'; se for finanças, use 'money' ou 'office'). 
-         - É ESTRITAMENTE PROIBIDO usar palavras abstratas, animais de estimação (gatos, cachorros) ou termos genéricos que gerem imagens erradas. A imagem precisa descrever visualmente o que está escrito no título.
-      5. NUNCA gere a página "Sobre o Autor" (ela é injetada automaticamente, com a biografia apenas no início).
+      
+      2. TAMANHO DA IMAGEM (CRÍTICO): Na primeira página, a imagem banner DEVE ser mais alta. Ao criar a tag <img>, use rigorosamente este estilo inline:
+         <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES]" style="width: 100%; height: 380px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+         A palavra-chave (data-keyword) deve ser exata e literal ao assunto do texto. NUNCA use palavras abstratas.
+
+      3. ESPAÇAMENTO DOS TÓPICOS (OBRIGATÓRIO): Organize a estrutura do texto para que os títulos dos tópicos tenham sempre um espaço exato de uma linha (utilize margens no CSS inline ou a tag <br>) entre o título e o início do parágrafo.
+
+      4. PREENCHIMENTO DA PÁGINA DA IMAGEM: Como a imagem agora tem 380px de altura, a primeira página tem menos espaço. Logo abaixo do primeiro título de tópico, escreva EXATAMENTE 2 parágrafos maiores e mais densos (em torno de 6 a 8 linhas cada). Isso fará com que o texto chegue perfeitamente até a margem inferior desta página, sem vazar para a próxima.
+
+      5. PREENCHIMENTO DAS DEMAIS PÁGINAS: Nas páginas seguintes (que não possuem imagem), reajuste a geração para preencher TODO o limite da folha A4. Distribua o conteúdo com parágrafos bem desenvolvidos para não deixar grandes buracos em branco no final das páginas.
+      
+      6. SOBRE O AUTOR: NUNCA gere a página "Sobre o Autor" no meio do conteúdo.
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
