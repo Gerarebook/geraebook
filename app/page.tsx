@@ -252,8 +252,9 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 chIndex++; 
             }
 
-            // Aplica o fundo SOMENTE se a opção estiver ativada
-            if (chIndex === 2 && ${ativarBgSegundaPagina} && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
+            // Aplica o fundo SEMPRE na segunda página (exceto se a página já tiver data-bg-removed ou for especial)
+            // A opção ativarBgSegundaPagina agora controla apenas se o CSS de fundo é incluído, mas a aplicação é sempre feita.
+            if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
                 p.classList.add('chapter-page-2');
                 let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
                 if (finalBgUrl && finalBgUrl.trim() !== '') {
@@ -405,7 +406,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                     el.classList.remove('text-left', 'text-center', 'text-right', 'text-justify');
                     if(event.data.textAlign) el.classList.add(event.data.textAlign);
                 }
-                // Envia o HTML atualizado para o pai, mas NÃO recarrega o iframe (o pai controla)
                 sendCleanHtml();
             }
         }
@@ -419,6 +419,18 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         }
         if (event.data.type === 'INSERT_PAGE') {
             triggerSmartReflow();
+        }
+        // NOVO: remover todos os fundos das segundas páginas
+        if (event.data.type === 'REMOVE_ALL_BG') {
+            document.querySelectorAll('.page-container.chapter-page-2').forEach(p => {
+                p.classList.remove('chapter-page-2');
+                p.style.removeProperty('background-image');
+                p.style.removeProperty('background-size');
+                p.style.removeProperty('background-position');
+                p.setAttribute('data-bg-removed', 'true');
+            });
+            // Também remover de qualquer elemento que tenha data-bg-removed? já feito.
+            sendCleanHtml(); // sincroniza
         }
     });
 
@@ -475,6 +487,7 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
+  // Opção de fundo na segunda página - padrão true
   const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
   const [bgSegundaPaginaUrl, setBgSegundaPaginaUrl] = useState('');
   const [bgSegundaPaginaOpacidade, setBgSegundaPaginaOpacidade] = useState('0.85');
@@ -498,6 +511,7 @@ export default function Home() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // para upload de arquivo de conteúdo
 
   // Controle de recarregamento do iframe
   const [recarregarIframe, setRecarregarIframe] = useState(true);
@@ -580,14 +594,14 @@ function getEstilosFormato() {
       let capBoxTextColor = isBoxDark ? '#ffffff' : 'var(--color-primary)';
       if (estiloCapitulos === 'box-arredondado') capBoxTextColor = '#ffffff';
 
-      // A URL de fundo é usada apenas se a opção estiver ativada; se não, não aplicamos no CSS.
+      // A URL de fundo é usada sempre; o CSS para .chapter-page-2 será sempre incluído
       const urlFundo2 = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : 'https://images.unsplash.com/photo-1607513746994-6c36195fb27f?auto=format&fit=crop&w=1200&q=80';
-      const bgSegundaPaginaCss = ativarBgSegundaPagina ? `
+      // Incluímos o CSS sempre, pois o background é aplicado via JS, mas podemos deixar para consistência
+      const bgSegundaPaginaCss = `
       .chapter-page-2 {
-          background-image: linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${urlFundo2}') !important;
           background-size: cover !important;
           background-position: center !important;
-      }` : '';
+      }`;
 
       const ebookStyles = `<style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -938,6 +952,20 @@ ${ebookStyles}
       if (extraImageInputRef.current) extraImageInputRef.current.value = '';
   }
 
+  // Upload de arquivo de texto para o conteúdo
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const text = event.target?.result as string;
+          setProductContent(text);
+          (window as any).showNotification("Conteúdo carregado do arquivo!", "success");
+      };
+      reader.readAsText(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   function toggleInspetor() {
       const newMode = !modoInspetor;
       setModoInspetor(newMode);
@@ -945,14 +973,12 @@ ${ebookStyles}
       if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
           previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
       }
-      // Se sair do modo editor, forçar recarregamento para garantir que tudo está sincronizado
       if (!newMode) {
           setRecarregarIframe(true);
           if (htmlAtual && previewFrameRef.current) {
               previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
           }
       } else {
-          // Ao entrar no modo editor, não recarregar automaticamente
           setRecarregarIframe(false);
       }
   }
@@ -1025,7 +1051,6 @@ ${ebookStyles}
       }
   }
 
-  // Função para baixar o arquivo HTML
   function baixarArquivo(html: string, titulo: string) {
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -1046,7 +1071,6 @@ ${ebookStyles}
     if (estadoAnterior) {
         setHtmlAtual(estadoAnterior);
         localStorage.setItem('ebook_draft_html', estadoAnterior);
-        // Recarrega o iframe com o estado anterior
         setRecarregarIframe(true);
         if (previewFrameRef.current) {
             previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
@@ -1054,6 +1078,14 @@ ${ebookStyles}
     }
     setElementoSelecionado(null);
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
+  }
+
+  // Função para remover todos os fundos das segundas páginas (envia mensagem para o iframe)
+  function removerTodosFundos() {
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+          previewFrameRef.current.contentWindow.postMessage({ type: 'REMOVE_ALL_BG' }, '*');
+          (window as any).showNotification("Removendo fundos de todas as segundas páginas...", "info");
+      }
   }
 
   async function buscarImagemUnsplash() {
@@ -1154,7 +1186,6 @@ ${ebookStyles}
       return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  // Função central para aplicar novo HTML (sobrescrevendo ou injetando)
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
       console.log("aplicarHtmlNovo chamado, isInjetar:", isInjetar, "recarregar:", recarregar);
       let novoConteudo = purificarHTML(htmlCru);
@@ -1166,19 +1197,15 @@ ${ebookStyles}
           htmlFinal = moldarApresentacaoHtml(novoConteudo);
       }
 
-      // Salva o estado atual no histórico antes de substituir
       setHistoricoCodigo((prev) => [...prev, htmlAtual]);
       setHtmlAtual(htmlFinal);
       localStorage.setItem('ebook_draft_html', htmlFinal);
       
-      // Se recarregar for true, atualiza o iframe
       if (recarregar && previewFrameRef.current) {
           setRecarregarIframe(true);
           const script = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
           previewFrameRef.current.srcdoc = htmlFinal + script;
       } else {
-          // Se não recarregar, apenas atualiza o estado sem afetar o iframe
-          // (útil para edições em modo inspetor)
           setRecarregarIframe(false);
       }
   }
@@ -1318,7 +1345,7 @@ ${ebookStyles}
       let regraEstrutura = "";
 
       if (modoConteudo === 'receitas') {
-          regraTitulo = `NUNCA use a palavra "Capítulo". Use "Receita" ou apenas o nome da receita como título (H1 ou H2).`;
+          regraTitulo = `NUNCA use a palavra "Capítulo". Use "Receita" ou apenas o nome da receita como título (H1 ou H2). Os títulos devem ser apenas o nome da receita, sem a palavra "Capítulo".`;
           regraEstrutura = `
           ESTRUTURA DE RECEITA (sem capítulos, sem tópicos fixos):
           - Cada receita terá: Título (H1 ou H2), uma breve descrição, lista de ingredientes, modo de preparo e dicas.
@@ -1397,51 +1424,76 @@ ${ebookStyles}
 
           if (estiloCapitulos === 'box-arredondado') {
               regraEstiloCapitulos = `
-              MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco):
+              MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco + 3 páginas de conteúdo):
               <!-- PÁGINA DE CAPA DO CAPÍTULO (com imagem de fundo real) -->
               <div class="page-container cap-box-rounded" style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://source.unsplash.com/featured/1200x800/?nature,landscape,water,forest&sig=CAP1'); background-size: cover; background-position: center;">
                   <div class="cap-box-inner"><h1 id="ID_DO_CAPITULO" class="chapter-title-exclusive">Capítulo X: Nome Exclusivo do Capítulo</h1></div>
               </div>
-              <!-- PÁGINAS DE TEXTO (NÃO REPETIR O TÍTULO) -->
+              <!-- PÁGINA 1 DE TEXTO (começa com um subtítulo H3) -->
               <div class="page-container chapter-text-page">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
-                  <!-- 2 parágrafos curtos na primeira página de texto -->
-                  <p>[Parágrafo curto de introdução ao capítulo, com 3 a 4 linhas...]</p>
-                  <p>[Segundo parágrafo curto, também com 3 a 4 linhas...]</p>
                   <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>[Parágrafo longo e denso com 6 a 8 linhas, preenchendo bem a página...]</p>
-                  <p>[Mais 3 parágrafos longos para completar a página...]</p>
+                  <p>[Parágrafo curto de introdução, 3-4 linhas]</p>
+                  <p>[Segundo parágrafo curto, 3-4 linhas]</p>
+                  <p>[Parágrafo mais denso, 5-6 linhas]</p>
+                  <p>[Quarto parágrafo, 5-6 linhas]</p>
+                  <!-- total de 4 parágrafos nesta página -->
+                  <div class="page-footer">${regraRodape}</div>
+              </div>
+              <!-- PÁGINA 2 DE TEXTO (mesma quantidade de parágrafos que a página 3) -->
+              <div class="page-container chapter-text-page">
+                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Segundo Tópico</h3>
-                  <p>[4 parágrafos longos...]</p>
+                  <p>[Parágrafo 1, 5-6 linhas]</p>
+                  <p>[Parágrafo 2, 5-6 linhas]</p>
+                  <p>[Parágrafo 3, 5-6 linhas]</p>
+                  <p>[Parágrafo 4, 5-6 linhas]</p>
+                  <!-- total de 4 parágrafos, igual à página 3 -->
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
+                  <div class="page-footer">${regraRodape}</div>
+              </div>
+              <!-- PÁGINA 3 DE TEXTO (mesma quantidade de parágrafos que a página 2) -->
+              <div class="page-container chapter-text-page">
+                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Terceiro Tópico</h3>
-                  <p>[4 parágrafos longos...]</p>
-                  <!-- OBRIGATÓRIO: Incluir uma citação (blockquote) na terceira página -->
+                  <p>[Parágrafo 1, 5-6 linhas]</p>
+                  <p>[Parágrafo 2, 5-6 linhas]</p>
+                  <p>[Parágrafo 3, 5-6 linhas]</p>
+                  <p>[Parágrafo 4, 5-6 linhas]</p>
+                  <!-- total de 4 parágrafos, igual à página 2 -->
+                  <!-- OBRIGATÓRIO: citação no final da página -->
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo. A primeira página de texto (com os 2 parágrafos curtos) deve ter conteúdo suficiente para ocupar pelo menos metade da página. IMPORTANTE: Na última página de cada capítulo, inclua obrigatoriamente um blockquote com uma citação pertinente ao conteúdo.`;
+              ATENÇÃO: A primeira página de texto já contém um H3 (Primeiro Tópico). As páginas 2 e 3 têm exatamente 4 parágrafos cada. A página 3 obrigatoriamente termina com um blockquote.`;
           } else {
+              // inline-imagem (padrão)
               regraEstiloCapitulos = `
-              MOLDE PADRÃO (inline-imagem):
+              MOLDE PADRÃO (inline-imagem) - 3 páginas de conteúdo:
               <div class="page-container">
                   <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h2 id="ID_DO_CAPITULO" class="chapter-title-inline">Capítulo X: Nome Exclusivo do Capítulo</h2>
                   <img src="URL_DA_IMAGEM_FOTOGRAFICA_REAL_UNSPLASH_AQUI" class="chapter-banner-img" alt="Fotografia do Capítulo" />
-                  <h3 class="subtopic-title">Subtítulo do Capítulo</h3>
-                  <p>[2 parágrafos curtos...]</p>
                   <h3 class="subtopic-title">Primeiro Tópico</h3>
-                  <p>[4 parágrafos longos...]</p>
+                  <p>[2 parágrafos curtos...]</p>
+                  <div class="page-footer">${regraRodape}</div>
+              </div>
+              <div class="page-container chapter-text-page">
+                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Segundo Tópico</h3>
                   <p>[4 parágrafos longos...]</p>
                   <div class="highlight-box"><i class="fas fa-lightbulb"></i> Quadro Conceito</div>
+                  <div class="page-footer">${regraRodape}</div>
+              </div>
+              <div class="page-container chapter-text-page">
+                  <div class="page-header"><span>${livroTitulo}</span><span>NOME DO CAPÍTULO</span></div>
                   <h3 class="subtopic-title">Terceiro Tópico</h3>
                   <p>[4 parágrafos longos...]</p>
-                  <!-- OBRIGATÓRIO: Incluir uma citação (blockquote) na terceira página -->
+                  <!-- OBRIGATÓRIO: citação na terceira página -->
                   <blockquote class="highlight-box"><i class="fas fa-quote-left"></i> [Citação relevante sobre o tópico]</blockquote>
                   <div class="page-footer">${regraRodape}</div>
               </div>
-              ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo. IMPORTANTE: Na última página de cada capítulo, inclua obrigatoriamente um blockquote com uma citação pertinente ao conteúdo.`;
+              ATENÇÃO: A primeira página contém o banner e o primeiro tópico com 2 parágrafos. As páginas 2 e 3 têm 4 parágrafos cada, sendo que a página 3 inclui um blockquote.`;
           }
       }
 
@@ -1710,6 +1762,15 @@ ${ebookStyles}
             previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
         }
     }
+
+    // Carregar biblioteca
+    const savedBooks = localStorage.getItem('ebook_saved_books');
+    if (savedBooks) {
+        try {
+            const parsed = JSON.parse(savedBooks);
+            setLivrosSalvos(parsed);
+        } catch (e) {}
+    }
   }, []);
 
   useEffect(() => {
@@ -1717,19 +1778,15 @@ ${ebookStyles}
         if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
         if (e.data.type === 'HTML_SYNC') {
             const htmlLimpo = moldarApresentacaoHtml(e.data.html);
-            // Se estiver em modo inspetor, apenas atualiza o estado sem recarregar o iframe
             if (modoInspetor) {
-                // Atualiza o histórico e o estado, mas não recarrega
                 setHistoricoCodigo((prev) => {
                     if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
                     return [...prev, htmlAtual];
                 });
                 setHtmlAtual(htmlLimpo);
                 localStorage.setItem('ebook_draft_html', htmlLimpo);
-                // Não recarrega o iframe para manter a edição
                 setRecarregarIframe(false);
             } else {
-                // Se não estiver em modo inspetor, recarrega normalmente
                 setHistoricoCodigo((prev) => [...prev, htmlAtual]);
                 setHtmlAtual(htmlLimpo);
                 localStorage.setItem('ebook_draft_html', htmlLimpo);
@@ -1744,20 +1801,17 @@ ${ebookStyles}
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Atualiza o iframe apenas quando recarregarIframe for true e houver htmlAtual
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
         previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
-  // Reaplica o HTML quando configurações visuais mudam (fontes, cores, etc.) - sempre recarrega
   useEffect(() => {
     if (htmlAtual) {
         const htmlFinal = moldarApresentacaoHtml(htmlAtual);
         setHtmlAtual(htmlFinal);
         localStorage.setItem('ebook_draft_html', htmlFinal);
-        // Força recarregamento
         setRecarregarIframe(true);
     }
   }, [fontFamily, tamanhoFonteBase, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, livroTitulo, livroAutores, estiloCapitulos]);
@@ -1792,6 +1846,7 @@ ${ebookStyles}
 
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
         <input type="file" ref={extraImageInputRef} onChange={handleExtraImageUpload} accept="image/*" className="hidden" />
+        <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".txt,.md" className="hidden" />
 
         {statusApis.processing && (
             <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
@@ -2053,9 +2108,14 @@ ${ebookStyles}
                                 <div>
                                     <div className="flex justify-between items-center mb-1">
                                         <label className="input-label mb-0">Texto Base / Sumário / Ideia</label>
-                                        <button onClick={iniciarNovoLivro} className="text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm flex items-center gap-1.5">
-                                            <i className="fas fa-file-alt"></i> Novo Livro
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => fileInputRef.current?.click()} className="text-[9px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md border border-slate-200 transition shadow-sm flex items-center gap-1">
+                                                <i className="fas fa-file-upload"></i> Upload Arquivo
+                                            </button>
+                                            <button onClick={iniciarNovoLivro} className="text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm flex items-center gap-1.5">
+                                                <i className="fas fa-file-alt"></i> Novo Livro
+                                            </button>
+                                        </div>
                                     </div>
                                     <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y" placeholder="Descreva os capítulos ou cole seu texto aqui..."></textarea>
                                     <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
@@ -2193,7 +2253,15 @@ ${ebookStyles}
                         <div className="panel-section">
                             <div className="flex items-center justify-between mb-2">
                                 <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
-                                <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)} className="rounded text-indigo-600 accent-indigo-600 cursor-pointer" />
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={removerTodosFundos} 
+                                        className="text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded border border-red-200 transition shadow-sm"
+                                    >
+                                        <i className="fas fa-eraser mr-1"></i> Remover todos
+                                    </button>
+                                    <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)} className="rounded text-indigo-600 accent-indigo-600 cursor-pointer" />
+                                </div>
                             </div>
                             {ativarBgSegundaPagina && (
                                 <div className="space-y-2 mt-2">
@@ -2204,7 +2272,7 @@ ${ebookStyles}
                                     </div>
                                 </div>
                             )}
-                            <p className="text-[9px] text-slate-400 mt-2">Esta opção afeta apenas o fundo visual, sem alterar a estrutura de páginas ou o conteúdo.</p>
+                            <p className="text-[9px] text-slate-400 mt-2">O fundo é aplicado automaticamente na segunda página de cada capítulo. Use o botão "Remover todos" para eliminá-los globalmente.</p>
                         </div>
                     </div>
                 )}
