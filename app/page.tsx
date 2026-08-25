@@ -1447,20 +1447,31 @@ ${ebookStyles}
 
       // Regra comum para todos os modos
       let regrasComuns = `
-      DIRETRIZES OBRIGATÓRIAS DE LAYOUT E CONTEÚDO:
-      1. TÍTULOS: ${regraTitulo}
-      
-      2. TAMANHO DA IMAGEM (CRÍTICO): Na primeira página, a imagem banner DEVE ser mais alta. Ao criar a tag <img>, use rigorosamente este estilo inline:
-         <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES]" style="width: 100%; height: 380px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
-         A palavra-chave (data-keyword) deve ser exata e literal ao assunto do texto. NUNCA use palavras abstratas.
+      DIRETRIZES OBRIGATÓRIAS DE LAYOUT E PAGINAÇÃO (MÁXIMO RIGOR):
 
-      3. ESPAÇAMENTO DOS TÓPICOS (OBRIGATÓRIO): Organize a estrutura do texto para que os títulos dos tópicos tenham sempre um espaço exato de uma linha (utilize margens no CSS inline ou a tag <br>) entre o título e o início do parágrafo.
+      1. LIMITE DE PÁGINAS (CRÍTICO): 
+         - A "Introdução" e a "Conclusão" DEVEM ter EXATAMENTE 1 página de conteúdo cada. 
+         - Os "Capítulos" normais DEVEM ter EXATAMENTE 3 páginas de conteúdo cada (nunca gere 4 ou 5 páginas por capítulo).
 
-      4. PREENCHIMENTO DA PÁGINA DA IMAGEM: Como a imagem agora tem 380px de altura, a primeira página tem menos espaço. Logo abaixo do primeiro título de tópico, escreva EXATAMENTE 2 parágrafos maiores e mais densos (em torno de 6 a 8 linhas cada). Isso fará com que o texto chegue perfeitamente até a margem inferior desta página, sem vazar para a próxima.
+      2. REGRA DE IMAGENS (BANNERS):
+         - É EXPRESSAMENTE PROIBIDO colocar imagens/banners na "Introdução" e na "Conclusão". Estas seções são apenas texto.
+         - Nos Capítulos normais, a PRIMEIRA PÁGINA DEVE ter a imagem banner. Use EXATAMENTE esta tag com altura de 380px:
+           <img class="chapter-banner-img" src="..." data-keyword="[1_PALAVRA_EM_INGLES]" style="width: 100%; height: 380px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+           O data-keyword deve ser uma palavra literal e visual (ex: laptop, kitchen, money). Sem palavras abstratas.
 
-      5. PREENCHIMENTO DAS DEMAIS PÁGINAS: Nas páginas seguintes (que não possuem imagem), reajuste a geração para preencher TODO o limite da folha A4. Distribua o conteúdo com parágrafos bem desenvolvidos para não deixar grandes buracos em branco no final das páginas.
-      
-      6. SOBRE O AUTOR: NUNCA gere a página "Sobre o Autor" no meio do conteúdo.
+      3. TAMANHO DOS PARÁGRAFOS (ATENÇÃO): 
+         - NUNCA crie parágrafos gigantescos e exagerados! 
+         - Mantenha parágrafos dinâmicos e fáceis de ler, com no máximo 4 a 6 linhas de texto cada.
+
+      4. ESTRUTURA DA PRIMEIRA PÁGINA DO CAPÍTULO (A PÁGINA DA IMAGEM):
+         - Logo abaixo da imagem de 380px, inicie OBRIGATORIAMENTE com um subtítulo (<h3 class="subtopic-title">).
+         - Abaixo desse subtítulo, escreva EXATAMENTE 2 parágrafos. Essa matemática é obrigatória para que o texto termine perfeitamente no rodapé desta página sem vazar para a próxima.
+
+      5. PREENCHIMENTO DAS DEMAIS PÁGINAS (Páginas 2 e 3 dos Capítulos):
+         - Preencha o espaço limite da folha A4 de forma harmônica utilizando subtítulos (<h3 class="subtopic-title">), parágrafos normais (4-6 linhas) e as caixas de destaque (<blockquote>, <div class="highlight-box">).
+         - Mantenha sempre o espaço exato de 1 linha de respiro entre um título de tópico e o parágrafo que vem abaixo dele.
+
+      6. SOBRE O AUTOR: NUNCA gere a página "Sobre o Autor" no meio do conteúdo (ela é criada externamente).
       `;
 
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
