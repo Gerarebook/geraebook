@@ -1459,7 +1459,7 @@ let regrasComuns = `
          - Para CADA Capítulo, você DEVE gerar EXATAMENTE 3 (três) blocos de <div class="page-container">. Nunca gere 2, nem 4, nem 5. 
 
       2. A PRIMEIRA PÁGINA DO CAPÍTULO (Obrigatório seguir esta ordem):
-         Na PRIMEIRA <div class="page-container"> do capítulo, você deve colocar EXATAMENTE nesta ordem:
+         Na PRIMEIRA <div class="page-container"> do capítulo, coloque EXATAMENTE nesta ordem:
          A) O Cabeçalho.
          B) O Título do Capítulo (<h2>).
          C) A Imagem Banner OBRIGATÓRIA usando EXATAMENTE este código HTML (não altere a altura):
@@ -1468,14 +1468,15 @@ let regrasComuns = `
          E) EXATAMENTE 2 (dois) parágrafos (com 4 a 6 linhas cada).
          F) Feche esta primeira página (</div>).
 
-      3. A SEGUNDA E TERCEIRA PÁGINAS DO CAPÍTULO:
-         - Na segunda e na terceira <div class="page-container">, preencha o espaço da folha A4 com conteúdo utilizando subtópicos, caixas de destaque e parágrafos normais (4 a 6 linhas).
-         - É proibido usar imagens nessas páginas, elas são apenas para texto.
-         - Nunca encolha os parágrafos. Mantenha a mesma proporção inicial de 4 a 6 linhas.
+      3. A SEGUNDA E TERCEIRA PÁGINAS DO CAPÍTULO (RIGOR DE PREENCHIMENTO):
+         - INDEPENDENTE de o usuário ter ativado ou não uma imagem de fundo na segunda página, a quantidade total do capítulo continua sendo EXATAMENTE 3 páginas (<div class="page-container">).
+         - Quando NÃO houver imagem de fundo na segunda página, você DEVE preencher todo o espaço vazio com CONTEÚDO TEXTUAL BEM DESENVOLVIDO.
+         - É EXPRESSAMENTE PROIBIDO criar páginas com apenas um parágrafo solto. Preencha as folhas A4 (páginas 2 e 3) até o final usando subtópicos (<h3>), parágrafos consistentes (4 a 6 linhas) e caixas de destaque (<blockquote>, <div class="highlight-box">).
+         - Nunca deixe grandes buracos em branco. Compense a falta da imagem escrevendo mais conteúdo de valor.
 
       4. REGRAS VISUAIS DE TEXTO E FOTOS:
-         - É estritamente obrigatório deixar um espaço exato de uma linha entre os títulos dos tópicos e o início dos parágrafos logo abaixo deles.
-         - Para a palavra-chave (data-keyword) da imagem, escolha termos que busquem imagens 100% reais de fotografia. É absolutamente proibido o uso de palavras que remetam a desenhos, gráficos animados ou imagens estilo tecnologia futurista/3D. Queremos imagens REAIS e palpáveis.
+         - É estritamente obrigatório deixar um espaço exato de UMA LINHA entre os títulos dos tópicos e o início dos parágrafos logo abaixo deles.
+         - Para a palavra-chave (data-keyword) da imagem, escolha termos que busquem fotografias humanas reais ou objetos palpáveis. É ABSOLUTAMENTE PROIBIDO o uso de palavras que remetam a desenhos, gráficos animados ou imagens estilo tecnologia futurista/3D. Queremos apenas imagens REAIS.
 
       5. CONTROLE DO ÍNDICE (SUMÁRIO):
          ${mostrarSubtopicosIndice 
