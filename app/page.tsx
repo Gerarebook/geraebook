@@ -31,12 +31,9 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         document.querySelectorAll('.page-container').forEach(page => {
             const title = page.querySelector('h2');
             if (title && (title.innerText.toLowerCase().includes('índice') || title.innerText.toLowerCase().includes('sumário'))) {
-                // Destrói fisicamente qualquer lista (ul/ol) que a IA tentou injetar à força
                 page.querySelectorAll('ul, ol').forEach(list => list.remove());
             }
         });
-
-        // ... aqui continua o document.querySelectorAll('p').forEach(...)
 
         const allTocs = document.querySelectorAll('.toc-container');
         if (allTocs.length === 0) return;
@@ -60,7 +57,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         const titulosVistos = new Set(); 
 
         titles.forEach((titleEl) => {
-            // TRAVA DE SEGURANÇA MÁXIMA PARA O ÍNDICE:
             if (${!indexShowSubtopics} && titleEl.tagName === 'H3') return;
 
             if (titleEl.tagName === 'H1' && !titleEl.id && titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
@@ -142,7 +138,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                 let overflowIndex = -1;
                 let tocOverflowIndex = -1;
 
-                // A. QUEBRA MANUAL
                 for(let j=1; j < childNodes.length; j++) {
                     let node = childNodes[j];
                     if (node.classList.contains('force-break-before')) {
@@ -152,7 +147,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
                     }
                 }
 
-                // B. CORTE SECO DA MARGEM
                 if (overflowIndex === -1) {
                     for(let j=0; j < childNodes.length; j++) {
                         let node = childNodes[j];
@@ -223,7 +217,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             }
         }
 
-        // LIMPEZA - NUNCA REMOVE PÁGINAS COM CONTEÚDO
         document.querySelectorAll('.page-container').forEach(page => {
             const contentNodes = Array.from(page.children).filter(el => 
                 !el.classList.contains('page-header') && 
@@ -244,7 +237,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             page.remove();
         });
 
-        // 3. APLICADOR DO FUNDO DA 2ª PÁGINA
         let chIndex = 0;
         let currentChapterImg = '';
         
@@ -426,12 +418,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             triggerSmartReflow();
             sendCleanHtml();
         }
-        // Nova mensagem para inserir página extra
         if (event.data.type === 'INSERT_PAGE') {
-            // Recebemos o HTML da nova página e injetamos
-            const newPageHtml = event.data.html;
-            // Injetar no final do container (ou após a capa, etc.) – tratamos no pai
-            // Aqui apenas reexecutamos o refluxo
             triggerSmartReflow();
         }
     });
@@ -459,6 +446,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
 
 export default function Home() {
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
+  const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
   const [statusApis, setStatusApis] = useState<{ texto: string; processing: boolean }>({ texto: 'Aguardando Operação', processing: false });
@@ -496,23 +484,21 @@ export default function Home() {
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   
-  // Modo de conteúdo expandido para incluir tipos de livro
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso' | 'receitas' | 'historias' | 'academico'>('expandido');
   const [indexShowSubtopics, setIndexShowSubtopics] = useState(false);
 
   const [livrosSalvos, setLivrosSalvos] = useState<{id: string, titulo: string, data: string, html: string, prompt: string}[]>([]);
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
 
-  // Estado para inserir página extra
   const [showModalPagina, setShowModalPagina] = useState(false);
   const [paginaTitulo, setPaginaTitulo] = useState('');
   const [paginaImagem, setPaginaImagem] = useState('');
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
-  const [paginaImagemUpload, setPaginaImagemUpload] = useState<File | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
+  const previewFrameRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const verificarAcesso = async () => {
@@ -525,10 +511,11 @@ export default function Home() {
     const savedPrompt = localStorage.getItem('ebook_draft_prompt');
     
     if (savedHtml) {
-        const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-        const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-        if (codEl) codEl.value = savedHtml;
-        if (prevEl) prevEl.srcdoc = savedHtml + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      const htmlFinal = moldarApresentacaoHtml(savedHtml);
+      setHtmlAtual(htmlFinal);
+      if (previewFrameRef.current) {
+        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      }
     }
     if (savedPrompt) { setProductContent(savedPrompt); }
 
@@ -601,7 +588,6 @@ function getEstilosFormato() {
       const conf = getEstilosFormato();
       const paleta = getPaletaObj();
       
-      // Força cor e remoção de borda para o modo box-arredondado
       let capBoxBackground = corBoxCapitulo;
       let capBoxBorder = '2px solid var(--color-primary)';
       if (estiloCapitulos === 'box-arredondado') {
@@ -610,7 +596,6 @@ function getEstilosFormato() {
       }
       
       const isBoxDark = isDarkColor(capBoxBackground);
-      // Se for box-arredondado, forçamos texto branco
       let capBoxTextColor = isBoxDark ? '#ffffff' : 'var(--color-primary)';
       if (estiloCapitulos === 'box-arredondado') capBoxTextColor = '#ffffff';
 
@@ -645,10 +630,8 @@ body {
 }
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
-/* 1. MÁGICA DO ÍNDICE: ESCONDE OS SUBTÓPICOS À FORÇA */
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 
-/* 2. FORÇA A ALTURA DA IMAGEM E ANULA QUALQUER OUTRA REGRA */
 img.chapter-banner-img { 
     width: 100% !important; 
     height: 370px !important; 
@@ -660,7 +643,6 @@ img.chapter-banner-img {
     display: block !important;
 }
 
-/* 3. REMOVE O BURACO BRANCO DO TOPO DOS TÍTULOS */
 .page-container > h3.subtopic-title:first-of-type,
 .page-container > .page-header + h3.subtopic-title {
     margin-top: 0 !important;
@@ -692,12 +674,10 @@ img.chapter-banner-img {
 
 ${bgSegundaPaginaCss}
 
-/* Ajuste para página de texto após capa exclusiva do capítulo - aumentado o padding */
 .chapter-text-page {
     padding-top: 22mm !important;
 }
 
-/* Estilo para página de aviso/direitos */
 .legal-page {
     display: flex;
     flex-direction: column;
@@ -730,7 +710,6 @@ ${bgSegundaPaginaCss}
     display: none !important;
 }
 
-/* Estilos para páginas extras (inseridas pelo usuário) - CORRIGIDO */
 .page-extra {
     padding: 32mm 20mm 25mm 20mm;
 }
@@ -787,7 +766,6 @@ ${bgSegundaPaginaCss}
     margin-bottom: 0.8rem;
 }
 
-/* Títulos de tópicos em receitas - DESTAQUE */
 .receita-titulo {
     font-size: 1.8rem !important;
     font-weight: 900 !important;
@@ -819,13 +797,12 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .chapter-banner-img { 
     width: 100%; 
     height: 370px !important; 
-    max-height: none !important; /* ISSO QUEBRA O BLOQUEIO DE ALTURA GLOBAL */
+    max-height: none !important;
     object-fit: cover; 
     border-radius: 8px; 
     margin-bottom: 1rem;
 }
 
-/* REMOVE O BURACO BRANCO DO TOPO NAS PÁGINAS 2 E 3 */
 .page-container > h3.subtopic-title:first-of-type,
 .page-container > .page-header + h3.subtopic-title {
     margin-top: 0.2rem !important;
@@ -880,7 +857,6 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* SEÇÃO DO AUTOR - ATUALIZADA */
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; page-break-inside: avoid; break-inside: avoid; }
 .author-section.layout-topo { flex-direction: column; text-align: center; }
@@ -986,57 +962,56 @@ ${ebookStyles}
       const newMode = !modoInspetor;
       setModoInspetor(newMode);
       setElementoSelecionado(null);
-      const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-      if(iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+          previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
+      }
   }
 
   function atualizarElemento(field: string, value: string | number | boolean, forceTextUpdate = false) {
       if(!elementoSelecionado) return;
-      const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-      iframe.contentWindow?.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, [field]: value, forceTextUpdate }, '*');
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+          previewFrameRef.current.contentWindow.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, [field]: value, forceTextUpdate }, '*');
+      }
       setElementoSelecionado((prev: any) => ({...prev, [field]: value}));
   }
 
   function transformarEmNode(novoTag: string, classExtra: string = '') {
       if(!elementoSelecionado) return;
-      const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
       const newHtml = `<${novoTag} id="${elementoSelecionado.id}" class="${classExtra}">${elementoSelecionado.text}</${novoTag}>`;
-      iframe.contentWindow?.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml }, '*');
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+          previewFrameRef.current.contentWindow.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml }, '*');
+      }
       setElementoSelecionado(null);
       (window as any).showNotification("Elemento transformado!", "success");
   }
 
-  // 📝 INICIAR NOVO LIVRO
   function iniciarNovoLivro() {
       if (confirm("ATENÇÃO: Tem certeza que deseja iniciar um novo livro? Todo o progresso atual não salvo será perdido.")) {
           localStorage.removeItem('ebook_draft_html');
           localStorage.removeItem('ebook_draft_prompt');
-          const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-          const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-          if (codEl) codEl.value = '';
-          if (prevEl) prevEl.srcdoc = '';
+          setHtmlAtual('');
           setLivroTitulo('');
           setProductContent('');
-          // Reseta a capa para a imagem neutra padrão
           setImagemCapaUrl('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80');
+          if (previewFrameRef.current) {
+              previewFrameRef.current.srcdoc = '';
+          }
           (window as any).showNotification("Novo documento em branco criado com capa neutra.", "info");
       }
   }
 
-  // 📚 SALVAR NA BIBLIOTECA LOCAL
   function salvarNaBiblioteca() {
       if (!livroTitulo || livroTitulo.trim() === '') {
           (window as any).showNotification("Dê um título ao E-book antes de salvar.", "error");
           return;
       }
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      if (!codEl || codEl.value.trim() === '') {
+      if (!htmlAtual || htmlAtual.trim() === '') {
           (window as any).showNotification("Não há conteúdo para salvar.", "error");
           return;
       }
 
       const id = Date.now().toString();
-      const novoLivro = { id, titulo: livroTitulo, data: new Date().toLocaleDateString('pt-BR'), html: codEl.value, prompt: productContent };
+      const novoLivro = { id, titulo: livroTitulo, data: new Date().toLocaleDateString('pt-BR'), html: htmlAtual, prompt: productContent };
       const novaBiblioteca = [...livrosSalvos, novoLivro];
       
       setLivrosSalvos(novaBiblioteca);
@@ -1065,18 +1040,17 @@ ${ebookStyles}
     const novoHistorico = [...historicoCodigo];
     const estadoAnterior = novoHistorico.pop();
     setHistoricoCodigo(novoHistorico);
-    const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-    const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-    if (codEl) {
-        codEl.value = estadoAnterior || '';
-        localStorage.setItem('ebook_draft_html', estadoAnterior || ''); 
+    if (estadoAnterior) {
+        setHtmlAtual(estadoAnterior);
+        localStorage.setItem('ebook_draft_html', estadoAnterior);
+        if (previewFrameRef.current) {
+            previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+        }
     }
-    if (prevEl) prevEl.srcdoc = (estadoAnterior || '') + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade); 
     setElementoSelecionado(null);
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
-  // BUSCADOR UNSPLASH AUTOMÁTICO - CORRIGIDO
   async function buscarImagemUnsplash() {
       if (!elementoSelecionado) {
           (window as any).showNotification("Selecione um elemento (imagem ou fundo) primeiro.", "error");
@@ -1100,14 +1074,11 @@ ${ebookStyles}
       const timestamp = new Date().getTime(); 
       const url = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(keyword)},photography,realistic,human&sig=${timestamp}`;
       
-      // Verifica se é imagem ou fundo
       const isImg = elementoSelecionado.tagName === 'img';
       const field = isImg ? 'src' : 'bgImage';
       
-      // Atualiza o elemento no iframe
-      const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-      if (iframe && iframe.contentWindow) {
-          iframe.contentWindow.postMessage({
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+          previewFrameRef.current.contentWindow.postMessage({
               type: 'UPDATE_ELEMENT',
               id: elementoSelecionado.id,
               [field]: url,
@@ -1115,20 +1086,18 @@ ${ebookStyles}
           }, '*');
       }
       
-      // Atualiza o estado local
       setElementoSelecionado((prev: any) => ({...prev, [field]: url}));
       (window as any).showNotification("Fotografia aplicada com sucesso!", "success");
   }
 
-  // Mantida a função de aplicação local (modificação por página)
   async function aplicarModificacaoLocal() {
       const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
       const comando = input?.value.trim();
       if(!comando) { (window as any).showNotification("Digite o que alterar neste elemento.", "error"); return; }
       if(!elementoSelecionado) return;
 
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      if(codEl) setHistoricoCodigo((prev) => [...prev, codEl.value]);
+      // Salva o estado atual no histórico antes de modificar
+      setHistoricoCodigo((prev) => [...prev, htmlAtual]);
 
       const instrucao = `Você é um Assistente Editorial. O usuário selecionou um trecho específico de HTML de um e-book.
       Sua tarefa é modificar APENAS este elemento HTML de acordo com o pedido: "${comando}".
@@ -1146,8 +1115,9 @@ ${ebookStyles}
           if (markdownMatch) novoHtml = markdownMatch[1];
           novoHtml = novoHtml.replace(/```html/gi, '').replace(/```/gi, '').trim();
 
-          const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-          iframe.contentWindow?.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml: novoHtml }, '*');
+          if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+              previewFrameRef.current.contentWindow.postMessage({ type: 'REPLACE_ELEMENT_HTML', id: elementoSelecionado.id, newHtml: novoHtml }, '*');
+          }
           
           setElementoSelecionado(null);
           input.value = '';
@@ -1181,26 +1151,24 @@ ${ebookStyles}
   }
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean) {
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
       let novoConteudo = purificarHTML(htmlCru);
       
       let htmlFinal = "";
       if (isInjetar) {
-          htmlFinal = injetarHtmlNoFinal(codEl?.value || '', novoConteudo);
+          htmlFinal = injetarHtmlNoFinal(htmlAtual || '', novoConteudo);
       } else {
           htmlFinal = moldarApresentacaoHtml(novoConteudo);
       }
 
-      if (codEl) { 
-          setHistoricoCodigo((prev) => [...prev, codEl.value]); 
-          codEl.value = htmlFinal; 
-          localStorage.setItem('ebook_draft_html', htmlFinal);
+      // Salva no histórico
+      setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+      setHtmlAtual(htmlFinal);
+      localStorage.setItem('ebook_draft_html', htmlFinal);
+      if (previewFrameRef.current) {
+          previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
       }
-      if (prevEl) prevEl.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade); 
   }
 
-  // ===== FUNÇÃO PARA GERAR PÁGINA DE AVISO E DIREITOS AUTORAIS =====
   function gerarPaginaAviso() {
       const ano = new Date().getFullYear();
       return `
@@ -1215,7 +1183,6 @@ ${ebookStyles}
       </div>`;
   }
 
-  // ===== FUNÇÃO PARA INSERIR PÁGINA EXTRA (CORRIGIDA) =====
   function findClosingDiv(html: string, startIndex: number): number {
       let open = 0;
       let i = startIndex;
@@ -1243,8 +1210,7 @@ ${ebookStyles}
           return;
       }
 
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      if (!codEl || !codEl.value) {
+      if (!htmlAtual || htmlAtual.trim() === '') {
           (window as any).showNotification("Nenhum E-book gerado para inserir página.", "error");
           return;
       }
@@ -1253,29 +1219,15 @@ ${ebookStyles}
       if (paginaPosicaoImagem === 'esquerda') classeImagem = 'img-left';
       else if (paginaPosicaoImagem === 'centro') classeImagem = 'img-center';
       else if (paginaPosicaoImagem === 'topo') classeImagem = 'img-top';
-      // Se for horizontal ou vertical, usamos classes específicas
-      // Vamos detectar automaticamente pela proporção da imagem
-      // Mas o usuário pode escolher "horizontal" ou "vertical" via um select
 
       const tituloParaHeader = paginaTitulo.trim() || 'Página Extra';
       const tituloHtml = paginaTitulo.trim() ? `<h2 id="extra-${Date.now()}" class="chapter-title-inline">${paginaTitulo}</h2>` : '';
 
-      // Se imagem for horizontal (largura > altura) usamos img-horizontal, senão img-vertical
-      // Como não temos como saber, vamos permitir que o usuário escolha no modal
-      // Por enquanto, usamos img-horizontal como padrão
       let imagemClasse = 'img-horizontal';
-      // Se a URL tiver "vertical" no nome, podemos inferir, mas não confiável.
-
-      // Para simplificar, adicionamos um seletor no modal para orientação da imagem.
-      // Vamos adicionar um novo estado para orientação.
-
       let imagemHtml = '';
       if (paginaImagem.trim()) {
           imagemHtml = `<img src="${paginaImagem}" class="${classeImagem || imagemClasse}" alt="Imagem da página" />`;
       }
-
-      // Gerar um ID único para o título
-      const extraId = 'extra-' + Date.now();
 
       const paginaHtml = `
       <div class="page-container page-extra">
@@ -1286,27 +1238,24 @@ ${ebookStyles}
           <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
       </div>`;
 
-      let htmlAtual = codEl.value;
+      let htmlAtualStr = htmlAtual;
       let posicao = -1;
 
       if (paginaLocal === 'depois-capa') {
-          // Encontrar a primeira div com classe page-cover-*
-          const matchCapa = htmlAtual.match(/<div class="page-container (page-cover-[a-z-]+)[^>]*>/i);
+          const matchCapa = htmlAtualStr.match(/<div class="page-container (page-cover-[a-z-]+)[^>]*>/i);
           if (matchCapa && matchCapa.index !== undefined) {
               const startDiv = matchCapa.index;
-              const endDiv = findClosingDiv(htmlAtual, startDiv + matchCapa[0].length);
+              const endDiv = findClosingDiv(htmlAtualStr, startDiv + matchCapa[0].length);
               if (endDiv !== -1) {
                   posicao = endDiv;
               }
           }
       } else if (paginaLocal === 'depois-conclusao') {
-          // Encontrar a div que contém id="conclusao"
-          const matchConclusao = htmlAtual.match(/<div class="page-container[^>]*>[\s\S]*?id="conclusao"/i);
+          const matchConclusao = htmlAtualStr.match(/<div class="page-container[^>]*>[\s\S]*?id="conclusao"/i);
           if (matchConclusao && matchConclusao.index !== undefined) {
-              // Encontrar o início da div
-              const startDiv = htmlAtual.lastIndexOf('<div', matchConclusao.index);
+              const startDiv = htmlAtualStr.lastIndexOf('<div', matchConclusao.index);
               if (startDiv !== -1) {
-                  const endDiv = findClosingDiv(htmlAtual, startDiv + 4);
+                  const endDiv = findClosingDiv(htmlAtualStr, startDiv + 4);
                   if (endDiv !== -1) {
                       posicao = endDiv;
                   }
@@ -1314,9 +1263,8 @@ ${ebookStyles}
           }
       }
 
-      // Se não encontrou, insere antes do fechamento do container
       if (posicao === -1) {
-          const containerEnd = htmlAtual.lastIndexOf('</div>');
+          const containerEnd = htmlAtualStr.lastIndexOf('</div>');
           if (containerEnd !== -1) {
               posicao = containerEnd;
           }
@@ -1324,17 +1272,17 @@ ${ebookStyles}
 
       let novoHtml = '';
       if (posicao !== -1) {
-          novoHtml = htmlAtual.substring(0, posicao) + '\n' + paginaHtml + '\n' + htmlAtual.substring(posicao);
+          novoHtml = htmlAtualStr.substring(0, posicao) + '\n' + paginaHtml + '\n' + htmlAtualStr.substring(posicao);
       } else {
-          novoHtml = htmlAtual + '\n' + paginaHtml;
+          novoHtml = htmlAtualStr + '\n' + paginaHtml;
       }
 
-      setHistoricoCodigo((prev) => [...prev, codEl.value]);
-      codEl.value = novoHtml;
-      localStorage.setItem('ebook_draft_html', novoHtml);
-      const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-      if (prevEl) {
-          prevEl.srcdoc = moldarApresentacaoHtml(novoHtml) + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+      const htmlFinal = moldarApresentacaoHtml(novoHtml);
+      setHtmlAtual(htmlFinal);
+      localStorage.setItem('ebook_draft_html', htmlFinal);
+      if (previewFrameRef.current) {
+          previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
       }
 
       setShowModalPagina(false);
@@ -1343,19 +1291,16 @@ ${ebookStyles}
       (window as any).showNotification("Página extra inserida com sucesso!", "success");
   }
 
-  // ===== FUNÇÃO PARA OBTER INSTRUÇÕES DO PROMPT (ATUALIZADA - UNIFICADA) =====
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
       if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { regraRodape = `<span>${livroAutores}</span>${numSpan}`; } 
       else { regraRodape = `${numSpan}`; }
 
-      // ========== DEFINIR REGRAS DE ACORDO COM O TIPO DE LIVRO ==========
       let regraEstiloCapitulos = "";
       let regraTitulo = "";
       let regraEstrutura = "";
 
-      // Modo RECEITAS (não usa capítulos)
       if (modoConteudo === 'receitas') {
           regraTitulo = `NUNCA use a palavra "Capítulo". Use "Receita" ou apenas o nome da receita como título (H1 ou H2).`;
           regraEstrutura = `
@@ -1391,7 +1336,6 @@ ${ebookStyles}
           </div>
           IMPORTANTE: A página de imagem + ingredientes deve vir primeiro, seguida da página de preparo. Todas as imagens devem ser horizontais (largura maior que altura) e com a mesma altura (300px). Use a classe "receita-titulo" nos H3.`;
       }
-      // Modo RIGOROSO – formata o texto original, sem adicionar capítulos
       else if (modoConteudo === 'rigoroso') {
           regraTitulo = `Mantenha exatamente os títulos e estrutura do texto original, apenas envelopando nas tags HTML (h2, h3, p).`;
           regraEstrutura = `
@@ -1404,9 +1348,7 @@ ${ebookStyles}
           regraEstiloCapitulos = `
           MOLDE RIGOROSO: Use as tags HTML conforme o texto original, mantendo a ordem e o conteúdo exato (após correções ortográficas). Não invente conteúdo.`;
       }
-      // Modos que usam capítulos: expandido, historias, academico
       else {
-          // Definir título e estrutura específica para cada modo
           if (modoConteudo === 'expandido') {
               regraTitulo = `OBRIGATORIAMENTE escrever a palavra "Capítulo 1:", "Capítulo 2:", etc., no título principal (H1 ou H2) de todo capítulo gerado!`;
               regraEstrutura = `
@@ -1437,7 +1379,6 @@ ${ebookStyles}
               `;
           }
 
-          // Construir o molde com base em estiloCapitulos (box-arredondado ou inline)
           if (estiloCapitulos === 'box-arredondado') {
               regraEstiloCapitulos = `
               MOLDE DO CAPÍTULO (Capa Exclusiva Box Branco):
@@ -1464,7 +1405,6 @@ ${ebookStyles}
               </div>
               ATENÇÃO: Distribua os parágrafos uniformemente para que cada página fique bem preenchida, evitando páginas vazias ou com pouco conteúdo. A primeira página de texto (com os 2 parágrafos curtos) deve ter conteúdo suficiente para ocupar pelo menos metade da página.`;
           } else {
-              // Padrão inline-imagem (banner)
               regraEstiloCapitulos = `
               MOLDE PADRÃO (inline-imagem):
               <div class="page-container">
@@ -1496,10 +1436,8 @@ ${ebookStyles}
           regraCapaHtml = `<div class="page-container page-cover-text"><h1 style="font-size: 3rem; margin-bottom: 1.5rem; text-transform: uppercase;">${livroTitulo || 'Meu E-book'}</h1><div style="width: 80px; height: 2px; background: var(--color-primary); margin: 0 auto 1.5rem auto;"></div><p style="font-size: 1.3rem; font-style: italic;">Por ${livroAutores || 'Autor'}</p></div>`;
       }
 
-      // Página de aviso e direitos autorais (gerada separadamente)
       const paginaAviso = gerarPaginaAviso();
 
-// Regra comum para todos os modos
       let regrasComuns = `
       DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
 
@@ -1546,9 +1484,6 @@ ${ebookStyles}
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
   }
 
-  // ===== FUNÇÕES DE GERAÇÃO (apenas etapas, sem "Completo") =====
-
-  // INICIAR (PASSO 1) – Capa, Aviso, Índice, Introdução
   async function iniciarEbookEtapas() {
       const content = productContent.trim();
       if (!content) { (window as any).showNotification('Insira o texto base.', 'error'); return; }
@@ -1589,11 +1524,9 @@ ${ebookStyles}
       }
   }
 
-  // PASSO 2: Continuar adicionando capítulos (3 ou mais)
   async function continuarEbookEtapas() {
       const content = productContent.trim();
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      const currentHtml = codEl?.value || '';
+      const currentHtml = htmlAtual || '';
 
       if (!currentHtml.includes('page-container')) { (window as any).showNotification('Gere o Passo 1 primeiro!', 'error'); return; }
 
@@ -1620,10 +1553,8 @@ ${ebookStyles}
       }
   }
 
-  // PASSO 3: Finalizar com Conclusão e Autor
   async function finalizarEbookEtapas() {
-      const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-      if (!codEl?.value.includes('page-container')) { (window as any).showNotification('Gere o livro antes de finalizar.', 'error'); return; }
+      if (!htmlAtual || !htmlAtual.includes('page-container')) { (window as any).showNotification('Gere o livro antes de finalizar.', 'error'); return; }
 
       const { regrasComuns, regraRodape } = obterInstrucoesBase();
 
@@ -1652,7 +1583,6 @@ ${ebookStyles}
       }
   }
 
-  // ===== GERADOR DO BLOCO DO AUTOR ===== (não modificado)
   function obterBlocoAutorHtml() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
       let regraRodape = "";
@@ -1674,12 +1604,15 @@ ${ebookStyles}
       </div>`;
   }
 
-  // ===== FUNÇÃO AUXILIAR para chamar IA ===== (não modificada)
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
+
+      // Timeout de 60 segundos
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       const response = await fetch('/api/gerar', { 
           method: 'POST', 
@@ -1692,8 +1625,11 @@ ${ebookStyles}
               promptParts, 
               isElementRefinement, 
               useGroq: false 
-          }) 
+          }),
+          signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       const responseText = await response.text();
       let data;
@@ -1703,9 +1639,13 @@ ${ebookStyles}
     } catch (err: any) {
       let errorMsg = err.message;
       if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Limite excedido (Quota). O sistema não gerou por falta de saldo/cota na API."; }
+      if (errorMsg === 'The operation was aborted.') { errorMsg = "Tempo limite excedido. Tente novamente."; }
       if (isElementRefinement) throw new Error(errorMsg);
-      (window as any).showNotification(errorMsg, 'error'); return null;
-    } finally { setStatusApis({ texto: 'Aguardando', processing: false }); }
+      (window as any).showNotification(errorMsg, 'error');
+      return null;
+    } finally { 
+      setStatusApis({ texto: 'Aguardando', processing: false }); 
+    }
   }
 
   // ==========================================
@@ -1713,13 +1653,6 @@ ${ebookStyles}
   // ==========================================
 
   useEffect(() => {
-    (window as any).mudarSeparador = (aba: string) => {
-      document.getElementById('previewFrame')!.classList.toggle('active', aba === 'preview');
-      document.getElementById('codigoContainer')!.classList.toggle('active', aba === 'code');
-      document.getElementById('tabPreview')!.className = aba === 'preview' ? "px-5 py-2 rounded-md font-bold text-[11px] bg-slate-800 text-white shadow-sm transition" : "px-5 py-2 rounded-md font-bold text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition";
-      document.getElementById('tabCode')!.className = aba === 'code' ? "px-5 py-2 rounded-md font-bold text-[11px] bg-slate-800 text-white shadow-sm transition" : "px-5 py-2 rounded-md font-bold text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition";
-    };
-
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast'); if(exist) exist.remove();
       const div = document.createElement('div'); div.id = 'custom-toast';
@@ -1732,25 +1665,24 @@ ${ebookStyles}
     };
 
     (window as any).baixarPdf = () => {
-        const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-        if(iframe && iframe.contentWindow) { iframe.contentWindow.print(); }
+        if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+            previewFrameRef.current.contentWindow.print();
+        }
     };
-  }, [livroTitulo]);
+  }, []);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
         if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
         if (e.data.type === 'HTML_SYNC') {
-            const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-            if (codEl) {
-                const htmlLimpo = moldarApresentacaoHtml(e.data.html);
-                setHistoricoCodigo((prev: string[]) => {
-                    if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
-                    return [...prev, codEl.value]; 
-                });
-                codEl.value = htmlLimpo; 
-                localStorage.setItem('ebook_draft_html', htmlLimpo);
-            }
+            // Atualiza o HTML atual a partir do iframe (após edição via inspetor)
+            const htmlLimpo = moldarApresentacaoHtml(e.data.html);
+            setHistoricoCodigo((prev: string[]) => {
+                if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
+                return [...prev, htmlAtual]; 
+            });
+            setHtmlAtual(htmlLimpo);
+            localStorage.setItem('ebook_draft_html', htmlLimpo);
         }
     };
     window.addEventListener('message', handleMessage);
@@ -1758,12 +1690,22 @@ ${ebookStyles}
   }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
 
   useEffect(() => {
-    const codEl = document.getElementById('codigoGerado') as HTMLTextAreaElement;
-    const prevEl = document.getElementById('previewFrame') as HTMLIFrameElement;
-    if (codEl && codEl.value && prevEl) {
-        prevEl.srcdoc = moldarApresentacaoHtml(codEl.value) + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+    if (htmlAtual && previewFrameRef.current) {
+        previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
-  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
+  }, [htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
+
+  useEffect(() => {
+    // Reaplica o HTML quando as configurações visuais mudam
+    if (htmlAtual) {
+        const htmlFinal = moldarApresentacaoHtml(htmlAtual);
+        setHtmlAtual(htmlFinal);
+        localStorage.setItem('ebook_draft_html', htmlFinal);
+        if (previewFrameRef.current) {
+            previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+        }
+    }
+  }, [fontFamily, tamanhoFonteBase, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, livroTitulo, livroAutores, estiloCapitulos]);
 
   const isTextElement = elementoSelecionado ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(elementoSelecionado.tagName.toLowerCase()) : false;
 
@@ -1784,8 +1726,6 @@ ${ebookStyles}
           .input-standard:focus { border-color: #6366f1; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
           .input-label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; display: block; }
           .panel-section { padding: 1.2rem; border-bottom: 1px solid #f1f5f9; }
-          #previewFrame, #codigoContainer { display: none; }
-          #previewFrame.active, #codigoContainer.active { display: block; }
           ::-webkit-scrollbar { width: 6px; height: 6px;}
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -1922,8 +1862,9 @@ ${ebookStyles}
                                                 <button onClick={() => imageInputRef.current?.click()} className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"><i className="fas fa-upload mr-1"></i> Upload PC</button>
                                             )}
                                             <button onClick={() => {
-                                                let el = document.getElementById('previewFrame') as HTMLIFrameElement;
-                                                el.contentWindow?.postMessage({ type: 'DELETE_ELEMENT', id: elementoSelecionado.id }, '*');
+                                                if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+                                                    previewFrameRef.current.contentWindow.postMessage({ type: 'DELETE_ELEMENT', id: elementoSelecionado.id }, '*');
+                                                }
                                             }} className="text-[9px] font-bold text-red-500 hover:text-red-700 transition flex items-center bg-red-50 border border-red-200 hover:border-red-400 px-2 py-1 rounded shadow-sm"><i className="fas fa-trash-alt mr-1"></i> Apagar</button>
                                         </div>
                                     </div>
@@ -1954,8 +1895,9 @@ ${ebookStyles}
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
                                                                 const newBg = val === "0" ? `url('${elementoSelecionado.bgImage}')` : `linear-gradient(rgba(255,255,255,${val}), rgba(255,255,255,${val})), url('${elementoSelecionado.bgImage}')`;
-                                                                const iframe = document.getElementById('previewFrame') as HTMLIFrameElement;
-                                                                iframe.contentWindow?.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, rawBgImage: newBg }, '*');
+                                                                if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+                                                                    previewFrameRef.current.contentWindow.postMessage({ type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, rawBgImage: newBg }, '*');
+                                                                }
                                                             }} 
                                                             className="flex-1 accent-indigo-600 cursor-pointer" 
                                                         />
@@ -2069,7 +2011,6 @@ ${ebookStyles}
                                     </label>
                                 </div>
 
-                                {/* Botão Gerar E-book Completo REMOVIDO - restam apenas os três botões de etapas */}
                                 <div className="grid grid-cols-3 gap-2 pt-1">
                                     <button onClick={iniciarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
                                     <button onClick={continuarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
@@ -2158,7 +2099,6 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* Tipo de Livro (inclui Acadêmico) */}
                             <div className="grid grid-cols-2 gap-3 mb-3">
                                 <div>
                                     <label className="input-label text-[9px]">Tipo de Livro</label>
@@ -2182,7 +2122,6 @@ ${ebookStyles}
                                 </div>
                             </div>
 
-                            {/* Botão para Inserir Página Extra */}
                             <div className="mt-3 border-t border-slate-200 pt-3">
                                 <button onClick={() => setShowModalPagina(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
                                     <i className="fas fa-plus-circle"></i> Inserir Página Extra
@@ -2218,14 +2157,9 @@ ${ebookStyles}
             </div>
         </aside>
 
-        {/* ÁREA DE PREVIEW E CÓDIGO */}
+        {/* ÁREA DE PREVISUALIZAÇÃO (apenas iframe) */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
-            <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
-                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                    <button id="tabPreview" onClick={() => (window as any).mudarSeparador('preview')} className="px-5 py-2 rounded-md font-bold text-[11px] bg-slate-800 text-white shadow-sm transition">Visualização A4</button>
-                    <button id="tabCode" onClick={() => (window as any).mudarSeparador('code')} className="px-5 py-2 rounded-md font-bold text-[11px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition">Código HTML</button>
-                </div>
-
+            <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-end z-20 shadow-sm flex-shrink-0">
                 <div className="flex items-center gap-3">
                     <button onClick={desfazerCodigo} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"><i className="fas fa-undo"></i> Desfazer</button>
                     <button onClick={() => (window as any).baixarPdf()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md shadow-indigo-200 transition flex items-center gap-2"><i className="fas fa-print"></i> Imprimir / PDF</button>
@@ -2233,10 +2167,7 @@ ${ebookStyles}
             </header>
 
             <div className="flex-1 overflow-y-auto p-8 flex justify-center relative">
-                <iframe id="previewFrame" className="active w-full h-full border-none shadow-2xl bg-transparent rounded-lg" title="Preview E-book"></iframe>
-                <div id="codigoContainer" className="w-full h-full max-w-5xl">
-                    <textarea id="codigoGerado" className="w-full h-[80vh] font-mono text-xs bg-slate-900 text-emerald-400 p-6 rounded-2xl shadow-xl border border-slate-800 focus:outline-none leading-relaxed" placeholder="O código HTML gerado aparecerá aqui..."></textarea>
-                </div>
+                <iframe ref={previewFrameRef} id="previewFrame" className="w-full h-full border-none shadow-2xl bg-transparent rounded-lg" title="Preview E-book"></iframe>
             </div>
         </main>
       </div>
