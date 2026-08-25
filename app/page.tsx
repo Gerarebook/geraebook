@@ -25,9 +25,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
     }
 
-    // 1. SINCRONIZADOR DE ÍNDICE MESTRE
     function sincronizarIndice() {
-        // >>> TRAVA NUCLEAR CONTRA LISTAS FALSAS DA IA <<<
         document.querySelectorAll('.page-container').forEach(page => {
             const title = page.querySelector('h2');
             if (title && (title.innerText.toLowerCase().includes('índice') || title.innerText.toLowerCase().includes('sumário'))) {
@@ -103,7 +101,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         });
     }
 
-    // 2. MOTOR DE REFLUXO AVANÇADO (Corte Seco)
     function aplicarRefluxoDePagina() {
         let requiresReflow = true;
         let maxIterations = 80; 
@@ -500,28 +497,7 @@ export default function Home() {
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => {
-    const verificarAcesso = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { window.location.href = '/login'; }
-    };
-    verificarAcesso();
-
-    const savedHtml = localStorage.getItem('ebook_draft_html');
-    const savedPrompt = localStorage.getItem('ebook_draft_prompt');
-    
-    if (savedHtml) {
-      const htmlFinal = moldarApresentacaoHtml(savedHtml);
-      setHtmlAtual(htmlFinal);
-      if (previewFrameRef.current) {
-        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-      }
-    }
-    if (savedPrompt) { setProductContent(savedPrompt); }
-
-    const lib = localStorage.getItem('ebook_saved_books');
-    if (lib) { setLivrosSalvos(JSON.parse(lib)); }
-  }, []);
+  // ==================== FUNÇÕES DE ESTILO E UTILITÁRIOS ====================
 
   function getPaletaObj() {
       if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: corManualSec };
@@ -920,9 +896,7 @@ ${ebookStyles}
 </html>`;
   }
 
-  // ==========================================
-  // FUNÇÕES DE AÇÃO PRINCIPAIS
-  // ==========================================
+  // ==================== FUNÇÕES DE AÇÃO ====================
 
   function handleImageUploadBtn(e: React.ChangeEvent<HTMLInputElement>) {
       const file = e.target.files?.[0];
@@ -1096,7 +1070,6 @@ ${ebookStyles}
       if(!comando) { (window as any).showNotification("Digite o que alterar neste elemento.", "error"); return; }
       if(!elementoSelecionado) return;
 
-      // Salva o estado atual no histórico antes de modificar
       setHistoricoCodigo((prev) => [...prev, htmlAtual]);
 
       const instrucao = `Você é um Assistente Editorial. O usuário selecionou um trecho específico de HTML de um e-book.
@@ -1150,8 +1123,11 @@ ${ebookStyles}
       return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
+  // Função central para aplicar novo HTML (seja sobrescrevendo ou injetando)
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean) {
+      console.log("aplicarHtmlNovo chamado, isInjetar:", isInjetar);
       let novoConteudo = purificarHTML(htmlCru);
+      console.log("Conteúdo purificado (início):", novoConteudo.substring(0, 200));
       
       let htmlFinal = "";
       if (isInjetar) {
@@ -1159,13 +1135,19 @@ ${ebookStyles}
       } else {
           htmlFinal = moldarApresentacaoHtml(novoConteudo);
       }
+      console.log("HTML final montado (início):", htmlFinal.substring(0, 200));
 
-      // Salva no histórico
+      // Salva o estado atual no histórico antes de substituir
       setHistoricoCodigo((prev) => [...prev, htmlAtual]);
       setHtmlAtual(htmlFinal);
       localStorage.setItem('ebook_draft_html', htmlFinal);
+      
+      // Atualiza o iframe com o script de edição
       if (previewFrameRef.current) {
-          previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+          const script = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+          previewFrameRef.current.srcdoc = htmlFinal + script;
+      } else {
+          console.warn("previewFrameRef.current é nulo");
       }
   }
 
@@ -1290,6 +1272,8 @@ ${ebookStyles}
       setPaginaImagem('');
       (window as any).showNotification("Página extra inserida com sucesso!", "success");
   }
+
+  // ==================== INSTRUÇÕES PARA IA ====================
 
   function obterInstrucoesBase() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
@@ -1484,6 +1468,8 @@ ${ebookStyles}
       return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
   }
 
+  // ==================== FUNÇÕES DE GERAÇÃO (ETAPAS) ====================
+
   async function iniciarEbookEtapas() {
       const content = productContent.trim();
       if (!content) { (window as any).showNotification('Insira o texto base.', 'error'); return; }
@@ -1521,6 +1507,8 @@ ${ebookStyles}
       if (data && data.html) {
           aplicarHtmlNovo(data.html, false);
           (window as any).showNotification("Passo 1 Concluído! Capa, Aviso, Índice e Introdução gerados.", "success");
+      } else {
+          console.error("Dados retornados pela IA são inválidos:", data);
       }
   }
 
@@ -1550,6 +1538,8 @@ ${ebookStyles}
       if (data && data.html) {
           aplicarHtmlNovo(data.html, true);
           (window as any).showNotification("Passo 2 Concluído! Conteúdo adicionado.", "success");
+      } else {
+          console.error("Dados retornados pela IA são inválidos:", data);
       }
   }
 
@@ -1580,6 +1570,8 @@ ${ebookStyles}
           let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
           aplicarHtmlNovo(htmlFinal, true);
           (window as any).showNotification("Passo 3 Concluído! Conclusão e Autor gerados.", "success");
+      } else {
+          console.error("Dados retornados pela IA são inválidos:", data);
       }
   }
 
@@ -1604,13 +1596,15 @@ ${ebookStyles}
       </div>`;
   }
 
+  // ==================== CHAMADA À API COM LOGS ====================
+
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
+      console.log("Token obtido:", token ? "presente" : "ausente");
 
-      // Timeout de 60 segundos
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
 
@@ -1632,6 +1626,8 @@ ${ebookStyles}
       clearTimeout(timeoutId);
 
       const responseText = await response.text();
+      console.log("Resposta da API (status:", response.status, "):", responseText.substring(0, 500));
+
       let data;
       try { data = JSON.parse(responseText); } catch (err) { throw new Error(`Erro no Servidor (${response.status}): ${responseText.substring(0, 80)}`); }
       if (!data.success) throw new Error(data.error || "Erro retornado pela API.");
@@ -1640,6 +1636,7 @@ ${ebookStyles}
       let errorMsg = err.message;
       if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) { errorMsg = "Limite excedido (Quota). O sistema não gerou por falta de saldo/cota na API."; }
       if (errorMsg === 'The operation was aborted.') { errorMsg = "Tempo limite excedido. Tente novamente."; }
+      console.error("Erro na chamada da IA:", errorMsg);
       if (isElementRefinement) throw new Error(errorMsg);
       (window as any).showNotification(errorMsg, 'error');
       return null;
@@ -1648,9 +1645,7 @@ ${ebookStyles}
     }
   }
 
-  // ==========================================
-  // EFEITOS E INTERFACE
-  // ==========================================
+  // ==================== EFEITOS ====================
 
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
@@ -1669,13 +1664,22 @@ ${ebookStyles}
             previewFrameRef.current.contentWindow.print();
         }
     };
+
+    // Carregar HTML salvo no localStorage
+    const savedHtml = localStorage.getItem('ebook_draft_html');
+    if (savedHtml) {
+        const htmlFinal = moldarApresentacaoHtml(savedHtml);
+        setHtmlAtual(htmlFinal);
+        if (previewFrameRef.current) {
+            previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+        }
+    }
   }, []);
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
         if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
         if (e.data.type === 'HTML_SYNC') {
-            // Atualiza o HTML atual a partir do iframe (após edição via inspetor)
             const htmlLimpo = moldarApresentacaoHtml(e.data.html);
             setHistoricoCodigo((prev: string[]) => {
                 if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
@@ -1687,16 +1691,17 @@ ${ebookStyles}
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fontFamily, tamanhoFonteBase, livroTitulo, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, livroAutores]);
+  }, []);
 
+  // Atualiza o iframe sempre que htmlAtual ou as configs de edição mudarem
   useEffect(() => {
     if (htmlAtual && previewFrameRef.current) {
         previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
+  // Reaplica o HTML quando configurações visuais mudam (fontes, cores, etc.)
   useEffect(() => {
-    // Reaplica o HTML quando as configurações visuais mudam
     if (htmlAtual) {
         const htmlFinal = moldarApresentacaoHtml(htmlAtual);
         setHtmlAtual(htmlFinal);
@@ -1708,6 +1713,8 @@ ${ebookStyles}
   }, [fontFamily, tamanhoFonteBase, tipoBorda, tipoCapa, imagemCapaUrl, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, livroTitulo, livroAutores, estiloCapitulos]);
 
   const isTextElement = elementoSelecionado ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(elementoSelecionado.tagName.toLowerCase()) : false;
+
+  // ==================== RENDER ====================
 
   return (
     <>
