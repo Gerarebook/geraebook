@@ -233,7 +233,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
             }
         }
 
-        // Remoção de páginas vazias - preserva capas e páginas especiais
         document.querySelectorAll('.page-container').forEach(page => {
             const contentNodes = Array.from(page.children).filter(el => 
                 !el.classList.contains('page-header') && 
@@ -967,20 +966,14 @@ ${ebookStyles}
   // CORREÇÃO: Função para atualizar a capa no HTML quando título ou autor mudam
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
-    // Procura o elemento da capa (page-cover-img, page-cover-text, etc.)
-    // e substitui o texto do título e autor
     const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
     const match = html.match(regexCapa);
     
-    // TRAVA DO TYPESCRIPT ADICIONADA AQUI (match.index === undefined)
     if (!match || match.index === undefined) return html;
 
     let capaContent = match[2];
-    // Substitui título
     capaContent = capaContent.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1>${novoTitulo || 'Meu E-book'}</h1>`);
-    // Substitui autor (se existir)
     capaContent = capaContent.replace(/<p[^>]*>.*?<\/p>/i, `<p>Por ${novoAutor || 'Autor'}</p>`);
-    // Caso não tenha encontrado, insere o autor
     if (!capaContent.includes('<p>')) {
       capaContent = capaContent.replace(/<\/h1>/i, `</h1><p>Por ${novoAutor || 'Autor'}</p>`);
     }
@@ -1155,6 +1148,7 @@ ${ebookStyles}
     (window as any).showNotification("Ação desfeita com sucesso.", "success");
   }
 
+  // ========== IMAGEM UNSPLASH – CORRIGIDA ==========
   async function buscarImagemUnsplash() {
       if (!elementoSelecionado) {
           (window as any).showNotification("Selecione um elemento (imagem ou fundo) primeiro.", "error");
@@ -1175,8 +1169,32 @@ ${ebookStyles}
           console.error("Falha ao ler palavras-chave via IA, usando padrão.");
       }
 
-      const timestamp = new Date().getTime(); 
-      const url = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(keyword)},photography,realistic,human&sig=${timestamp}`;
+      // Usa a API do Unsplash (requer chave pública)
+      const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
+      let imageUrl = '';
+
+      if (accessKey) {
+          try {
+              const response = await fetch(
+                  `https://api.unsplash.com/photos/random?query=${encodeURIComponent(keyword)}&orientation=landscape&w=1200&h=800`,
+                  { headers: { Authorization: `Client-ID ${accessKey}` } }
+              );
+              if (response.ok) {
+                  const data = await response.json();
+                  imageUrl = data.urls?.regular || data.urls?.raw || '';
+              } else {
+                  console.warn('Unsplash API falhou, usando fallback.');
+              }
+          } catch (e) {
+              console.error('Erro ao buscar no Unsplash:', e);
+          }
+      }
+
+      // Fallback: Pollinations (serviço alternativo)
+      if (!imageUrl) {
+          const timestamp = new Date().getTime();
+          imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(keyword)}%20photography?width=1200&height=800&nologo=true&sig=${timestamp}`;
+      }
 
       const isImg = elementoSelecionado.tagName === 'img';
       const field = isImg ? 'src' : 'bgImage';
@@ -1185,12 +1203,12 @@ ${ebookStyles}
           previewFrameRef.current.contentWindow.postMessage({
               type: 'UPDATE_ELEMENT',
               id: elementoSelecionado.id,
-              [field]: url,
+              [field]: imageUrl,
               forceTextUpdate: false
           }, '*');
       }
 
-      setElementoSelecionado((prev: any) => ({...prev, [field]: url}));
+      setElementoSelecionado((prev: any) => ({...prev, [field]: imageUrl}));
       (window as any).showNotification("Fotografia aplicada com sucesso!", "success");
   }
 
@@ -1451,7 +1469,7 @@ ${ebookStyles}
 
       const regraImagem = `
       REGRAS PARA URLs DE IMAGENS (MUITO IMPORTANTE):
-      - O serviço do Unsplash faliu. Use SEMPRE o gerador Pollinations para buscar imagens reais:
+      - Use SEMPRE o gerador Pollinations para buscar imagens reais:
       https://image.pollinations.ai/prompt/{palavras-chave}%20photography?width=1200&height=800&nologo=true
       - Substitua {palavras-chave} pelo tema da foto em INGLÊS.
       - Use %20 no lugar de espaços (ex: business%20meeting).
@@ -1505,11 +1523,8 @@ ${ebookStyles}
          </div>
       `;
 
-      let regraEstiloCapitulos = "";
-
-      return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
+      return { regrasComuns, regraCapaHtml, regraRodape, paginaAviso };
   }
-
 
   // ==================== FUNÇÕES DE GERAÇÃO (ETAPAS) ====================
 
@@ -1555,7 +1570,11 @@ ${ebookStyles}
       }
   }
 
-  const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
+  async function continuarEbookEtapas() {
+      const content = productContent.trim();
+      const currentHtml = htmlAtual;
+      const { regrasComuns } = obterInstrucoesBase();
+      const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES CRÍTICAS (PASSO 2):
       1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o novo capítulo/conteúdo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
@@ -1563,6 +1582,7 @@ ${ebookStyles}
       3. QUANTIDADE: Gere EXATAMENTE 1 CAPÍTULO usando o MOLDE ESTRITO fornecido nas regras comuns.
       4. NÚMERO DE PARÁGRAFOS: Cada página de conteúdo (após a primeira) deve ter OBRIGATORIAMENTE 4 parágrafos. A primeira página do capítulo deve ter 2 parágrafos. 
       5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
+      6. RESPEITE AS MARGENS: Não insira elementos com largura fixa maior que o container. Use apenas as classes e estrutura definidas.
       `;
 
       const data = await chamarMotorIA(instrucao, [
@@ -1574,6 +1594,33 @@ ${ebookStyles}
           aplicarHtmlNovo(data.html, true, true);
           setEtapaAtual(2);
           (window as any).showNotification("Passo 2 Concluído! Conteúdo adicionado.", "success");
+      } else {
+          console.error("Dados retornados pela IA são inválidos:", data);
+      }
+  }
+
+  // GERA 3 CAPÍTULOS DE UMA VEZ (para o botão "2. +3 Capítulos")
+  async function continuarEbookEtapasMultiplo() {
+      const content = productContent.trim();
+      const currentHtml = htmlAtual;
+      const { regrasComuns } = obterInstrucoesBase();
+      const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
+      ${regrasComuns}
+      OBRIGAÇÕES CRÍTICAS (PASSO 2 - MÚLTIPLO):
+      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução.
+      2. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS completos (cada um com 3 páginas) usando o MOLDE ESTRITO.
+      3. NUMERAÇÃO: Continue a numeração dos capítulos onde o livro parou.
+      4. RESPEITE AS MARGENS: Não insira elementos com largura fixa maior que o container.
+      `;
+      const data = await chamarMotorIA(instrucao, [
+          { text: `CÓDIGO HTML ATUAL:\n"""\n${currentHtml}\n"""` },
+          { text: `TEXTO BASE (gere 3 capítulos):\n"""\n${content || 'Gere 3 capítulos seguindo o molde.'}\n"""` }
+      ], false);
+
+      if (data && data.html) {
+          aplicarHtmlNovo(data.html, true, true);
+          setEtapaAtual(2);
+          (window as any).showNotification("3 capítulos adicionados com sucesso!", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
       }
@@ -1616,13 +1663,10 @@ ${ebookStyles}
 
   function getHtmlAteIntro(html: string): string {
       const introIndex = html.indexOf('id="intro"');
-      if (introIndex === -1) return html; // Segurança caso não ache
+      if (introIndex === -1) return html;
       
-      // Procura onde começa o próximo "page-container" DEPOIS da introdução (que seria o Capítulo 1 antigo)
       const proximoCapituloIndex = html.indexOf('<div class="page-container"', introIndex);
-      
       if (proximoCapituloIndex !== -1) {
-          // Corta o HTML exatamente antes do Capítulo antigo começar
           return html.substring(0, proximoCapituloIndex);
       }
       return html;
@@ -1644,7 +1688,7 @@ ${ebookStyles}
       await iniciarEbookEtapas(); 
   }
 
- async function refazerEtapa2() {
+  async function refazerEtapa2() {
       if (etapaAtual < 2) {
           (window as any).showNotification("Você ainda não gerou os capítulos.", "error");
           return;
@@ -1656,26 +1700,39 @@ ${ebookStyles}
 
       const { regrasComuns } = obterInstrucoesBase();
 
-      const instrucao = `Você vai REFAZER o capítulo gerado. O usuário não gostou da versão anterior e quer que você reescreva do zero com mais qualidade.
+      const instrucao = `Você vai REFAZER OS CAPÍTULOS gerados anteriormente. O usuário não gostou da versão anterior e quer que você reescreva do zero com mais qualidade.
       ${regrasComuns}
       OBRIGAÇÕES CRÍTICAS PARA O REFAZER (PASSO 2):
-      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
-      2. QUANTIDADE: Gere EXATAMENTE 1 CAPÍTULO usando o MOLDE ESTRITO fornecido nas regras comuns.
-      3. A página de título do capítulo DEVE conter a imagem e apenas 2 parágrafos de texto.
+      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
+      2. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS completos (cada um com 3 páginas) usando o MOLDE ESTRITO fornecido nas regras comuns. (O mesmo número que foi gerado originalmente na etapa 2.)
+      3. NUMERAÇÃO: Comece a numeração do capítulo 1 (ou reinicie a partir do primeiro capítulo do livro).
+      4. RESPEITE AS MARGENS: Não insira elementos com largura fixa maior que o container.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL (Até a Introdução):\n"""\n${htmlBase}\n"""` },
-          { text: `TEXTO BASE / TEMA PARA REFAZER O CAPÍTULO 1:\n"""\n${content || 'Refaça o capítulo com uma escrita impecável.'}\n"""` }
+          { text: `TEXTO BASE / TEMA PARA REFAZER OS CAPÍTULOS:\n"""\n${content || 'Refaça os capítulos com uma escrita impecável.'}\n"""` }
       ], false);
 
       if (data && data.html) {
           aplicarHtmlNovo(data.html, true, true);
           setEtapaAtual(2);
-          (window as any).showNotification("Capítulo refeito com sucesso! Confira o resultado.", "success");
+          (window as any).showNotification("Capítulos refeitos com sucesso! Confira o resultado.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
       }
+  }
+
+  async function refazerEtapa3() {
+      if (etapaAtual !== 3) {
+          (window as any).showNotification("A etapa 3 ainda não foi concluída ou você já a finalizou.", "error");
+          return;
+      }
+      const htmlBase = getHtmlAteAntesConclusao(htmlAtual);
+      setHtmlAtual(htmlBase);
+      localStorage.setItem('ebook_draft_html', htmlBase);
+
+      await finalizarEbookEtapas();
   }
 
   // ==================== BLOCO DO AUTOR ====================
@@ -1708,7 +1765,6 @@ ${ebookStyles}
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
-      console.log("Token obtido:", token ? "presente" : "ausente");
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -2020,7 +2076,7 @@ ${ebookStyles}
                                     </button>
                                 </div>
                                 <div className="flex flex-col items-center gap-1">
-                                    <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
+                                    <button onClick={continuarEbookEtapasMultiplo} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
                                     <button 
                                         onClick={refazerEtapa2} 
                                         className="w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
