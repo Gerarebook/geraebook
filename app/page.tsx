@@ -1556,25 +1556,19 @@ ${ebookStyles}
       }
   }
 
-  async function continuarEbookEtapas() {
-      const content = productContent.trim();
-      const currentHtml = htmlAtual || '';
-
-      if (!currentHtml.includes('page-container')) { (window as any).showNotification('Gere o Passo 1 primeiro!', 'error'); return; }
-
-      const { regrasComuns } = obterInstrucoesBase();
-
-      const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
+  const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
       ${regrasComuns}
       OBRIGAÇÕES CRÍTICAS (PASSO 2):
       1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o novo capítulo/conteúdo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
       2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
-      3. QUANTIDADE: Gere EXATAMENTE 3 capítulos usando o MOLDE ESTRITO fornecido nas regras comuns.
+      3. QUANTIDADE: Gere EXATAMENTE 1 CAPÍTULO usando o MOLDE ESTRITO fornecido nas regras comuns.
+      4. NÚMERO DE PARÁGRAFOS: Cada página de conteúdo (após a primeira) deve ter OBRIGATORIAMENTE 4 parágrafos. A primeira página do capítulo deve ter 2 parágrafos. 
+      5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 3 capítulos, se possível):\n"""\n${content || 'Gere os próximos capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras.'}\n"""` }
+          { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 1 capítulo completo):\n"""\n${content || 'Gere o próximo capítulo garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras.'}\n"""` }
       ], false);
 
       if (data && data.html) {
