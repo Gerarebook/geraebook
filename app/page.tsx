@@ -964,17 +964,23 @@ ${ebookStyles}
 </html>`;
   }
 
-  // ==================== FUNÇÕES DE AÇÃO ====================
-
+  // CORREÇÃO: Função para atualizar a capa no HTML quando título ou autor mudam
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
+    // Procura o elemento da capa (page-cover-img, page-cover-text, etc.)
+    // e substitui o texto do título e autor
     const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
     const match = html.match(regexCapa);
-    if (!match) return html;
+    
+    // TRAVA DO TYPESCRIPT ADICIONADA AQUI (match.index === undefined)
+    if (!match || match.index === undefined) return html;
 
     let capaContent = match[2];
+    // Substitui título
     capaContent = capaContent.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1>${novoTitulo || 'Meu E-book'}</h1>`);
+    // Substitui autor (se existir)
     capaContent = capaContent.replace(/<p[^>]*>.*?<\/p>/i, `<p>Por ${novoAutor || 'Autor'}</p>`);
+    // Caso não tenha encontrado, insere o autor
     if (!capaContent.includes('<p>')) {
       capaContent = capaContent.replace(/<\/h1>/i, `</h1><p>Por ${novoAutor || 'Autor'}</p>`);
     }
