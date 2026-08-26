@@ -2207,12 +2207,7 @@ ${ebookStyles}
                                     <button onClick={iniciarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
                                     <button 
                                         onClick={refazerEtapa1} 
-                                        disabled={etapaAtual !== 1}
-                                        className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
-                                            etapaAtual === 1 
-                                                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
-                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        }`}
+                                        className="w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
                                     >
                                         <i className="fas fa-sync-alt text-[8px]"></i> Refazer
                                     </button>
@@ -2221,12 +2216,7 @@ ${ebookStyles}
                                     <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
                                     <button 
                                         onClick={refazerEtapa2} 
-                                        disabled={etapaAtual < 2}
-                                        className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
-                                            etapaAtual >= 2 
-                                                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
-                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        }`}
+                                        className="w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
                                     >
                                         <i className="fas fa-sync-alt text-[8px]"></i> Refazer
                                     </button>
@@ -2235,12 +2225,7 @@ ${ebookStyles}
                                     <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">3. Fim/Autor</button>
                                     <button 
                                         onClick={refazerEtapa3} 
-                                        disabled={etapaAtual !== 3}
-                                        className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
-                                            etapaAtual === 3 
-                                                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
-                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        }`}
+                                        className="w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
                                     >
                                         <i className="fas fa-sync-alt text-[8px]"></i> Refazer
                                     </button>
