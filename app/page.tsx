@@ -1475,7 +1475,7 @@ ${ebookStyles}
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-           <img class="chapter-banner-img" src="..." data-keyword="[FOTO_REAL_AQUI]" alt="Banner">
+           <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?abstract,photography&sig=${Math.random()}" alt="Banner">
            <h3 class="subtopic-title">[Subtítulo 1]</h3>
            <p>[Parágrafo denso de 4-6 linhas]</p>
            <p>[Parágrafo denso de 4-6 linhas]</p>
@@ -1645,21 +1645,33 @@ ${ebookStyles}
           (window as any).showNotification("Você ainda não gerou os capítulos.", "error");
           return;
       }
+      const content = productContent.trim();
+      // Mantém o e-book apenas até a introdução, descartando os capítulos antigos para refazê-los do zero
       const htmlBase = getHtmlAteIntro(htmlAtual);
       setHtmlAtual(htmlBase);
       localStorage.setItem('ebook_draft_html', htmlBase);
-      await continuarEbookEtapas(); 
-  }
 
-  async function refazerEtapa3() {
-      if (etapaAtual !== 3) {
-          (window as any).showNotification("Você ainda não gerou a conclusão.", "error");
-          return;
+      const { regrasComuns, regraEstiloCapitulos } = obterInstrucoesBase();
+
+      const instrucao = `Você vai REFAZER os capítulos deste e-book. O usuário não gostou da versão anterior e quer que você reescreva os capítulos do zero com muito mais qualidade, mantendo o mesmo tema.
+      ${regrasComuns}
+      OBRIGAÇÕES CRÍTICAS PARA O REFAZER (PASSO 2):
+      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando os capítulos. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
+      2. Reescreva os capítulos de forma aprimorada, mantendo a estrutura exigida nas regras.
+      `;
+
+      const data = await chamarMotorIA(instrucao, [
+          { text: `CÓDIGO HTML ATUAL (Até a Introdução):\n"""\n${htmlBase}\n"""` },
+          { text: `TEXTO BASE / TEMA PARA REFAZER OS CAPÍTULOS:\n"""\n${content || 'Refaça os capítulos com uma escrita impecável.'}\n"""` }
+      ], false);
+
+      if (data && data.html) {
+          aplicarHtmlNovo(data.html, true, true);
+          setEtapaAtual(2);
+          (window as any).showNotification("Capítulos refeitos com sucesso! Confira o resultado.", "success");
+      } else {
+          console.error("Dados retornados pela IA são inválidos:", data);
       }
-      const htmlBase = getHtmlAteAntesConclusao(htmlAtual);
-      setHtmlAtual(htmlBase);
-      localStorage.setItem('ebook_draft_html', htmlBase);
-      await finalizarEbookEtapas(); 
   }
 
   // ==================== BLOCO DO AUTOR ====================
