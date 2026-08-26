@@ -909,7 +909,7 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (CORRIGIDAS)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (ATUALIZADA PARA INCLUIR BLOCKQUOTE)
   // ============================================================
   function validarParagrafos(html: string): string {
     // Se for modo receitas, não força os parágrafos (estrutura diferente)
@@ -940,6 +940,7 @@ ${ebookStyles}
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temImagem = conteudo.includes('chapter-banner-img');
         const temSubtitulo = conteudo.includes('subtopic-title');
+        const temBlockquote = conteudo.includes('<blockquote');
 
         // Página 1: tem imagem e título, deve ter 2 parágrafos
         if (temImagem && temSubtitulo) {
@@ -949,7 +950,6 @@ ${ebookStyles}
             for (let i = 0; i < faltando; i++) {
               novos += `<p>[Parágrafo adicional ${i+1} - preencha com conteúdo]</p>\n`;
             }
-            // Insere antes do rodapé
             const footerIndex = conteudo.lastIndexOf('</div>');
             if (footerIndex !== -1) {
               const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
@@ -957,10 +957,14 @@ ${ebookStyles}
             }
           }
         }
-        // Páginas 2 e 3: não tem imagem, tem subtítulos, deve ter 4 parágrafos
+        // Páginas 2 e 3: não tem imagem, tem subtítulos
         else if (!temImagem && temSubtitulo) {
-          if (paragrafos.length < 4) {
-            const faltando = 4 - paragrafos.length;
+          // Página 3 (última) deve ter blockquote + 4 parágrafos
+          const isUltimaPagina = !conteudo.includes('Subtítulo 2') && conteudo.includes('Subtítulo 3');
+          const totalParagrafosNecessarios = 4;
+          
+          if (paragrafos.length < totalParagrafosNecessarios) {
+            const faltando = totalParagrafosNecessarios - paragrafos.length;
             let novos = '';
             for (let i = 0; i < faltando; i++) {
               novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante]</p>\n`;
@@ -968,6 +972,15 @@ ${ebookStyles}
             const footerIndex = conteudo.lastIndexOf('</div>');
             if (footerIndex !== -1) {
               const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
+              novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+            }
+          }
+          // Se for a última página e não tiver blockquote, adicionar um
+          if (isUltimaPagina && !temBlockquote) {
+            const footerIndex = conteudo.lastIndexOf('</div>');
+            if (footerIndex !== -1) {
+              const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
+              const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
               novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
             }
           }
@@ -1435,7 +1448,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS) E REFAZER
+  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
   // ============================================================
   function obterInstrucoesBase() {
     let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
@@ -1467,7 +1480,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
        Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
 
-       <!-- PÁGINA 1 (título + imagem + 2 parágrafos curtos, mas suficientes) -->
+       <!-- PÁGINA 1 (título + imagem + 2 parágrafos) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
@@ -1490,7 +1503,7 @@ Mantenha a consistência visual com o resto do e-book.`;
            <div class="page-footer"><span></span><span class="page-number"></span></div>
        </div>
 
-       <!-- PÁGINA 3 (4 parágrafos densos) -->
+       <!-- PÁGINA 3 (4 parágrafos densos + blockquote com reflexão) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
@@ -1498,6 +1511,7 @@ Mantenha a consistência visual com o resto do e-book.`;
            <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 4 - denso, 4-6 linhas, preenchendo bem a página]</p>
+           <blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>
            <div class="page-footer"><span></span><span class="page-number"></span></div>
        </div>
     `;
@@ -1568,7 +1582,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada.
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo.
     5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
     `;
 
@@ -1623,90 +1637,14 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- FUNÇÕES DE REFAZER (etapas) ----
-  function getHtmlAteIntro(html: string): string {
-    const match = html.match(/<div[^>]*id="intro"[^>]*>[\s\S]*?<\/div>/i);
-    if (match && match.index !== undefined) {
-      const endIndex = match.index + match[0].length;
-      return html.substring(0, endIndex);
-    }
-    return html;
-  }
-
-  function getHtmlAteAntesConclusao(html: string): string {
-    const match = html.match(/<div[^>]*id="conclusao"[^>]*>/i);
-    if (match && match.index !== undefined) {
-      return html.substring(0, match.index);
-    }
-    return html;
-  }
-
-  async function refazerEtapa1() {
-    if (etapaAtual !== 1) {
-      (window as any).showNotification('Você já avançou para a etapa 2, não pode mais refazer a etapa 1.', 'error');
-      return;
-    }
-    await iniciarEbookEtapas();
-  }
-
-  async function refazerEtapa2() {
-    if (etapaAtual < 2) {
-      (window as any).showNotification('Você ainda não gerou os capítulos.', 'error');
-      return;
-    }
-    const content = productContent.trim();
-    const htmlBase = getHtmlAteIntro(htmlAtual);
-    setHtmlAtual(htmlBase);
-    localStorage.setItem('ebook_draft_html', htmlBase);
-
-    const { regrasComuns } = obterInstrucoesBase();
-
-    const instrucao = `Você vai REFAZER os capítulos gerados. O usuário não gostou da versão anterior e quer que você reescreva do zero com mais qualidade.
-    ${regrasComuns}
-    OBRIGAÇÕES CRÍTICAS PARA O REFAZER (PASSO 2):
-    1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
-    2. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    3. A primeira página de cada capítulo deve ter 2 parágrafos (curtos, 3-4 linhas). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada.
-    `;
-
-    const data = await chamarMotorIA(instrucao, [
-      { text: `CÓDIGO HTML ATUAL (Até a Introdução):\n"""\n${htmlBase}\n"""` },
-      { text: `TEXTO BASE / TEMA PARA REFAZER OS 3 CAPÍTULOS:\n"""\n${content || 'Refaça os capítulos com uma escrita impecável.'}\n"""` }
-    ], false);
-
-    if (data && data.html) {
-      // Substitui os capítulos antigos pelos novos
-      aplicarHtmlNovo(data.html, true, true);
-      setEtapaAtual(2);
-      (window as any).showNotification("3 capítulos refeitos com sucesso! Confira o resultado.", "success");
-    } else {
-      console.error("Dados retornados pela IA são inválidos:", data);
-    }
-  }
-
-  async function refazerEtapa3() {
-    if (etapaAtual < 3) {
-      (window as any).showNotification('Você ainda não gerou a conclusão.', 'error');
-      return;
-    }
-    const htmlBase = getHtmlAteAntesConclusao(htmlAtual);
-    // Remove o autor se já estiver presente
-    const semAutor = htmlBase.replace(/<div class="page-container author-page">[\s\S]*?<\/div>\s*$/, '');
-    setHtmlAtual(semAutor);
-    localStorage.setItem('ebook_draft_html', semAutor);
-
-    await finalizarEbookEtapas();
-  }
-
   // ============================================================
-  // CHAMADA À API (COM LOGS E TIMEOUT)
+  // CHAMADA À API
   // ============================================================
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
-      console.log('Token obtido:', token ? 'presente' : 'ausente');
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -1729,8 +1667,6 @@ Mantenha a consistência visual com o resto do e-book.`;
       clearTimeout(timeoutId);
 
       const responseText = await response.text();
-      console.log('Resposta da API (status:', response.status, '):', responseText.substring(0, 500));
-
       let data;
       try {
         data = JSON.parse(responseText);
@@ -1742,10 +1678,10 @@ Mantenha a consistência visual com o resto do e-book.`;
     } catch (err: any) {
       let errorMsg = err.message;
       if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) {
-        errorMsg = 'Limite excedido (Quota). O sistema não gerou por falta de saldo/cota na API.';
+        errorMsg = 'Limite excedido (Quota).';
       }
-      if (errorMsg.includes('aborted') || err.name === 'AbortError' || errorMsg === 'The operation was aborted.') {
-        errorMsg = 'A IA demorou muito para responder (Tempo limite excedido). Tente gerar um capítulo por vez.';
+      if (errorMsg.includes('aborted') || err.name === 'AbortError') {
+        errorMsg = 'Tempo limite excedido. Tente gerar um capítulo por vez.';
       }
       console.error('Erro na chamada da IA:', errorMsg);
       if (isElementRefinement) throw new Error(errorMsg);
@@ -1872,7 +1808,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     : false;
 
   // ============================================================
-  // RENDER (MANTIDO IGUAL)
+  // RENDER (com apenas os botões principais)
   // ============================================================
   return (
     <>
@@ -2138,48 +2074,24 @@ Mantenha a consistência visual com o resto do e-book.`;
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-1">
-                      <div className="flex flex-col items-center gap-1">
-                        <button
-                          onClick={iniciarEbookEtapas}
-                          className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
-                        >
-                          1. Capa/Intro
-                        </button>
-                        <button
-                          onClick={refazerEtapa1}
-                          className="w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
-                        >
-                          <i className="fas fa-sync-alt text-[8px]"></i> Refazer
-                        </button>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <button
-                          onClick={continuarEbookEtapas}
-                          className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
-                        >
-                          2. +3 Capítulos
-                        </button>
-                        <button
-                          onClick={refazerEtapa2}
-                          className="w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
-                        >
-                          <i className="fas fa-sync-alt text-[8px]"></i> Refazer
-                        </button>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <button
-                          onClick={finalizarEbookEtapas}
-                          className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
-                        >
-                          3. Fim/Autor
-                        </button>
-                        <button
-                          onClick={refazerEtapa3}
-                          className="w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200"
-                        >
-                          <i className="fas fa-sync-alt text-[8px]"></i> Refazer
-                        </button>
-                      </div>
+                      <button
+                        onClick={iniciarEbookEtapas}
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
+                      >
+                        1. Capa/Intro
+                      </button>
+                      <button
+                        onClick={continuarEbookEtapas}
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
+                      >
+                        2. +3 Capítulos
+                      </button>
+                      <button
+                        onClick={finalizarEbookEtapas}
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
+                      >
+                        3. Fim/Autor
+                      </button>
                     </div>
                   </div>
                 </div>
