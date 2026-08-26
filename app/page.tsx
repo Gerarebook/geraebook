@@ -1221,13 +1221,23 @@ ${ebookStyles}
 
       setHistoricoCodigo((prev) => [...prev, htmlAtual]);
 
+      // Obtém a paleta atual para passar para a IA
+      const paleta = getPaletaObj();
+
       const instrucao = `Você é um Assistente Editorial. O usuário selecionou um trecho específico de HTML de um e-book.
       Sua tarefa é modificar APENAS este elemento HTML de acordo com o pedido: "${comando}".
       
       REGRAS MÁXIMAS:
       1. PRESERVAÇÃO DE ESTRUTURA: Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos. Não os apague.
       2. Retorne APENAS o código HTML modificado DESSA CAIXA/ELEMENTO específico. 
-      3. Mantenha as classes originais.`;
+      3. Mantenha as classes originais.
+      4. Use as cores do tema atual: 
+         - Cor primária: ${paleta.pri}
+         - Cor secundária: ${paleta.sec}
+         - Cor de texto: ${paleta.text}
+         - Cor de fundo: ${paleta.bg}
+         - Cor de borda: ${paleta.borda}
+         Mantenha a consistência visual com o resto do e-book.`;
 
       const data = await chamarMotorIA(instrucao, [{ text: `HTML DO ELEMENTO SELECIONADO:\n"""\n${elementoSelecionado.outerHTML}\n"""` }], true);
 
@@ -2152,13 +2162,243 @@ ${ebookStyles}
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
-                {modoInspetor ? (
-                    <div className="animate-[fadeIn_0.2s_ease]">
+                {/* ===== SEÇÃO SEMPRE VISÍVEL ===== */}
+                <div className="divide-y divide-slate-100">
+                    {/* CONFIGURAÇÃO DE CONTEÚDO */}
+                    <div className="panel-section">
+                        <div className="flex justify-between items-center mb-3">
+                            <label className="input-label mb-0 text-indigo-600">Conteúdo & Capítulos</label>
+                            <div className="flex gap-2">
+                                <button onClick={() => setModalBiblioteca(true)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 transition shadow-sm"><i className="fas fa-book mr-1"></i> Biblioteca ({livrosSalvos.length})</button>
+                                <button onClick={salvarNaBiblioteca} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 transition shadow-sm"><i className="fas fa-save mr-1"></i> Salvar Local</button>
+                            </div>
+                        </div>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="input-label">Título do Livro</label>
+                                <input type="text" value={livroTitulo} onChange={(e) => setLivroTitulo(e.target.value)} className="input-standard" placeholder="Ex: O Poder da Mente" />
+                            </div>
+                            <div>
+                                <label className="input-label">Nome do Autor</label>
+                                <input type="text" value={livroAutores} onChange={(e) => setLivroAutores(e.target.value)} className="input-standard" placeholder="Ex: João da Silva" />
+                            </div>
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="input-label mb-0">Texto Base / Sumário / Ideia</label>
+                                    <button onClick={iniciarNovoLivro} className="text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm flex items-center gap-1.5">
+                                        <i className="fas fa-file-alt"></i> Novo Livro
+                                    </button>
+                                </div>
+                                <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y" placeholder="Descreva os capítulos ou cole seu texto aqui..."></textarea>
+                                <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={indexShowSubtopics} 
+                                        onChange={(e) => setIndexShowSubtopics(e.target.checked)} 
+                                        className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                                    />
+                                    Mostrar Subtópicos no Índice
+                                </label>
+                            </div>
+
+                            {/* BOTÕES PRINCIPAIS E REFAZER */}
+                            <div className="grid grid-cols-3 gap-2 pt-1">
+                                <div className="flex flex-col items-center gap-1">
+                                    <button onClick={iniciarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
+                                    <button 
+                                        onClick={refazerEtapa1} 
+                                        disabled={etapaAtual !== 1}
+                                        className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
+                                            etapaAtual === 1 
+                                                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
+                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        <i className="fas fa-sync-alt text-[8px]"></i> Refazer
+                                    </button>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                    <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
+                                    <button 
+                                        onClick={refazerEtapa2} 
+                                        disabled={etapaAtual < 2}
+                                        className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
+                                            etapaAtual >= 2 
+                                                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
+                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        <i className="fas fa-sync-alt text-[8px]"></i> Refazer
+                                    </button>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                    <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">3. Fim/Autor</button>
+                                    <button 
+                                        onClick={refazerEtapa3} 
+                                        disabled={etapaAtual !== 3}
+                                        className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
+                                            etapaAtual === 3 
+                                                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
+                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        <i className="fas fa-sync-alt text-[8px]"></i> Refazer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ESTILOS E DESIGN */}
+                    <div className="panel-section">
+                        <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="input-label text-[9px]">Fonte Títulos / Corpo</label>
+                                <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="Lato">Lato & Playfair</option>
+                                    <option value="Poppins">Poppins</option>
+                                    <option value="Merriweather">Merriweather</option>
+                                    <option value="Lora">Lora</option>
+                                    <option value="EB Garamond">Garamond</option>
+                                    <option value="Verdana">Verdana</option>
+                                    <option value="Arial">Arial</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="input-label text-[9px]">Tamanho Base</label>
+                                <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="12pt">12pt (Compacto)</option>
+                                    <option value="13pt">13pt (Padrão)</option>
+                                    <option value="14pt">14pt (Confortável)</option>
+                                    <option value="15pt">15pt (Grande)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="input-label text-[9px]">Paleta de Cores</label>
+                                <select value={paletaCores} onChange={(e: any) => setPaletaCores(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="classico">Clássico (Madeira/Café)</option>
+                                    <option value="moderno">Moderno (Azul Executivo)</option>
+                                    <option value="sepia">Sépia (Vintage)</option>
+                                    <option value="dark">Dark (Noturno)</option>
+                                    <option value="manual">Manual (Personalizado)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="input-label text-[9px]">Molde de Capítulos</label>
+                                <select value={estiloCapitulos} onChange={(e: any) => setEstiloCapitulos(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="inline-imagem">Padrão com Banner de Imagem</option>
+                                    <option value="box-arredondado">Capa Exclusiva com Box Branco</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {paletaCores === 'manual' && (
+                            <div className="bg-slate-100 p-3 rounded-lg grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <label className="input-label text-[9px]">Primária</label>
+                                    <input type="color" value={corManualPri} onChange={(e) => setCorManualPri(e.target.value)} className="w-full h-7 rounded border cursor-pointer" />
+                                </div>
+                                <div>
+                                    <label className="input-label text-[9px]">Secundária</label>
+                                    <input type="color" value={corManualSec} onChange={(e) => setCorManualSec(e.target.value)} className="w-full h-7 rounded border cursor-pointer" />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="input-label text-[9px]">Rodapé da Página</label>
+                                <select value={estiloRodape} onChange={(e: any) => setEstiloRodape(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="linha-superior">Linha Superior + Autor + Num</option>
+                                    <option value="simples">Simples (Autor + Num)</option>
+                                    <option value="centralizado-circulo">Centralizado com Círculo</option>
+                                    <option value="centralizado">Apenas Número Centralizado</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="input-label text-[9px]">Recuo do Parágrafo</label>
+                                <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="0px">0px (sem recuo)</option>
+                                    <option value="10px">10px</option>
+                                    <option value="20px">20px (padrão)</option>
+                                    <option value="30px">30px</option>
+                                    <option value="40px">40px</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="input-label text-[9px]">Tipo de Livro</label>
+                                <select value={modoConteudo} onChange={(e: any) => setModoConteudo(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="expandido">Padrão (Expandido)</option>
+                                    <option value="rigoroso">Rigoroso (texto original)</option>
+                                    <option value="receitas">Receitas</option>
+                                    <option value="historias">Histórias</option>
+                                    <option value="academico">Acadêmico</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="input-label text-[9px]">Espaçamento entre Parágrafos</label>
+                                <select value={espacamentoParagrafo} onChange={(e) => setEspacamentoParagrafo(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="0.5em">0.5em</option>
+                                    <option value="0.8em">0.8em (padrão)</option>
+                                    <option value="1em">1em</option>
+                                    <option value="1.2em">1.2em</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="input-label text-[9px]">Borda das Páginas</label>
+                                <select value={tipoBorda} onChange={(e: any) => setTipoBorda(e.target.value)} className="input-standard text-[10px]">
+                                    <option value="none">Sem borda</option>
+                                    <option value="single">Linha fina</option>
+                                    <option value="medium">Linha média</option>
+                                    <option value="double-thin">Linha dupla fina</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="mt-3 border-t border-slate-200 pt-3">
+                            <button onClick={() => setShowModalPagina(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
+                                <i className="fas fa-plus-circle"></i> Inserir Página Extra
+                            </button>
+                            <p className="text-[9px] text-slate-400 text-center mt-1.5">Adicione dedicatória, agradecimentos, etc.</p>
+                        </div>
+                    </div>
+
+                    {/* CONFIGURAÇÃO DE FUNDO DA 2ª PÁGINA */}
+                    <div className="panel-section">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
+                            <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)} className="rounded text-indigo-600 accent-indigo-600 cursor-pointer" />
+                        </div>
+                        {ativarBgSegundaPagina && (
+                            <div className="space-y-2 mt-2">
+                                <input type="text" value={bgSegundaPaginaUrl} onChange={(e) => setBgSegundaPaginaUrl(e.target.value)} className="input-standard text-[10px]" placeholder="URL de fundo opcional (ou usa do cap)..." />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-bold text-slate-500">Opacidade:</span>
+                                    <input type="range" min="0.5" max="0.98" step="0.02" value={bgSegundaPaginaOpacidade} onChange={(e) => setBgSegundaPaginaOpacidade(e.target.value)} className="flex-1 accent-indigo-600 cursor-pointer" />
+                                </div>
+                            </div>
+                        )}
+                        <p className="text-[9px] text-slate-400 mt-2">Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar globalmente após gerar.</p>
+                    </div>
+                </div>
+
+                {/* ===== MODO INSPETOR (aparece apenas se ativo) ===== */}
+                {modoInspetor && (
+                    <div className="animate-[fadeIn_0.2s_ease] mt-4 border-t border-slate-200 pt-4">
                         <div className="bg-indigo-600 text-white p-4 text-[11px] font-black tracking-widest uppercase flex justify-between items-center shadow-inner">
                             <span>Mestre Editorial (IA)</span>
                             <i className="fas fa-magic text-indigo-300"></i>
                         </div>
-
                         {!elementoSelecionado ? (
                             <div className="flex flex-col items-center justify-center p-14 text-center text-slate-400">
                                 <div className="w-16 h-16 rounded-full bg-white border-2 border-dashed border-slate-200 flex items-center justify-center mb-4 shadow-sm">
@@ -2256,7 +2496,6 @@ ${ebookStyles}
                                             </div>
                                         </div>
                                     )}
-
                                 </div>
 
                                 {elementoSelecionado.tagName !== 'img' && (
@@ -2273,247 +2512,18 @@ ${ebookStyles}
                                 )}
                                 
                                 {elementoSelecionado.tagName !== 'img' && (
-                                  <div className="panel-section border-t border-slate-100">
-                                      <label className="input-label mb-2 text-[9px]">Alinhamento</label>
-                                      <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
-                                          <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
-                                      </div>
-                                  </div>
+                                    <div className="panel-section border-t border-slate-100">
+                                        <label className="input-label mb-2 text-[9px]">Alinhamento</label>
+                                        <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
+                                            <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
+                                            <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
+                                            <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
+                                            <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}
-                    </div>
-                ) : (
-                    <div className="divide-y divide-slate-100">
-                        {/* CONFIGURAÇÃO DE CONTEÚDO */}
-                        <div className="panel-section">
-                            <div className="flex justify-between items-center mb-3">
-                                <label className="input-label mb-0 text-indigo-600">Conteúdo & Capítulos</label>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setModalBiblioteca(true)} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 transition shadow-sm"><i className="fas fa-book mr-1"></i> Biblioteca ({livrosSalvos.length})</button>
-                                    <button onClick={salvarNaBiblioteca} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 transition shadow-sm"><i className="fas fa-save mr-1"></i> Salvar Local</button>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="input-label">Título do Livro</label>
-                                    <input type="text" value={livroTitulo} onChange={(e) => setLivroTitulo(e.target.value)} className="input-standard" placeholder="Ex: O Poder da Mente" />
-                                </div>
-                                <div>
-                                    <label className="input-label">Nome do Autor</label>
-                                    <input type="text" value={livroAutores} onChange={(e) => setLivroAutores(e.target.value)} className="input-standard" placeholder="Ex: João da Silva" />
-                                </div>
-                                <div>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className="input-label mb-0">Texto Base / Sumário / Ideia</label>
-                                        <button onClick={iniciarNovoLivro} className="text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm flex items-center gap-1.5">
-                                            <i className="fas fa-file-alt"></i> Novo Livro
-                                        </button>
-                                    </div>
-                                    <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y" placeholder="Descreva os capítulos ou cole seu texto aqui..."></textarea>
-                                    <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={indexShowSubtopics} 
-                                            onChange={(e) => setIndexShowSubtopics(e.target.checked)} 
-                                            className="w-4 h-4 text-indigo-600 rounded border-slate-300"
-                                        />
-                                        Mostrar Subtópicos no Índice
-                                    </label>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-2 pt-1">
-    <div className="flex flex-col items-center gap-1">
-        <button onClick={iniciarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
-        <button 
-            onClick={refazerEtapa1} 
-            disabled={etapaAtual !== 1}
-            className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
-                etapaAtual === 1 
-                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            }`}
-        >
-            <i className="fas fa-sync-alt text-[8px]"></i> Refazer
-        </button>
-    </div>
-    <div className="flex flex-col items-center gap-1">
-        <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
-        <button 
-            onClick={refazerEtapa2} 
-            disabled={etapaAtual < 2}
-            className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
-                etapaAtual >= 2 
-                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            }`}
-        >
-            <i className="fas fa-sync-alt text-[8px]"></i> Refazer
-        </button>
-    </div>
-    <div className="flex flex-col items-center gap-1">
-        <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">3. Fim/Autor</button>
-        <button 
-            onClick={refazerEtapa3} 
-            disabled={etapaAtual !== 3}
-            className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
-                etapaAtual === 3 
-                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            }`}
-        >
-            <i className="fas fa-sync-alt text-[8px]"></i> Refazer
-        </button>
-    </div>
-</div>
-
-                        {/* ESTILOS E DESIGN */}
-                        <div className="panel-section">
-                            <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
-                            
-                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label className="input-label text-[9px]">Fonte Títulos / Corpo</label>
-                                    <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="Lato">Lato & Playfair</option>
-                                        <option value="Poppins">Poppins</option>
-                                        <option value="Merriweather">Merriweather</option>
-                                        <option value="Lora">Lora</option>
-                                        <option value="EB Garamond">Garamond</option>
-                                        <option value="Verdana">Verdana</option>
-                                        <option value="Arial">Arial</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="input-label text-[9px]">Tamanho Base</label>
-                                    <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="12pt">12pt (Compacto)</option>
-                                        <option value="13pt">13pt (Padrão)</option>
-                                        <option value="14pt">14pt (Confortável)</option>
-                                        <option value="15pt">15pt (Grande)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label className="input-label text-[9px]">Paleta de Cores</label>
-                                    <select value={paletaCores} onChange={(e: any) => setPaletaCores(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="classico">Clássico (Madeira/Café)</option>
-                                        <option value="moderno">Moderno (Azul Executivo)</option>
-                                        <option value="sepia">Sépia (Vintage)</option>
-                                        <option value="dark">Dark (Noturno)</option>
-                                        <option value="manual">Manual (Personalizado)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="input-label text-[9px]">Molde de Capítulos</label>
-                                    <select value={estiloCapitulos} onChange={(e: any) => setEstiloCapitulos(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="inline-imagem">Padrão com Banner de Imagem</option>
-                                        <option value="box-arredondado">Capa Exclusiva com Box Branco</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {paletaCores === 'manual' && (
-                                <div className="bg-slate-100 p-3 rounded-lg grid grid-cols-2 gap-2 mb-3">
-                                    <div>
-                                        <label className="input-label text-[9px]">Primária</label>
-                                        <input type="color" value={corManualPri} onChange={(e) => setCorManualPri(e.target.value)} className="w-full h-7 rounded border cursor-pointer" />
-                                    </div>
-                                    <div>
-                                        <label className="input-label text-[9px]">Secundária</label>
-                                        <input type="color" value={corManualSec} onChange={(e) => setCorManualSec(e.target.value)} className="w-full h-7 rounded border cursor-pointer" />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label className="input-label text-[9px]">Rodapé da Página</label>
-                                    <select value={estiloRodape} onChange={(e: any) => setEstiloRodape(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="linha-superior">Linha Superior + Autor + Num</option>
-                                        <option value="simples">Simples (Autor + Num)</option>
-                                        <option value="centralizado-circulo">Centralizado com Círculo</option>
-                                        <option value="centralizado">Apenas Número Centralizado</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="input-label text-[9px]">Recuo do Parágrafo</label>
-                                    <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="0px">0px (sem recuo)</option>
-                                        <option value="10px">10px</option>
-                                        <option value="20px">20px (padrão)</option>
-                                        <option value="30px">30px</option>
-                                        <option value="40px">40px</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label className="input-label text-[9px]">Tipo de Livro</label>
-                                    <select value={modoConteudo} onChange={(e: any) => setModoConteudo(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="expandido">Padrão (Expandido)</option>
-                                        <option value="rigoroso">Rigoroso (texto original)</option>
-                                        <option value="receitas">Receitas</option>
-                                        <option value="historias">Histórias</option>
-                                        <option value="academico">Acadêmico</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="input-label text-[9px]">Espaçamento entre Parágrafos</label>
-                                    <select value={espacamentoParagrafo} onChange={(e) => setEspacamentoParagrafo(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="0.5em">0.5em</option>
-                                        <option value="0.8em">0.8em (padrão)</option>
-                                        <option value="1em">1em</option>
-                                        <option value="1.2em">1.2em</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label className="input-label text-[9px]">Borda das Páginas</label>
-                                    <select value={tipoBorda} onChange={(e: any) => setTipoBorda(e.target.value)} className="input-standard text-[10px]">
-                                        <option value="none">Sem borda</option>
-                                        <option value="single">Linha fina</option>
-                                        <option value="medium">Linha média</option>
-                                        <option value="double-thin">Linha dupla fina</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="mt-3 border-t border-slate-200 pt-3">
-                                <button onClick={() => setShowModalPagina(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
-                                    <i className="fas fa-plus-circle"></i> Inserir Página Extra
-                                </button>
-                                <p className="text-[9px] text-slate-400 text-center mt-1.5">Adicione dedicatória, agradecimentos, etc.</p>
-                            </div>
-
-                        </div>
-
-                        {/* CONFIGURAÇÃO DE FUNDO DA 2ª PÁGINA */}
-                        <div className="panel-section">
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
-                                <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)} className="rounded text-indigo-600 accent-indigo-600 cursor-pointer" />
-                            </div>
-                            {ativarBgSegundaPagina && (
-                                <div className="space-y-2 mt-2">
-                                    <input type="text" value={bgSegundaPaginaUrl} onChange={(e) => setBgSegundaPaginaUrl(e.target.value)} className="input-standard text-[10px]" placeholder="URL de fundo opcional (ou usa do cap)..." />
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[9px] font-bold text-slate-500">Opacidade:</span>
-                                        <input type="range" min="0.5" max="0.98" step="0.02" value={bgSegundaPaginaOpacidade} onChange={(e) => setBgSegundaPaginaOpacidade(e.target.value)} className="flex-1 accent-indigo-600 cursor-pointer" />
-                                    </div>
-                                </div>
-                            )}
-                            <p className="text-[9px] text-slate-400 mt-2">Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar globalmente após gerar.</p>
-                        </div>
                     </div>
                 )}
             </div>
