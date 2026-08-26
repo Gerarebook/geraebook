@@ -1441,75 +1441,74 @@ ${ebookStyles}
   // ==================== INSTRUÇÕES PARA IA ====================
 
   function obterInstrucoesBase() {
-    let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
-    let regraRodape = "";
-    if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { 
-        regraRodape = `<span>${livroAutores}</span>${numSpan}`; 
-    } else { 
-        regraRodape = `${numSpan}`; 
-    }
+      let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
+      let regraRodape = "";
+      if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) { 
+          regraRodape = `<span>${livroAutores}</span>${numSpan}`; 
+      } else { 
+          regraRodape = `${numSpan}`; 
+      }
 
-    const regraImagem = `
-    REGRAS PARA URLs DE IMAGENS (IMPORTANTE):
-    - Use sempre o formato: https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig={timestamp}
-    - Para RECEITAS, as palavras-chave devem ser o nome da receita em INGLÊS + "food" (ex: "chocolate cake food"). NUNCA use "cat", "dog", "animal", "pet" ou qualquer termo relacionado a animais.
-    - Para CAPÍTULOS GERAIS, use palavras-chave relevantes do título do capítulo em INGLÊS, sempre evitando animais. Prefira termos como "nature", "city", "people", "business", etc.
-    - Substitua {timestamp} por um número aleatório para evitar cache (ex: Date.now()).
-    - Se não tiver certeza, use "food" para receitas ou "abstract" para outros.
-    - PROIBIDO ABSOLUTAMENTE usar imagens com animais em qualquer contexto.
-    `;
+      const regraImagem = `
+      REGRAS PARA URLs DE IMAGENS (MUITO IMPORTANTE):
+      - O serviço do Unsplash faliu. Use SEMPRE o gerador Pollinations para buscar imagens reais:
+      https://image.pollinations.ai/prompt/{palavras-chave}%20photography?width=1200&height=800&nologo=true
+      - Substitua {palavras-chave} pelo tema da foto em INGLÊS.
+      - Use %20 no lugar de espaços (ex: business%20meeting).
+      - PROIBIDO ABSOLUTAMENTE usar imagens com animais em qualquer contexto.
+      `;
 
-    const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
+      const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
 
-    const paginaAviso = gerarPaginaAviso();
+      const paginaAviso = gerarPaginaAviso();
 
-    let regrasComuns = `
-    DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
-    ${regraImagem}
-    1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
-    2. INTRODUÇÃO E CONCLUSÃO: É terminantemente proibido o uso de qualquer imagem na Introdução ou na Conclusão. Apenas texto.
-    3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
-       Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
-       
-       <!-- PÁGINA 1 -->
-       <div class="page-container">
-           <div class="page-header"><span>...</span><span>...</span></div>
-           <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-           <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?abstract,photography&sig=${Math.random()}" alt="Banner">
-           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <div class="page-footer"><span></span><span class="page-number"></span></div>
-       </div>
+      let regrasComuns = `
+      DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
+      ${regraImagem}
+      1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes).
+      2. INTRODUÇÃO E CONCLUSÃO: É terminantemente proibido o uso de qualquer imagem na Introdução ou na Conclusão. Apenas texto.
+      3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
+         Todo capítulo DEVE ter EXATAMENTE 3 páginas. A primeira página DEVE ter a imagem e OBRIGATORIAMENTE 2 parágrafos.
+         
+         <!-- PÁGINA 1 -->
+         <div class="page-container">
+             <div class="page-header"><span>...</span><span>...</span></div>
+             <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
+             <img class="chapter-banner-img" src="https://image.pollinations.ai/prompt/[TEMA_EM_INGLES]%20photography?width=1200&height=800&nologo=true" alt="Banner">
+             <h3 class="subtopic-title">[Subtítulo 1]</h3>
+             <p>[Exatamente o 1º parágrafo do capítulo, com 4-6 linhas]</p>
+             <p>[Exatamente o 2º parágrafo do capítulo, com 4-6 linhas]</p>
+             <div class="page-footer"><span></span><span class="page-number"></span></div>
+         </div>
 
-       <!-- PÁGINA 2 -->
-       <div class="page-container">
-           <div class="page-header"><span>...</span><span>...</span></div>
-           <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <div class="page-footer"><span></span><span class="page-number"></span></div>
-       </div>
+         <!-- PÁGINA 2 -->
+         <div class="page-container">
+             <div class="page-header"><span>...</span><span>...</span></div>
+             <h3 class="subtopic-title">[Subtítulo 2]</h3>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <div class="page-footer"><span></span><span class="page-number"></span></div>
+         </div>
 
-       <!-- PÁGINA 3 -->
-       <div class="page-container">
-           <div class="page-header"><span>...</span><span>...</span></div>
-           <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo extra e denso de 4-6 linhas focado em preencher todo o buraco do rodapé da última página]</p>
-           <div class="page-footer"><span></span><span class="page-number"></span></div>
-       </div>
-    `;
+         <!-- PÁGINA 3 -->
+         <div class="page-container">
+             <div class="page-header"><span>...</span><span>...</span></div>
+             <h3 class="subtopic-title">[Subtítulo 3]</h3>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <p>[Parágrafo denso de 4-6 linhas]</p>
+             <div class="page-footer"><span></span><span class="page-number"></span></div>
+         </div>
+      `;
 
-    let regraEstiloCapitulos = ""; // Will be injected dynamically by the prompt if needed
+      let regraEstiloCapitulos = "";
 
-    return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
-}
+      return { regrasComuns, regraCapaHtml, regraRodape, regraEstiloCapitulos, paginaAviso };
+  }
 
 
   // ==================== FUNÇÕES DE GERAÇÃO (ETAPAS) ====================
@@ -1616,10 +1615,15 @@ ${ebookStyles}
   // ==================== FUNÇÕES PARA REFAZER ETAPAS ====================
 
   function getHtmlAteIntro(html: string): string {
-      const match = html.match(/<div[^>]*id="intro"[^>]*>[\s\S]*?<\/div>/i);
-      if (match && match.index !== undefined) {
-          const endIndex = match.index + match[0].length;
-          return html.substring(0, endIndex);
+      const introIndex = html.indexOf('id="intro"');
+      if (introIndex === -1) return html; // Segurança caso não ache
+      
+      // Procura onde começa o próximo "page-container" DEPOIS da introdução (que seria o Capítulo 1 antigo)
+      const proximoCapituloIndex = html.indexOf('<div class="page-container"', introIndex);
+      
+      if (proximoCapituloIndex !== -1) {
+          // Corta o HTML exatamente antes do Capítulo antigo começar
+          return html.substring(0, proximoCapituloIndex);
       }
       return html;
   }
@@ -1640,35 +1644,35 @@ ${ebookStyles}
       await iniciarEbookEtapas(); 
   }
 
-  async function refazerEtapa2() {
+ async function refazerEtapa2() {
       if (etapaAtual < 2) {
           (window as any).showNotification("Você ainda não gerou os capítulos.", "error");
           return;
       }
       const content = productContent.trim();
-      // Mantém o e-book apenas até a introdução, descartando os capítulos antigos para refazê-los do zero
       const htmlBase = getHtmlAteIntro(htmlAtual);
       setHtmlAtual(htmlBase);
       localStorage.setItem('ebook_draft_html', htmlBase);
 
-      const { regrasComuns, regraEstiloCapitulos } = obterInstrucoesBase();
+      const { regrasComuns } = obterInstrucoesBase();
 
-      const instrucao = `Você vai REFAZER os capítulos deste e-book. O usuário não gostou da versão anterior e quer que você reescreva os capítulos do zero com muito mais qualidade, mantendo o mesmo tema.
+      const instrucao = `Você vai REFAZER o capítulo gerado. O usuário não gostou da versão anterior e quer que você reescreva do zero com mais qualidade.
       ${regrasComuns}
       OBRIGAÇÕES CRÍTICAS PARA O REFAZER (PASSO 2):
-      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando os capítulos. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
-      2. Reescreva os capítulos de forma aprimorada, mantendo a estrutura exigida nas regras.
+      1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
+      2. QUANTIDADE: Gere EXATAMENTE 1 CAPÍTULO usando o MOLDE ESTRITO fornecido nas regras comuns.
+      3. A página de título do capítulo DEVE conter a imagem e apenas 2 parágrafos de texto.
       `;
 
       const data = await chamarMotorIA(instrucao, [
           { text: `CÓDIGO HTML ATUAL (Até a Introdução):\n"""\n${htmlBase}\n"""` },
-          { text: `TEXTO BASE / TEMA PARA REFAZER OS CAPÍTULOS:\n"""\n${content || 'Refaça os capítulos com uma escrita impecável.'}\n"""` }
+          { text: `TEXTO BASE / TEMA PARA REFAZER O CAPÍTULO 1:\n"""\n${content || 'Refaça o capítulo com uma escrita impecável.'}\n"""` }
       ], false);
 
       if (data && data.html) {
           aplicarHtmlNovo(data.html, true, true);
           setEtapaAtual(2);
-          (window as any).showNotification("Capítulos refeitos com sucesso! Confira o resultado.", "success");
+          (window as any).showNotification("Capítulo refeito com sucesso! Confira o resultado.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
       }
