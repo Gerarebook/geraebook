@@ -550,6 +550,9 @@ export default function Home() {
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
 
+  // NOVO: estado para controlar a etapa atual (0 = nenhuma, 1 = Capa/Intro, 2 = Capítulos, 3 = Fim/Autor)
+  const [etapaAtual, setEtapaAtual] = useState<0 | 1 | 2 | 3>(0);
+
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
@@ -1098,6 +1101,7 @@ ${ebookStyles}
           setHtmlAtual('');
           setLivroTitulo('');
           setProductContent('');
+          setEtapaAtual(0);
           if (previewFrameRef.current) {
               previewFrameRef.current.srcdoc = '';
           }
@@ -1127,6 +1131,7 @@ ${ebookStyles}
   function carregarDaBiblioteca(livro: any) {
       setLivroTitulo(livro.titulo);
       setProductContent(livro.prompt || '');
+      setEtapaAtual(0);
       aplicarHtmlNovo(livro.html, false, true);
       setModalBiblioteca(false);
       (window as any).showNotification(`Livro "${livro.titulo}" carregado.`, "success");
@@ -1709,6 +1714,7 @@ ${ebookStyles}
       const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
       if (data && data.html) {
           aplicarHtmlNovo(data.html, false, true);
+          setEtapaAtual(1);
           (window as any).showNotification("Passo 1 Concluído! Capa, Aviso, Índice e Introdução gerados.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
@@ -1742,6 +1748,7 @@ ${ebookStyles}
       
       if (data && data.html) {
           aplicarHtmlNovo(data.html, true, true);
+          setEtapaAtual(2);
           (window as any).showNotification("Passo 2 Concluído! Conteúdo adicionado.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
@@ -1774,11 +1781,79 @@ ${ebookStyles}
       if (data && data.html) {
           let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
           aplicarHtmlNovo(htmlFinal, true, true);
+          setEtapaAtual(3);
           (window as any).showNotification("Passo 3 Concluído! Conclusão e Autor gerados.", "success");
       } else {
           console.error("Dados retornados pela IA são inválidos:", data);
       }
   }
+
+  // ==================== FUNÇÕES PARA REFAZER ETAPAS ====================
+
+  // Função auxiliar: extrai o HTML até o final da div que contém id="intro"
+  function getHtmlAteIntro(html: string): string {
+      const match = html.match(/<div[^>]*id="intro"[^>]*>[\s\S]*?<\/div>/i);
+      if (match && match.index !== undefined) {
+          const endIndex = match.index + match[0].length;
+          return html.substring(0, endIndex);
+      }
+      // Se não encontrar, retorna o HTML original (fallback)
+      return html;
+  }
+
+  // Função auxiliar: extrai o HTML até antes da div que contém id="conclusao"
+  function getHtmlAteAntesConclusao(html: string): string {
+      const match = html.match(/<div[^>]*id="conclusao"[^>]*>/i);
+      if (match && match.index !== undefined) {
+          return html.substring(0, match.index);
+      }
+      // Se não encontrar, retorna o HTML original (fallback)
+      return html;
+  }
+
+  async function refazerEtapa1() {
+      // Só permite refazer a etapa 1 se a etapa atual for 1 (ainda não avançou)
+      if (etapaAtual !== 1) {
+          (window as any).showNotification("Você já avançou para a etapa 2, não pode mais refazer a etapa 1.", "error");
+          return;
+      }
+      await iniciarEbookEtapas(); // Reexecuta a etapa 1, substituindo todo o HTML
+  }
+
+  async function refazerEtapa2() {
+      // Só permite refazer a etapa 2 se a etapa atual for >= 2 (já concluiu a etapa 2)
+      if (etapaAtual < 2) {
+          (window as any).showNotification("Você ainda não gerou os capítulos.", "error");
+          return;
+      }
+      // Extrai o HTML até a introdução (mantém a etapa 1)
+      const htmlBase = getHtmlAteIntro(htmlAtual);
+      // Substitui o HTML atual pelo base
+      setHtmlAtual(htmlBase);
+      localStorage.setItem('ebook_draft_html', htmlBase);
+      // Chama a função de continuar, que irá injetar novos capítulos no final do base
+      // Forçamos a atualização do estado para que a função use o novo htmlAtual
+      await continuarEbookEtapas(); // Esta função usará o htmlAtual atualizado
+      // Após a conclusão, a etapa atual já será 2 (definida dentro de continuarEbookEtapas)
+  }
+
+  async function refazerEtapa3() {
+      // Só permite refazer a etapa 3 se a etapa atual for 3 (já finalizou)
+      if (etapaAtual !== 3) {
+          (window as any).showNotification("Você ainda não gerou a conclusão.", "error");
+          return;
+      }
+      // Extrai o HTML até antes da conclusão (mantém etapas 1 e 2)
+      const htmlBase = getHtmlAteAntesConclusao(htmlAtual);
+      // Substitui o HTML atual pelo base
+      setHtmlAtual(htmlBase);
+      localStorage.setItem('ebook_draft_html', htmlBase);
+      // Chama a função de finalizar, que irá injetar nova conclusão e autor no final do base
+      await finalizarEbookEtapas(); // Esta função usará o htmlAtual atualizado
+      // Após a conclusão, a etapa atual já será 3 (definida dentro de finalizarEbookEtapas)
+  }
+
+  // ==================== BLOCO DO AUTOR ====================
 
   function obterBlocoAutorHtml() {
       let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
@@ -2252,9 +2327,48 @@ ${ebookStyles}
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-2 pt-1">
-                                    <button onClick={iniciarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
-                                    <button onClick={continuarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
-                                    <button onClick={finalizarEbookEtapas} className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">3. Fim/Autor</button>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <button onClick={iniciarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
+                                        <button 
+                                            onClick={refazerEtapa1} 
+                                            disabled={etapaAtual !== 1}
+                                            className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
+                                                etapaAtual === 1 
+                                                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
+                                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <i className="fas fa-sync-alt text-[8px]"></i> Refazer
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
+                                        <button 
+                                            onClick={refazerEtapa2} 
+                                            disabled={etapaAtual < 2}
+                                            className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
+                                                etapaAtual >= 2 
+                                                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
+                                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <i className="fas fa-sync-alt text-[8px]"></i> Refazer
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">3. Fim/Autor</button>
+                                        <button 
+                                            onClick={refazerEtapa3} 
+                                            disabled={etapaAtual !== 3}
+                                            className={`w-full text-[8px] font-bold uppercase px-2 py-1 rounded transition flex items-center justify-center gap-1 ${
+                                                etapaAtual === 3 
+                                                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200' 
+                                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <i className="fas fa-sync-alt text-[8px]"></i> Refazer
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
