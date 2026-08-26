@@ -909,28 +909,67 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (CORRIGIDAS)
   // ============================================================
   function validarParagrafos(html: string): string {
+    // Se for modo receitas, não força os parágrafos (estrutura diferente)
     if (modoConteudo === 'receitas') return html;
+
     const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
     let novoHtml = html;
     let match;
+
     while ((match = regexPaginas.exec(html)) !== null) {
       const paginaCompleta = match[0];
       const conteudo = match[2];
-      if (conteudo.includes('chapter-title-inline') && !conteudo.includes('Índice') && !conteudo.includes('índice') && !conteudo.includes('Sumário') && !conteudo.includes('sumário')) {
+
+      // Verifica se é uma página de capítulo (tem título e não é índice/introdução/conclusão/autor)
+      const temTituloCapitulo = conteudo.includes('chapter-title-inline') &&
+        !conteudo.includes('Índice') &&
+        !conteudo.includes('índice') &&
+        !conteudo.includes('Sumário') &&
+        !conteudo.includes('sumário') &&
+        !conteudo.includes('Introdução') &&
+        !conteudo.includes('introdução') &&
+        !conteudo.includes('Conclusão') &&
+        !conteudo.includes('conclusão') &&
+        !conteudo.includes('Sobre o Autor');
+
+      if (temTituloCapitulo) {
+        // Conta quantos parágrafos existem
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
-        if (paragrafos.length < 4 && conteudo.includes('<h3')) {
-          const paragrafosFaltando = 4 - paragrafos.length;
-          let novosParagrafos = '';
-          for (let i = 0; i < paragrafosFaltando; i++) {
-            novosParagrafos += `<p>[Parágrafo adicional ${i + 1} - preencha com conteúdo relevante]</p>\n`;
+        const temImagem = conteudo.includes('chapter-banner-img');
+        const temSubtitulo = conteudo.includes('subtopic-title');
+
+        // Página 1: tem imagem e título, deve ter 2 parágrafos
+        if (temImagem && temSubtitulo) {
+          if (paragrafos.length < 2) {
+            const faltando = 2 - paragrafos.length;
+            let novos = '';
+            for (let i = 0; i < faltando; i++) {
+              novos += `<p>[Parágrafo adicional ${i+1} - preencha com conteúdo]</p>\n`;
+            }
+            // Insere antes do rodapé
+            const footerIndex = conteudo.lastIndexOf('</div>');
+            if (footerIndex !== -1) {
+              const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
+              novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+            }
           }
-          const ultimoElemento = conteudo.lastIndexOf('</div>');
-          if (ultimoElemento !== -1) {
-            const novoConteudo = conteudo.substring(0, ultimoElemento) + novosParagrafos + conteudo.substring(ultimoElemento);
-            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+        }
+        // Páginas 2 e 3: não tem imagem, tem subtítulos, deve ter 4 parágrafos
+        else if (!temImagem && temSubtitulo) {
+          if (paragrafos.length < 4) {
+            const faltando = 4 - paragrafos.length;
+            let novos = '';
+            for (let i = 0; i < faltando; i++) {
+              novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante]</p>\n`;
+            }
+            const footerIndex = conteudo.lastIndexOf('</div>');
+            if (footerIndex !== -1) {
+              const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
+              novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+            }
           }
         }
       }
@@ -1189,7 +1228,7 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // BUSCA DE IMAGEM UNSPLASH
+  // BUSCA DE IMAGEM UNSPLASH (CORRIGIDA)
   // ============================================================
   async function buscarImagemUnsplash() {
     if (!elementoSelecionado) {
@@ -1428,18 +1467,18 @@ Mantenha a consistência visual com o resto do e-book.`;
     3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
        Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
 
-       <!-- PÁGINA 1 (título + 2 parágrafos) -->
+       <!-- PÁGINA 1 (título + imagem + 2 parágrafos curtos, mas suficientes) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-           <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?abstract,photography&sig=${Math.random()}" alt="Banner">
+           <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig=${Math.random()}" alt="Banner">
            <h3 class="subtopic-title">[Subtítulo 1]</h3>
-           <p>[Parágrafo 1 (curto, 2-3 linhas)]</p>
-           <p>[Parágrafo 2 (curto, 2-3 linhas)]</p>
+           <p>[Parágrafo 1 - 3 a 4 linhas, contendo conteúdo relevante]</p>
+           <p>[Parágrafo 2 - 3 a 4 linhas, complementando o primeiro]</p>
            <div class="page-footer"><span></span><span class="page-number"></span></div>
        </div>
 
-       <!-- PÁGINA 2 (4 parágrafos) -->
+       <!-- PÁGINA 2 (4 parágrafos densos) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
@@ -1451,7 +1490,7 @@ Mantenha a consistência visual com o resto do e-book.`;
            <div class="page-footer"><span></span><span class="page-number"></span></div>
        </div>
 
-       <!-- PÁGINA 3 (4 parágrafos) -->
+       <!-- PÁGINA 3 (4 parágrafos densos) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
@@ -1529,7 +1568,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos). As páginas 2 e 3 devem ter 4 parágrafos (densos) cada.
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada.
     5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
     `;
 
@@ -1627,7 +1666,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     OBRIGAÇÕES CRÍTICAS PARA O REFAZER (PASSO 2):
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    3. A primeira página de cada capítulo deve ter 2 parágrafos (curtos). As páginas 2 e 3 devem ter 4 parágrafos (densos) cada.
+    3. A primeira página de cada capítulo deve ter 2 parágrafos (curtos, 3-4 linhas). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada.
     `;
 
     const data = await chamarMotorIA(instrucao, [
@@ -1636,6 +1675,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     ], false);
 
     if (data && data.html) {
+      // Substitui os capítulos antigos pelos novos
       aplicarHtmlNovo(data.html, true, true);
       setEtapaAtual(2);
       (window as any).showNotification("3 capítulos refeitos com sucesso! Confira o resultado.", "success");
@@ -1832,21 +1872,16 @@ Mantenha a consistência visual com o resto do e-book.`;
     : false;
 
   // ============================================================
-  // RENDER
+  // RENDER (MANTIDO IGUAL)
   // ============================================================
   return (
     <>
-      {/* Aviso mobile */}
       <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
         <i className="fas fa-desktop text-6xl mb-6 text-indigo-400"></i>
         <h2 className="text-2xl font-black mb-3">Acesso Restrito ao Computador</h2>
-        <p className="text-base text-slate-300">
-          Para garantir uma experiência de nível profissional na edição e diagramação do seu E-book, o painel do E-bookPro
-          deve ser acessado por uma tela maior.
-        </p>
+        <p className="text-base text-slate-300">Para garantir uma experiência de nível profissional na edição e diagramação do seu E-book, o painel do E-bookPro deve ser acessado por uma tela maior.</p>
       </div>
 
-      {/* Desktop */}
       <div className="hidden md:flex h-screen overflow-hidden relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
         <style dangerouslySetInnerHTML={{ __html: `
@@ -1861,12 +1896,10 @@ Mantenha a consistência visual com o resto do e-book.`;
           .modal-content { background: white; border-radius: 1.5rem; padding: 2rem; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
         ` }} />
 
-        {/* Inputs ocultos para upload */}
         <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
         <input type="file" ref={extraImageInputRef} onChange={handleExtraImageUpload} accept="image/*" className="hidden" />
         <input type="file" ref={uploadInputRef} onChange={handleUploadFile} accept=".html,.htm" className="hidden" />
 
-        {/* Loading */}
         {statusApis.processing && (
           <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
             <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-5"></div>
@@ -1875,7 +1908,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           </div>
         )}
 
-        {/* Modal página extra */}
         {showModalPagina && (
           <div className="modal-overlay" onClick={() => setShowModalPagina(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -1954,7 +1986,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           </div>
         )}
 
-        {/* Modal Biblioteca */}
         {modalBiblioteca && (
           <div className="fixed inset-0 z-[99998] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
@@ -2015,7 +2046,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           </div>
         )}
 
-        {/* Sidebar esquerda */}
         <aside className="w-[380px] bg-white border-r border-slate-200 flex flex-col h-full z-10 flex-shrink-0 shadow-sm">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <h1 className="text-xl font-black tracking-tight text-slate-800 flex items-center">
@@ -2038,7 +2068,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
-            {/* Painel principal (não editor) */}
             {!modoInspetor && (
               <div className="divide-y divide-slate-100">
                 <div className="panel-section">
@@ -2108,7 +2137,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                       </label>
                     </div>
 
-                    {/* Botões de etapas e refazer */}
                     <div className="grid grid-cols-3 gap-2 pt-1">
                       <div className="flex flex-col items-center gap-1">
                         <button
@@ -2156,7 +2184,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                   </div>
                 </div>
 
-                {/* Configurações visuais */}
                 <div className="panel-section">
                   <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
                   <div className="grid grid-cols-2 gap-3 mb-3">
@@ -2321,13 +2348,10 @@ Mantenha a consistência visual com o resto do e-book.`;
                     >
                       <i className="fas fa-plus-circle"></i> Inserir Página Extra
                     </button>
-                    <p className="text-[9px] text-slate-400 text-center mt-1.5">
-                      Adicione dedicatória, agradecimentos, etc.
-                    </p>
+                    <p className="text-[9px] text-slate-400 text-center mt-1.5">Adicione dedicatória, agradecimentos, etc.</p>
                   </div>
                 </div>
 
-                {/* Fundo da 2ª página */}
                 <div className="panel-section">
                   <div className="flex items-center justify-between mb-2">
                     <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
@@ -2361,15 +2385,11 @@ Mantenha a consistência visual com o resto do e-book.`;
                       </div>
                     </div>
                   )}
-                  <p className="text-[9px] text-slate-400 mt-2">
-                    Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar
-                    globalmente após gerar.
-                  </p>
+                  <p className="text-[9px] text-slate-400 mt-2">Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar globalmente após gerar.</p>
                 </div>
               </div>
             )}
 
-            {/* Painel do editor (modoInspetor) */}
             {modoInspetor && (
               <div className="animate-[fadeIn_0.2s_ease] mt-4 border-t border-slate-200 pt-4">
                 <div className="bg-indigo-600 text-white p-4 text-[11px] font-black tracking-widest uppercase flex justify-between items-center shadow-inner">
@@ -2382,17 +2402,13 @@ Mantenha a consistência visual com o resto do e-book.`;
                       <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
                     </div>
                     <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                    <p className="text-xs font-medium text-slate-400">
-                      Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.
-                    </p>
+                    <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
                   </div>
                 ) : (
                   <div className="pb-10 bg-white">
                     <div className="panel-section bg-slate-50/50">
                       <div className="flex justify-between items-center mb-3">
-                        <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">
-                          Tag: {elementoSelecionado.tagName}
-                        </span>
+                        <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
                         <div className="flex gap-2">
                           {(elementoSelecionado.tagName === 'img' ||
                             elementoSelecionado.bgImage ||
@@ -2569,10 +2585,8 @@ Mantenha a consistência visual com o resto do e-book.`;
                         <div className="pt-3 border-t border-slate-100">
                           <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
                             <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
-                            <strong>Container Estrutural</strong>
-                            <br />
-                            A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar
-                            toda a página ou clique num parágrafo.
+                            <strong>Container Estrutural</strong><br/>
+                            A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
                           </div>
                         </div>
                       )}
@@ -2590,10 +2604,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                           />
                         </div>
                         <div>
-                          <label className="input-label mb-0 text-[9px] flex justify-between">
-                            Tamanho Fonte{' '}
-                            <span className="text-indigo-600 font-bold">{elementoSelecionado.fontSize || 16}px</span>
-                          </label>
+                          <label className="input-label mb-0 text-[9px] flex justify-between">Tamanho Fonte <span className="text-indigo-600 font-bold">{elementoSelecionado.fontSize || 16}px</span></label>
                           <input
                             type="range"
                             min="10"
@@ -2610,30 +2621,10 @@ Mantenha a consistência visual com o resto do e-book.`;
                       <div className="panel-section border-t border-slate-100">
                         <label className="input-label mb-2 text-[9px]">Alinhamento</label>
                         <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
-                          <button
-                            onClick={() => atualizarElemento('textAlign', 'text-left')}
-                            className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"
-                          >
-                            <i className="fas fa-align-left"></i>
-                          </button>
-                          <button
-                            onClick={() => atualizarElemento('textAlign', 'text-center')}
-                            className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"
-                          >
-                            <i className="fas fa-align-center"></i>
-                          </button>
-                          <button
-                            onClick={() => atualizarElemento('textAlign', 'text-right')}
-                            className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"
-                          >
-                            <i className="fas fa-align-right"></i>
-                          </button>
-                          <button
-                            onClick={() => atualizarElemento('textAlign', 'text-justify')}
-                            className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"
-                          >
-                            <i className="fas fa-align-justify"></i>
-                          </button>
+                          <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
+                          <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
+                          <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
+                          <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
                         </div>
                       </div>
                     )}
@@ -2649,7 +2640,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           </div>
         </aside>
 
-        {/* Área de preview */}
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
           <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
             <div className="flex items-center gap-3">
