@@ -1428,37 +1428,37 @@ Mantenha a consistência visual com o resto do e-book.`;
     3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
        Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
 
-       <!-- PÁGINA 1 -->
+       <!-- PÁGINA 1 (título + 2 parágrafos) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
            <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?abstract,photography&sig=${Math.random()}" alt="Banner">
            <h3 class="subtopic-title">[Subtítulo 1]</h3>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
+           <p>[Parágrafo 1 (curto, 2-3 linhas)]</p>
+           <p>[Parágrafo 2 (curto, 2-3 linhas)]</p>
            <div class="page-footer"><span></span><span class="page-number"></span></div>
        </div>
 
-       <!-- PÁGINA 2 -->
+       <!-- PÁGINA 2 (4 parágrafos) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
+           <p>[Parágrafo 1 - denso, 4-6 linhas]</p>
+           <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
            <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
+           <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
+           <p>[Parágrafo 4 - denso, 4-6 linhas]</p>
            <div class="page-footer"><span></span><span class="page-number"></span></div>
        </div>
 
-       <!-- PÁGINA 3 -->
+       <!-- PÁGINA 3 (4 parágrafos) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo denso de 4-6 linhas]</p>
-           <p>[Parágrafo extra e denso de 4-6 linhas focado em preencher todo o buraco do rodapé da última página]</p>
+           <p>[Parágrafo 1 - denso, 4-6 linhas]</p>
+           <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
+           <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
+           <p>[Parágrafo 4 - denso, 4-6 linhas, preenchendo bem a página]</p>
            <div class="page-footer"><span></span><span class="page-number"></span></div>
        </div>
     `;
@@ -1512,7 +1512,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- ETAPA 2: Adicionar 1 capítulo ----
+  // ---- ETAPA 2: Adicionar 3 capítulos ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1526,22 +1526,22 @@ Mantenha a consistência visual com o resto do e-book.`;
     const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
     ${regrasComuns}
     OBRIGAÇÕES CRÍTICAS (PASSO 2):
-    1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o novo capítulo/conteúdo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
+    1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
-    3. QUANTIDADE: Gere EXATAMENTE 1 CAPÍTULO usando o MOLDE ESTRITO fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: Cada página de conteúdo (após a primeira) deve ter OBRIGATORIAMENTE 4 parágrafos. A primeira página do capítulo deve ter 2 parágrafos.
+    3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos). As páginas 2 e 3 devem ter 4 parágrafos (densos) cada.
     5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
     `;
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 1 capítulo completo):\n"""\n${content || 'Gere o próximo capítulo garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras.'}\n"""` },
+      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 3 capítulos completos, com 3 páginas cada):\n"""\n${content || 'Gere os próximos 3 capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras.'}\n"""` },
     ], false);
 
     if (data && data.html) {
       aplicarHtmlNovo(data.html, true, true);
       setEtapaAtual(2);
-      (window as any).showNotification('Passo 2 Concluído! Conteúdo adicionado.', 'success');
+      (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
     }
@@ -1622,25 +1622,25 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const { regrasComuns } = obterInstrucoesBase();
 
-    const instrucao = `Você vai REFAZER o capítulo gerado. O usuário não gostou da versão anterior e quer que você reescreva do zero com mais qualidade.
+    const instrucao = `Você vai REFAZER os capítulos gerados. O usuário não gostou da versão anterior e quer que você reescreva do zero com mais qualidade.
     ${regrasComuns}
     OBRIGAÇÕES CRÍTICAS PARA O REFAZER (PASSO 2):
-    1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
-    2. QUANTIDADE: Gere EXATAMENTE 1 CAPÍTULO usando o MOLDE ESTRITO fornecido nas regras comuns.
-    3. A página de título do capítulo DEVE conter a imagem e apenas 2 parágrafos de texto.
+    1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
+    2. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
+    3. A primeira página de cada capítulo deve ter 2 parágrafos (curtos). As páginas 2 e 3 devem ter 4 parágrafos (densos) cada.
     `;
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL (Até a Introdução):\n"""\n${htmlBase}\n"""` },
-      { text: `TEXTO BASE / TEMA PARA REFAZER O CAPÍTULO 1:\n"""\n${content || 'Refaça o capítulo com uma escrita impecável.'}\n"""` },
+      { text: `TEXTO BASE / TEMA PARA REFAZER OS 3 CAPÍTULOS:\n"""\n${content || 'Refaça os capítulos com uma escrita impecável.'}\n"""` }
     ], false);
 
     if (data && data.html) {
       aplicarHtmlNovo(data.html, true, true);
       setEtapaAtual(2);
-      (window as any).showNotification('Capítulo refeito com sucesso! Confira o resultado.', 'success');
+      (window as any).showNotification("3 capítulos refeitos com sucesso! Confira o resultado.", "success");
     } else {
-      console.error('Dados retornados pela IA são inválidos:', data);
+      console.error("Dados retornados pela IA são inválidos:", data);
     }
   }
 
@@ -2129,7 +2129,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                           onClick={continuarEbookEtapas}
                           className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
                         >
-                          2. +1 Capítulo
+                          2. +3 Capítulos
                         </button>
                         <button
                           onClick={refazerEtapa2}
