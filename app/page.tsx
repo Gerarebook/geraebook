@@ -943,7 +943,7 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (ATUALIZADA PARA INCLUIR BLOCKQUOTE)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (CORRIGIDA)
   // ============================================================
   function validarParagrafos(html: string): string {
     // Se for modo receitas, não força os parágrafos (estrutura diferente)
@@ -956,6 +956,11 @@ ${ebookStyles}
     while ((match = regexPaginas.exec(html)) !== null) {
       const paginaCompleta = match[0];
       const conteudo = match[2];
+
+      // Pular páginas que são overlay de capítulo (primeira página) - não têm subtítulo
+      if (conteudo.includes('cap-img-overlay') || conteudo.includes('cap-box-rounded')) {
+        if (!conteudo.includes('subtopic-title')) continue;
+      }
 
       // Verifica se é uma página de capítulo (tem título e não é índice/introdução/conclusão/autor)
       const temTituloCapitulo = conteudo.includes('chapter-title-inline') &&
@@ -970,19 +975,21 @@ ${ebookStyles}
         !conteudo.includes('Sobre o Autor');
 
       if (temTituloCapitulo) {
-        // Conta quantos parágrafos existem
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
-        const temImagem = conteudo.includes('chapter-banner-img');
         const temSubtitulo = conteudo.includes('subtopic-title');
         const temBlockquote = conteudo.includes('<blockquote');
 
-        // Página 1: tem imagem e título, deve ter 2 parágrafos
-        if (temImagem && temSubtitulo) {
-          if (paragrafos.length < 2) {
-            const faltando = 2 - paragrafos.length;
+        // Se tem subtítulo, é página 2 ou 3 (pois a página 1 pode ter subtítulo 1, mas se tiver imagem, é a página 1)
+        // Vamos considerar que páginas com subtítulo e sem imagem são páginas 2 e 3.
+        const temImagem = conteudo.includes('chapter-banner-img');
+        if (temSubtitulo && !temImagem) {
+          // Exigir no mínimo 5 parágrafos
+          const minParagrafos = 5;
+          if (paragrafos.length < minParagrafos) {
+            const faltando = minParagrafos - paragrafos.length;
             let novos = '';
             for (let i = 0; i < faltando; i++) {
-              novos += `<p>[Parágrafo adicional ${i+1} - preencha com conteúdo]</p>\n`;
+              novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
             }
             const footerIndex = conteudo.lastIndexOf('</div>');
             if (footerIndex !== -1) {
@@ -990,27 +997,11 @@ ${ebookStyles}
               novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
             }
           }
-        }
-        // Páginas 2 e 3: não tem imagem, tem subtítulos
-        else if (!temImagem && temSubtitulo) {
-          // Página 3 (última) deve ter blockquote + 4 parágrafos
-          const isUltimaPagina = !conteudo.includes('Subtítulo 2') && conteudo.includes('Subtítulo 3');
-          const totalParagrafosNecessarios = 4;
-          
-          if (paragrafos.length < totalParagrafosNecessarios) {
-            const faltando = totalParagrafosNecessarios - paragrafos.length;
-            let novos = '';
-            for (let i = 0; i < faltando; i++) {
-              novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante]</p>\n`;
-            }
-            const footerIndex = conteudo.lastIndexOf('</div>');
-            if (footerIndex !== -1) {
-              const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
-              novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
-            }
-          }
-          // Se for a última página e não tiver blockquote, adicionar um
-          if (isUltimaPagina && !temBlockquote) {
+
+          // Se for a última página do capítulo (detecta se tem o terceiro subtítulo)
+          const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
+                               /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
+          if (temSubtitulo3 && !temBlockquote) {
             const footerIndex = conteudo.lastIndexOf('</div>');
             if (footerIndex !== -1) {
               const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
@@ -1528,6 +1519,10 @@ Mantenha a consistência visual com o resto do e-book.`;
       </div>`;
     }
 
+    // Para box-arredondado, páginas 2 e 3 terão 5 parágrafos no molde
+    const paragrafosPorPagina = estiloCapitulos === 'box-arredondado' ? 5 : 4;
+    const paragrafosExtras = estiloCapitulos === 'box-arredondado' ? '<p>[Parágrafo 5 - denso, 4-6 linhas, para ocupar todo o espaço]</p>' : '';
+
     const regrasComuns = `
     DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
     ${regraImagem}
@@ -1539,7 +1534,7 @@ Mantenha a consistência visual com o resto do e-book.`;
 
        ${moldePrimeiraPagina}
 
-       <!-- PÁGINA 2 (4 parágrafos densos) -->
+       <!-- PÁGINA 2 (${paragrafosPorPagina} parágrafos densos) -->
        <div class="page-container">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
@@ -1548,17 +1543,19 @@ Mantenha a consistência visual com o resto do e-book.`;
            <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 4 - denso, 4-6 linhas]</p>
+           ${paragrafosExtras}
            <div class="page-footer">${regraRodape}</div>
        </div>
 
-       <!-- PÁGINA 3 (4 parágrafos densos + blockquote com reflexão) -->
+       <!-- PÁGINA 3 (${paragrafosPorPagina} parágrafos densos + blockquote) -->
        <div class="page-container">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
            <p>[Parágrafo 1 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
-           <p>[Parágrafo 4 - denso, 4-6 linhas, preenchendo bem a página]</p>
+           <p>[Parágrafo 4 - denso, 4-6 linhas]</p>
+           ${paragrafosExtras}
            <blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
@@ -1651,7 +1648,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo.
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter ${estiloCapitulos === 'box-arredondado' ? '5' : '4'} parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo.
     5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Os subtítulos devem ser "Ingredientes" (Subtítulo 1) e "Modo de Preparo" (Subtítulo 2). O Subtítulo 3 pode ser "Dicas do Chef". As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
     `;
 
