@@ -1527,9 +1527,9 @@ Mantenha a consistência visual com o resto do e-book.`;
        </div>
     `;
 
-    // Molde específico para receitas (2 páginas: título+ingredientes, modo de preparo)
+    // Molde específico para receitas – CORRIGIDO: ingredientes em lista e modo de preparo em parágrafos
     let moldeReceitas = `
-      <!-- PÁGINA 1: Título + Imagem de fundo + Ingredientes -->
+      <!-- PÁGINA 1: Título + Imagem de fundo + Ingredientes (lista) -->
       <div class="page-container cap-img-overlay" style="background-image: url('https://source.unsplash.com/featured/1200x800/?{palavras-chave},food&sig=${Math.random()}');">
           <div class="cap-overlay-box">
               <div class="receita-icon"><i class="fas fa-utensils"></i></div>
@@ -1545,7 +1545,7 @@ Mantenha a consistência visual com o resto do e-book.`;
           </div>
       </div>
 
-      <!-- PÁGINA 2: Modo de Preparo -->
+      <!-- PÁGINA 2: Modo de Preparo (parágrafos) -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>Modo de Preparo</span></div>
           <h3 class="subtopic-title">Modo de Preparo</h3>
@@ -1579,16 +1579,17 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const regrasCompletas = regrasComuns + '\n\n' + moldeCompleto;
 
-    // Instruções específicas para modo receitas (além do molde)
+    // Instruções específicas para modo receitas – agora mais claras
     let instrucoesModo = '';
     if (modoConteudo === 'receitas') {
       instrucoesModo = `
       MODO RECEITAS ATIVO:
       - NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita.
       - A primeira página deve conter o título da receita, uma imagem de fundo (banner) e a lista de ingredientes, todos dentro do overlay.
+      - A lista de ingredientes DEVE ser uma <ul> (lista não ordenada) com cada ingrediente em um <li>.
       - A segunda página deve ter o subtítulo "Modo de Preparo" e o preparo em parágrafos (passo a passo). Inclua um blockquote com uma citação ou dica no final.
       - Utilize ícones (por exemplo, <i class="fas fa-utensils"></i>) para enfeitar.
-      - As imagens devem ser buscadas com palavras-chave relacionadas ao nome da receita + "food".
+      - As imagens devem ser buscadas com palavras-chave relacionadas ao nome da receita + "food". Substitua o placeholder {palavras-chave} pelo nome da receita em INGLÊS.
       - O conteúdo deve ser claro e apetitoso.
       `;
     } else {
@@ -1669,7 +1670,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
     4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo (exceto no modo receitas).
-    5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Siga o molde específico para receitas: título, ingredientes (lista), modo de preparo (parágrafos ou passos). Não use blockquote.
+    5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Siga o molde específico para receitas: título, ingredientes (lista <ul>), modo de preparo (parágrafos). Não use blockquote, a menos que seja uma dica final.
     `;
 
     const data = await chamarMotorIA(instrucao, [
