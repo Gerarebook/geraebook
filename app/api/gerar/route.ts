@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 // =====================================================================
 // 🎛️ PAINEL DE CONTROLE MESTRE DA INTELIGÊNCIA ARTIFICIAL
 // =====================================================================
-const PROVEDOR_ATIVO: 'gemini' | 'groq' | 'together' | 'nvidia' = 'gemini';
+const PROVEDOR_ATIVO: 'gemini' | 'together' = 'gemini';
 const CUSTO_POR_ACAO = 10; 
 
 // =====================================================================
