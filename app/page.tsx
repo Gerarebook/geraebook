@@ -661,7 +661,6 @@ img.chapter-banner-img {
   margin-top: 0 !important;
 }
 
-/* --- CONTÊINER DE PÁGINA COM TRAVAS RÍGIDAS DE VAZAMENTO --- */
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text,
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
   background-color: var(--color-bg);
@@ -674,15 +673,15 @@ img.chapter-banner-img {
   flex-shrink: 0 !important;
   padding: ${conf.padding};
   margin: 0 auto 20px auto;
-  box-sizing: border-box !important;
+  box-sizing: border-box;
   position: relative;
-  overflow: hidden !important;        /* ← TRAVA MESTRE: nenhum conteúdo escapa da caixa */
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
+  overflow: hidden;
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
   break-inside: avoid;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
   counter-increment: ebook-page;
 }
@@ -832,19 +831,7 @@ h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; lin
 
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-p {
-  font-size: ${tamanhoFonteBase} !important;
-  line-height: var(--line-spacing) !important;
-  margin-top: 0 !important;
-  margin-bottom: var(--p-spacing) !important;
-  text-align: justify !important;
-  text-indent: var(--text-indent) !important;
-  hyphens: auto;
-  -webkit-hyphens: auto;
-  max-width: 100% !important;
-  overflow-wrap: break-word !important;
-  word-wrap: break-word !important;
-}
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
 
 blockquote {
   page-break-inside: avoid; break-inside: avoid;
@@ -1285,7 +1272,7 @@ ${ebookStyles}
     }
 
     try {
-      const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '';
+      const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || ''; 
       let url = '';
 
       if (accessKey) {
@@ -1294,9 +1281,9 @@ ${ebookStyles}
             Authorization: `Client-ID ${accessKey}`
           }
         });
-
+        
         if (!unsplashRes.ok) throw new Error('Erro ao autenticar na API do Unsplash. Verifique sua chave.');
-
+        
         const unsplashData = await unsplashRes.json();
         url = unsplashData.urls.regular;
       } else {
@@ -1490,11 +1477,26 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // FUNÇÃO ATUALIZADA: obterInstrucoesBase COM NÚMERO REAL DO CAPÍTULO E TRAVAS DE MARGEM
+  // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
   // ============================================================
-  function obterInstrucoesBase(numeroCapitulo?: number, isRecipe: boolean = false) {
-    // Se não for passado um número, usamos um placeholder para evitar quebra, mas o ideal é sempre passar.
-    const capituloNum = numeroCapitulo !== undefined ? numeroCapitulo : 'X';
+  function getNextChapterNumber(html: string): number {
+    if (!html) return 1;
+    const regex = /Capítulo\s*(\d+)/gi;
+    let match;
+    let max = 0;
+    while ((match = regex.exec(html)) !== null) {
+      const num = parseInt(match[1], 10);
+      if (num > max) max = num;
+    }
+    return max + 1;
+  }
+
+  // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
+  // ============================================================
+  function obterInstrucoesBase(opts?: { numeroCapitulo?: number; modo?: 'padrao' | 'receitas' }) {
+    const numero = opts?.numeroCapitulo || 1;
+    const modo = opts?.modo || 'padrao';
 
     let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
     let regraRodape = '';
@@ -1510,58 +1512,52 @@ Mantenha a consistência visual com o resto do e-book.`;
     - PROIBIDO ABSOLUTAMENTE usar imagens com animais, tecnologia, sci-fi, desenhos ou gráficos 3D. Apenas fotografias reais.
     `;
 
-    // ============================================================
-    // MOLDE PADRÃO (3 páginas por capítulo) com travas rígidas de largura
-    // ============================================================
     const moldePrimeiraPagina = `
-      <!-- PÁGINA 1 - CAPÍTULO ${capituloNum} -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-wrap: break-word; overflow-wrap: break-word;">
-          <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${capituloNum}</span></div>
-          <h2 class="chapter-title-inline">Capítulo ${capituloNum}: [Nome do Capítulo]</h2>
+      <!-- PÁGINA 1 -->
+      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+          <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
+          <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-          <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 1 - Mantenha frases concisas dentro das margens]</p>
-          <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 2 - Mantenha frases concisas dentro das margens]</p>
+          <p>[Parágrafo 1 - Mantenha frases concisas dentro das margens]</p>
+          <p>[Parágrafo 2 - Mantenha frases concisas dentro das margens]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>`;
 
-    const moldePaginas = `
+    let moldePaginas = `
        ${moldePrimeiraPagina}
 
-       <!-- PÁGINA 2 - CAPÍTULO ${capituloNum} -->
-       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-wrap: break-word; overflow-wrap: break-word;">
-           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${capituloNum}</span></div>
+       <!-- PÁGINA 2 -->
+       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 1]</p>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 2]</p>
+           <p>[Parágrafo 1]</p>
+           <p>[Parágrafo 2]</p>
            <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 3]</p>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 4]</p>
+           <p>[Parágrafo 3]</p>
+           <p>[Parágrafo 4]</p>
            <div class="page-footer">${regraRodape}</div>
        </div>
 
-       <!-- PÁGINA 3 - CAPÍTULO ${capituloNum} -->
-       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-wrap: break-word; overflow-wrap: break-word;">
-           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${capituloNum}</span></div>
+       <!-- PÁGINA 3 -->
+       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 1]</p>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 2]</p>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 3]</p>
-           <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Parágrafo 4]</p>
+           <p>[Parágrafo 1]</p>
+           <p>[Parágrafo 2]</p>
+           <p>[Parágrafo 3]</p>
+           <p>[Parágrafo 4]</p>
            <blockquote><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
     `;
 
-    // ============================================================
-    // MOLDE PARA RECEITAS (UMA ÚNICA PÁGINA COM TUDO)
-    // ============================================================
-    const moldeReceitaUnica = `
-      <!-- RECEITA ÚNICA - ${capituloNum} -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-wrap: break-word; overflow-wrap: break-word;">
-          <div class="page-header"><span>${livroTitulo}</span><span>Receita ${capituloNum}</span></div>
+    let moldeReceitas = `
+      <!-- PÁGINA 1: Título + Banner + Ingredientes -->
+      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+          <div class="page-header"><span>${livroTitulo}</span><span>[Nome da Receita]</span></div>
           <h2 class="chapter-title-inline">[Nome da Receita]</h2>
-          <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?food&sig=${Math.random()}" alt="Banner da Receita">
+          <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner da Receita">
           <h3 class="subtopic-title">Ingredientes</h3>
           <ul>
               <li>[Ingrediente 1 - quantidade]</li>
@@ -1570,58 +1566,47 @@ Mantenha a consistência visual com o resto do e-book.`;
               <li>[Ingrediente 4 - quantidade]</li>
               <li>[Ingrediente 5 - quantidade]</li>
           </ul>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+
+      <!-- PÁGINA 2: Modo de Preparo + Citação -->
+      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+          <div class="page-header"><span>${livroTitulo}</span><span>Modo de Preparo</span></div>
           <h3 class="subtopic-title">Modo de Preparo</h3>
-          <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Passo 1: descrição detalhada do preparo]</p>
-          <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Passo 2: continuação]</p>
-          <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Passo 3: ...]</p>
-          <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Passo 4: ...]</p>
-          <p style="max-width:100%; overflow-wrap:break-word; word-wrap:break-word;">[Passo 5: finalização]</p>
-          <!-- QUALQUER COMPLEMENTO ADICIONAL FICA AQUI, NA MESMA PÁGINA -->
-          <div class="highlight-box"><i class="fas fa-utensils"></i> [Dica extra ou observação final]</div>
-          <blockquote><i class="fas fa-quote-left"></i> [Citação ou curiosidade sobre a receita]</blockquote>
+          <p>[Passo 1 - descrição detalhada]</p>
+          <p>[Passo 2 - continuação]</p>
+          <p>[Passo 3 - ...]</p>
+          <p>[Passo 4 - ...]</p>
+          <p>[Passo 5 - finalização]</p>
+          <blockquote><i class="fas fa-quote-left"></i> [Dica ou reflexão sobre a receita]</blockquote>
           <div class="page-footer">${regraRodape}</div>
       </div>
     `;
 
     const regrasComuns = `
     DIRETRIZES DE SEGURANÇA E FORMATAÇÃO:
-    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${capituloNum}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
-    2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container"> com as travas de estilo inline (overflow:hidden; max-width:100%; box-sizing:border-box;). 
+    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
+    2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
     3. FOTOGRAFIA: Use apenas imagens reais.
-    4. PARA RECEITAS: Toda a receita (ingredientes, preparo, dicas) DEVE ficar em UMA ÚNICA página. Não crie páginas adicionais.
-    5. NUNCA crie textos compridos sem quebras que estourem a largura da página. Use quebras de linha (br) ou parágrafos curtos.
+    4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento.
     `;
 
-    // Seleciona o molde conforme o modo
-    let moldeEscolhido = isRecipe ? moldeReceitaUnica : moldePaginas;
+    let moldeFinal = '';
+    if (modo === 'receitas') {
+      moldeFinal = moldeReceitas;
+    } else {
+      moldeFinal = moldePaginas;
+    }
 
-    // Acrescenta a regra de proibição de imagens na introdução e conclusão (já existente)
-    const regraIntroConclusao = `
-    IMPORTANTE: Introdução e Conclusão NUNCA devem conter imagens. Apenas texto puro.
-    `;
-
-    return {
-      regrasCompletas: regrasComuns + '\n\n' + moldeEscolhido + '\n\n' + regraIntroConclusao,
+    return { 
+      regrasCompletas: regrasComuns + '\n\n' + moldeFinal, 
       regraRodape,
-      moldeEscolhido
+      numero
     };
   }
 
   // ============================================================
-  // FUNÇÃO AUXILIAR: CONTAR CAPÍTULOS EXISTENTES NO HTML
-  // ============================================================
-  function contarCapitulosExistentes(html: string): number {
-    if (!html) return 0;
-    // Busca por padrões "Capítulo X:" ou "Capítulo X" no texto dos títulos
-    const matches = html.match(/Capítulo\s+(\d+)/gi);
-    if (!matches) return 0;
-    const numeros = matches.map(m => parseInt(m.replace(/\D/g, ''))).filter(n => !isNaN(n));
-    if (numeros.length === 0) return 0;
-    return Math.max(...numeros);
-  }
-
-  // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS) - ATUALIZADAS
+  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
   // ============================================================
 
   // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
@@ -1632,9 +1617,8 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    // Para a etapa 1, não precisamos de número de capítulo
-    const { regrasCompletas, regraRodape } = obterInstrucoesBase(1, false);
-
+    // Não usa numeroCapitulo
+    const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'padrao' });
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
@@ -1674,7 +1658,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- ETAPA 2: Adicionar 3 capítulos (COM NUMERAÇÃO SEQUENCIAL) ----
+  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial) ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1683,36 +1667,54 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    // Conta quantos capítulos já existem para saber o próximo número
-    const capitulosExistentes = contarCapitulosExistentes(currentHtml);
-    const proximoNumero = capitulosExistentes + 1;
+    // Calcula o próximo número de capítulo
+    const proximoNumero = getNextChapterNumber(currentHtml);
+    const isModoReceitas = modoConteudo === 'receitas';
 
-    const isRecipe = modoConteudo === 'receitas';
+    // Para receitas, não usamos numeração, mas precisamos do molde
+    const modo = isModoReceitas ? 'receitas' : 'padrao';
 
-    // Obtém as instruções com o número real do capítulo
-    const { regrasCompletas } = obterInstrucoesBase(proximoNumero, isRecipe);
-
-    // Monta a instrução para gerar 3 capítulos sequenciais
-    const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
-    ${regrasCompletas}
-
-    OBRIGAÇÕES CRÍTICAS (PASSO 2):
-    1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
-    2. ONDE CONTINUAR: O último capítulo existente é o ${capitulosExistentes}. Portanto, o PRÓXIMO capítulo a ser gerado é o ${proximoNumero}. Continue a sequência a partir daí.
-    3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO fornecido nas regras.
-    4. NUMERAÇÃO RÍGIDA: Use OBRIGATORIAMENTE os números ${proximoNumero}, ${proximoNumero+1} e ${proximoNumero+2} para os títulos e cabeçalhos. NÃO pule números.
-    5. ${isRecipe ? 'MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Toda a receita deve ficar em UMA ÚNICA página.' : 'MODO PADRÃO: Siga o molde de 3 páginas por capítulo.'}
-    `;
+    // Para gerar 3 capítulos, chamamos a IA com os números sequenciais.
+    // Para receitas, passamos apenas o molde sem numeração.
+    let instrucao = '';
+    if (isModoReceitas) {
+      // No modo receitas, geramos 3 receitas sem numeração
+      const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'receitas' });
+      instrucao = `Você vai CONTINUAR a escrita de um e-book de RECEITAS, gerando 3 novas receitas.
+      ${regrasCompletas}
+      ATENÇÃO: NUNCA use a palavra "Capítulo". Use somente o nome da receita.
+      Cada receita deve ocupar 2 páginas: a primeira com título, banner e ingredientes; a segunda com modo de preparo e uma citação.
+      Não use highlight-box, apenas o blockquote no final da segunda página.
+      A sua resposta deve conter APENAS os blocos HTML das 3 receitas, sem repetir cabeçalhos ou rodapés adicionais.
+      `;
+    } else {
+      // Modo padrão: gerar 3 capítulos com numeração sequencial
+      const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, modo: 'padrao' });
+      const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, modo: 'padrao' });
+      const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
+      // Juntamos as regras (mas a IA vai receber o molde completo de cada capítulo)
+      // Vamos passar uma instrução única com os três moldes.
+      instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
+      Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
+      Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
+      ATENÇÃO: Não pule números e não crie capítulos com numeração diferente.
+      MOLDE PARA CADA CAPÍTULO:
+      ${cap1.regrasCompletas}
+      ${cap2.regrasCompletas}
+      ${cap3.regrasCompletas}
+      A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos, sem repetir cabeçalhos ou rodapés adicionais.
+      `;
+    }
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (gerar 3 capítulos completos, numerados sequencialmente a partir de ${proximoNumero}):\n"""\n${content || 'Gere os próximos 3 capítulos garantindo OBRIGATORIAMENTE o molde exato fornecido nas regras.'}\n"""` },
+      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
     ], false);
 
     if (data && data.html) {
       aplicarHtmlNovo(data.html, true, true);
       setEtapaAtual(2);
-      (window as any).showNotification(`Passo 2 Concluído! Capítulos ${proximoNumero} a ${proximoNumero+2} adicionados.`, 'success');
+      (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
     }
@@ -1725,11 +1727,10 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regraRodape } = obterInstrucoesBase(1, false);
+    const { regraRodape } = obterInstrucoesBase({ modo: 'padrao' });
 
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
-
-    DIRETRIZES DE SEGURANÇA E FORMATAÇÃO:
+    DIRETRIZES:
     1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
     2. MOLDE DE CONCLUSÃO:
     <div class="page-container">
@@ -1739,7 +1740,6 @@ Mantenha a consistência visual com o resto do e-book.`;
         <p>[Conclusão...]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
-
     O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará de adicionar o Autor nativamente.
     `;
 
