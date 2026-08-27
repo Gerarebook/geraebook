@@ -501,7 +501,8 @@ export default function Home() {
   const [corManualSec, setCorManualSec] = useState('#3b82f6');
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
-  const [estiloCapitulos, setEstiloCapitulos] = useState<'inline-imagem' | 'box-arredondado'>('inline-imagem');
+  // Estilo de capítulos agora é fixo: sempre 'inline-imagem'
+  const estiloCapitulos = 'inline-imagem';
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
@@ -616,16 +617,11 @@ export default function Home() {
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
 
-    let capBoxBackground = corBoxCapitulo;
-    let capBoxBorder = '2px solid var(--color-primary)';
-    if (estiloCapitulos === 'box-arredondado') {
-      capBoxBackground = 'rgba(20, 20, 20, 0.45)';
-      capBoxBorder = 'none !important';
-    }
-
-    const isBoxDark = isDarkColor(capBoxBackground);
-    let capBoxTextColor = isBoxDark ? '#ffffff' : 'var(--color-primary)';
-    if (estiloCapitulos === 'box-arredondado') capBoxTextColor = '#ffffff';
+    // Removemos a lógica de capBoxBackground, pois não usamos mais box-arredondado
+    // Mas mantemos uma variável para não quebrar referências no CSS
+    let capBoxBackground = 'rgba(255,255,255,0.95)';
+    let capBoxBorder = 'none';
+    let capBoxTextColor = 'var(--color-primary)';
 
     const ebookStyles = `<style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -743,7 +739,7 @@ img.chapter-banner-img {
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
 .cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
-/* ===== NOVAS REGRAS PARA OVERLAY DE CAPA DE CAPÍTULO ===== */
+/* ===== NOVAS REGRAS PARA OVERLAY DE CAPA DE CAPÍTULO (mantido para compatibilidade) ===== */
 .cap-img-overlay {
   position: relative !important;
   background-size: cover !important;
@@ -951,10 +947,9 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (CORRIGIDA)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS
   // ============================================================
   function validarParagrafos(html: string): string {
-    // Para receitas, não aplicamos a validação genérica (pois a estrutura é diferente)
     if (modoConteudo === 'receitas') return html;
 
     const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
@@ -965,12 +960,11 @@ ${ebookStyles}
       const paginaCompleta = match[0];
       const conteudo = match[2];
 
-      // Pular páginas que são overlay de capítulo (primeira página) - não têm subtítulo
+      // Pular páginas que são overlay de capítulo (não usamos mais, mas mantido para compatibilidade)
       if (conteudo.includes('cap-img-overlay') || conteudo.includes('cap-box-rounded')) {
-        continue; // primeira página do capítulo, sem subtítulo
+        continue;
       }
 
-      // Verifica se é uma página de capítulo (tem subtítulo e não é índice/introdução/conclusão/autor)
       const temSubtitulo = conteudo.includes('subtopic-title');
       const isSpecial = conteudo.includes('Índice') || conteudo.includes('índice') ||
                         conteudo.includes('Sumário') || conteudo.includes('sumário') ||
@@ -982,7 +976,6 @@ ${ebookStyles}
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temBlockquote = conteudo.includes('<blockquote');
 
-        // Exigir no mínimo 5 parágrafos
         const minParagrafos = 5;
         if (paragrafos.length < minParagrafos) {
           const faltando = minParagrafos - paragrafos.length;
@@ -997,12 +990,6 @@ ${ebookStyles}
           }
         }
 
-        // Se for a última página do capítulo (detecta se tem o terceiro subtítulo)
-        // Consideramos que o terceiro subtítulo pode ser "Subtítulo 3", "Modo de Preparo" (para receitas, mas aqui é modo geral),
-        // ou qualquer texto que indique ser o último. Vamos usar a presença de "3" ou "Subtítulo 3" ou se o subtítulo é o último da página.
-        // Uma abordagem: verificar se existe um subtítulo que contenha "3" ou "Subtítulo 3" ou "Conclusão" (mas não).
-        // Vamos simplificar: se a página contém "Subtítulo 3" ou "3" no subtítulo, consideramos última.
-        // No modo expandido, os subtítulos são "Subtítulo 1", "Subtítulo 2", "Subtítulo 3".
         const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
                              /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
         if (temSubtitulo3 && !temBlockquote) {
@@ -1269,7 +1256,7 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // BUSCA DE IMAGEM UNSPLASH (CORRIGIDA)
+  // BUSCA DE IMAGEM UNSPLASH
   // ============================================================
   async function buscarImagemUnsplash() {
     if (!elementoSelecionado) {
@@ -1498,18 +1485,8 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
-    // Determina o molde da primeira página do capítulo com base em estiloCapitulos
-    let moldePrimeiraPagina = '';
-    if (estiloCapitulos === 'box-arredondado') {
-      moldePrimeiraPagina = `
-      <!-- PÁGINA EXCLUSIVA DE TÍTULO DE CAPÍTULO (COM OVERLAY) -->
-      <div class="page-container cap-img-overlay" style="background-image: url('https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig=${Math.random()}');">
-          <div class="cap-overlay-box">
-              <h2 class="chapter-title-inline">Capítulo X: [Nome do Capítulo]</h2>
-          </div>
-      </div>`;
-    } else {
-      moldePrimeiraPagina = `
+    // Molde com banner (inline-imagem) – sempre usado
+    const moldePrimeiraPagina = `
       <!-- PÁGINA 1 (título + imagem + 2 parágrafos) -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
@@ -1520,23 +1497,12 @@ Mantenha a consistência visual com o resto do e-book.`;
           <p>[Parágrafo 2 - 3 a 4 linhas, complementando o primeiro]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>`;
-    }
 
-    const isBox = estiloCapitulos === 'box-arredondado';
-    // Para box-arredondado, a segunda página terá 6 parágrafos (para preencher totalmente)
-    // Para inline-imagem, mantém 4 parágrafos
-    const paragrafosSegundaPagina = isBox ? 6 : 4;
-    // Gera os parágrafos extras para a segunda página (apenas se for box)
-    const paragrafosExtras = isBox ? `
-      <p>[Parágrafo 5 - denso, 4-6 linhas]</p>
-      <p>[Parágrafo 6 - denso, 4-6 linhas]</p>
-    ` : '';
-
-    // Molde padrão para capítulos (não receitas)
+    // Molde padrão para capítulos (não receitas) – sempre 4 parágrafos nas páginas 2 e 3
     let moldePaginas = `
        ${moldePrimeiraPagina}
 
-       <!-- PÁGINA 2 (${paragrafosSegundaPagina} parágrafos densos) -->
+       <!-- PÁGINA 2 (4 parágrafos densos) -->
        <div class="page-container">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
@@ -1545,11 +1511,10 @@ Mantenha a consistência visual com o resto do e-book.`;
            <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 4 - denso, 4-6 linhas]</p>
-           ${paragrafosExtras}
            <div class="page-footer">${regraRodape}</div>
        </div>
 
-       <!-- PÁGINA 3 (${isBox ? 6 : 4} parágrafos densos + blockquote) -->
+       <!-- PÁGINA 3 (4 parágrafos densos + blockquote) -->
        <div class="page-container">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
@@ -1557,9 +1522,6 @@ Mantenha a consistência visual com o resto do e-book.`;
            <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 4 - denso, 4-6 linhas]</p>
-           ${isBox ? `
-           <p>[Parágrafo 5 - denso, 4-6 linhas]</p>
-           <p>[Parágrafo 6 - denso, 4-6 linhas]</p>` : ''}
            <blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
@@ -1706,7 +1668,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter ${estiloCapitulos === 'box-arredondado' ? '6' : '4'} parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo (exceto no modo receitas).
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo (exceto no modo receitas).
     5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Siga o molde específico para receitas: título, ingredientes (lista), modo de preparo (parágrafos ou passos). Não use blockquote.
     `;
 
@@ -1923,7 +1885,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       localStorage.setItem('ebook_draft_html', htmlFinal);
       setRecarregarIframe(true);
     }
-  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, estiloCapitulos]);
+  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
 
   const isTextElement = elementoSelecionado
     ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
@@ -1932,7 +1894,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     : false;
 
   // ============================================================
-  // RENDER (com apenas os botões principais)
+  // RENDER
   // ============================================================
   return (
     <>
@@ -2267,14 +2229,9 @@ Mantenha a consistência visual com o resto do e-book.`;
                     </div>
                     <div>
                       <label className="input-label text-[9px]">Molde de Capítulos</label>
-                      <select
-                        value={estiloCapitulos}
-                        onChange={(e: any) => setEstiloCapitulos(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="inline-imagem">Padrão com Banner de Imagem</option>
-                        <option value="box-arredondado">Capa Exclusiva com Overlay (Box)</option>
-                      </select>
+                      <div className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
+                        <i className="fas fa-image text-indigo-400 mr-1"></i> Padrão com Banner
+                      </div>
                     </div>
                   </div>
 
