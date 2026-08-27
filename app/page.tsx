@@ -1527,22 +1527,22 @@ Mantenha a consistência visual com o resto do e-book.`;
        </div>
     `;
 
-    // Molde específico para receitas – CORRIGIDO: ingredientes em lista e modo de preparo em parágrafos
+    // Molde específico para receitas – AGORA SEM OVERLAY, USANDO LAYOUT PADRÃO COM BANNER
     let moldeReceitas = `
-      <!-- PÁGINA 1: Título + Imagem de fundo + Ingredientes (lista) -->
-      <div class="page-container cap-img-overlay" style="background-image: url('https://source.unsplash.com/featured/1200x800/?{palavras-chave},food&sig=${Math.random()}');">
-          <div class="cap-overlay-box">
-              <div class="receita-icon"><i class="fas fa-utensils"></i></div>
-              <h2 class="chapter-title-inline">[Nome da Receita]</h2>
-              <h3 class="subtopic-title" style="color: var(--color-primary);">Ingredientes</h3>
-              <ul>
-                  <li>[Ingrediente 1 - quantidade]</li>
-                  <li>[Ingrediente 2 - quantidade]</li>
-                  <li>[Ingrediente 3 - quantidade]</li>
-                  <li>[Ingrediente 4 - quantidade]</li>
-                  <li>[Ingrediente 5 - quantidade]</li>
-              </ul>
-          </div>
+      <!-- PÁGINA 1: Título + Imagem banner + Ingredientes (lista) -->
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>[Nome da Receita]</span></div>
+          <h2 class="chapter-title-inline">[Nome da Receita]</h2>
+          <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?{palavras-chave},food&sig=${Math.random()}" alt="Banner da Receita">
+          <h3 class="subtopic-title">Ingredientes</h3>
+          <ul>
+              <li>[Ingrediente 1 - quantidade]</li>
+              <li>[Ingrediente 2 - quantidade]</li>
+              <li>[Ingrediente 3 - quantidade]</li>
+              <li>[Ingrediente 4 - quantidade]</li>
+              <li>[Ingrediente 5 - quantidade]</li>
+          </ul>
+          <div class="page-footer">${regraRodape}</div>
       </div>
 
       <!-- PÁGINA 2: Modo de Preparo (parágrafos) -->
@@ -1579,13 +1579,13 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const regrasCompletas = regrasComuns + '\n\n' + moldeCompleto;
 
-    // Instruções específicas para modo receitas – agora mais claras
+    // Instruções específicas para modo receitas – agora sem overlay
     let instrucoesModo = '';
     if (modoConteudo === 'receitas') {
       instrucoesModo = `
       MODO RECEITAS ATIVO:
       - NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita.
-      - A primeira página deve conter o título da receita, uma imagem de fundo (banner) e a lista de ingredientes, todos dentro do overlay.
+      - A primeira página deve conter o título da receita, uma imagem de banner (como nos capítulos normais) e a lista de ingredientes.
       - A lista de ingredientes DEVE ser uma <ul> (lista não ordenada) com cada ingrediente em um <li>.
       - A segunda página deve ter o subtítulo "Modo de Preparo" e o preparo em parágrafos (passo a passo). Inclua um blockquote com uma citação ou dica no final.
       - Utilize ícones (por exemplo, <i class="fas fa-utensils"></i>) para enfeitar.
