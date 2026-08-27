@@ -732,6 +732,14 @@ img.chapter-banner-img {
   margin-bottom: 1.5rem !important;
 }
 
+.receita-icon {
+  font-size: 40px;
+  color: var(--color-secondary);
+  margin-bottom: 10px;
+  display: block;
+  text-align: center;
+}
+
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
 .cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
@@ -750,8 +758,8 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 
 .cap-img-overlay .cap-overlay-box,
 .cap-box-rounded {
-  background-color: rgba(255, 255, 255, 0.88) !important; /* Branco neutro com 88% de opacidade */
-  backdrop-filter: blur(6px); /* Efeito fosco/glassmorphism */
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(6px);
   padding: 40px 30px !important;
   border-radius: 12px !important;
   max-width: 85% !important;
@@ -1514,15 +1522,21 @@ Mantenha a consistência visual com o resto do e-book.`;
       </div>`;
     }
 
-    // Para box-arredondado, páginas 2 e 3 terão 5 parágrafos no molde
-    const paragrafosPorPagina = estiloCapitulos === 'box-arredondado' ? 5 : 4;
-    const paragrafosExtras = estiloCapitulos === 'box-arredondado' ? '<p>[Parágrafo 5 - denso, 4-6 linhas, para ocupar todo o espaço]</p>' : '';
+    const isBox = estiloCapitulos === 'box-arredondado';
+    // Para box-arredondado, a segunda página terá 6 parágrafos (para preencher totalmente)
+    // Para inline-imagem, mantém 4 parágrafos
+    const paragrafosSegundaPagina = isBox ? 6 : 4;
+    // Gera os parágrafos extras para a segunda página (apenas se for box)
+    const paragrafosExtras = isBox ? `
+      <p>[Parágrafo 5 - denso, 4-6 linhas]</p>
+      <p>[Parágrafo 6 - denso, 4-6 linhas]</p>
+    ` : '';
 
     // Molde padrão para capítulos (não receitas)
     let moldePaginas = `
        ${moldePrimeiraPagina}
 
-       <!-- PÁGINA 2 (${paragrafosPorPagina} parágrafos densos) -->
+       <!-- PÁGINA 2 (${paragrafosSegundaPagina} parágrafos densos) -->
        <div class="page-container">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
@@ -1535,7 +1549,7 @@ Mantenha a consistência visual com o resto do e-book.`;
            <div class="page-footer">${regraRodape}</div>
        </div>
 
-       <!-- PÁGINA 3 (${paragrafosPorPagina} parágrafos densos + blockquote) -->
+       <!-- PÁGINA 3 (${isBox ? 6 : 4} parágrafos densos + blockquote) -->
        <div class="page-container">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
@@ -1543,38 +1557,33 @@ Mantenha a consistência visual com o resto do e-book.`;
            <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 4 - denso, 4-6 linhas]</p>
-           ${paragrafosExtras}
+           ${isBox ? `
+           <p>[Parágrafo 5 - denso, 4-6 linhas]</p>
+           <p>[Parágrafo 6 - denso, 4-6 linhas]</p>` : ''}
            <blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
     `;
 
-    // Molde específico para receitas
-    let moldeReceitas = '';
-    if (modoConteudo === 'receitas') {
-      moldeReceitas = `
-      <!-- PÁGINA EXCLUSIVA DE TÍTULO DA RECEITA (COM OVERLAY) -->
+    // Molde específico para receitas (2 páginas: título+ingredientes, modo de preparo)
+    let moldeReceitas = `
+      <!-- PÁGINA 1: Título + Imagem de fundo + Ingredientes -->
       <div class="page-container cap-img-overlay" style="background-image: url('https://source.unsplash.com/featured/1200x800/?{palavras-chave},food&sig=${Math.random()}');">
           <div class="cap-overlay-box">
+              <div class="receita-icon"><i class="fas fa-utensils"></i></div>
               <h2 class="chapter-title-inline">[Nome da Receita]</h2>
+              <h3 class="subtopic-title" style="color: var(--color-primary);">Ingredientes</h3>
+              <ul>
+                  <li>[Ingrediente 1 - quantidade]</li>
+                  <li>[Ingrediente 2 - quantidade]</li>
+                  <li>[Ingrediente 3 - quantidade]</li>
+                  <li>[Ingrediente 4 - quantidade]</li>
+                  <li>[Ingrediente 5 - quantidade]</li>
+              </ul>
           </div>
       </div>
 
-      <!-- PÁGINA 2: INGREDIENTES (lista não ordenada) -->
-      <div class="page-container">
-          <div class="page-header"><span>${livroTitulo}</span><span>Ingredientes</span></div>
-          <h3 class="subtopic-title">Ingredientes</h3>
-          <ul>
-              <li>[Ingrediente 1 - quantidade]</li>
-              <li>[Ingrediente 2 - quantidade]</li>
-              <li>[Ingrediente 3 - quantidade]</li>
-              <li>[Ingrediente 4 - quantidade]</li>
-              <li>[Ingrediente 5 - quantidade]</li>
-          </ul>
-          <div class="page-footer">${regraRodape}</div>
-      </div>
-
-      <!-- PÁGINA 3: MODO DE PREPARO (passos numerados ou parágrafos) -->
+      <!-- PÁGINA 2: Modo de Preparo -->
       <div class="page-container">
           <div class="page-header"><span>${livroTitulo}</span><span>Modo de Preparo</span></div>
           <h3 class="subtopic-title">Modo de Preparo</h3>
@@ -1583,10 +1592,10 @@ Mantenha a consistência visual com o resto do e-book.`;
           <p>[Passo 3: ...]</p>
           <p>[Passo 4: ...]</p>
           <p>[Passo 5: finalização]</p>
+          <blockquote><i class="fas fa-quote-left"></i> [Dica ou citação sobre a receita]</blockquote>
           <div class="page-footer">${regraRodape}</div>
       </div>
-      `;
-    }
+    `;
 
     const regrasComuns = `
     DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
@@ -1614,11 +1623,10 @@ Mantenha a consistência visual com o resto do e-book.`;
       instrucoesModo = `
       MODO RECEITAS ATIVO:
       - NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita.
-      - A primeira página deve conter apenas o título da receita (sem subtítulo).
-      - A segunda página deve ter o subtítulo "Ingredientes" e uma lista não ordenada (<ul>) com os ingredientes.
-      - A terceira página deve ter o subtítulo "Modo de Preparo" e o preparo em parágrafos ou lista ordenada (passo a passo).
-      - Não utilize blockquote ou highlight-box em receitas.
-      - As imagens devem ser buscadas com palavras-chave relacionadas ao nome da receita + "food", PROIBIDO animais.
+      - A primeira página deve conter o título da receita, uma imagem de fundo (banner) e a lista de ingredientes, todos dentro do overlay.
+      - A segunda página deve ter o subtítulo "Modo de Preparo" e o preparo em parágrafos (passo a passo). Inclua um blockquote com uma citação ou dica no final.
+      - Utilize ícones (por exemplo, <i class="fas fa-utensils"></i>) para enfeitar.
+      - As imagens devem ser buscadas com palavras-chave relacionadas ao nome da receita + "food".
       - O conteúdo deve ser claro e apetitoso.
       `;
     } else {
@@ -1698,7 +1706,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter ${estiloCapitulos === 'box-arredondado' ? '5' : '4'} parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo (exceto no modo receitas).
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter ${estiloCapitulos === 'box-arredondado' ? '6' : '4'} parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo (exceto no modo receitas).
     5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Siga o molde específico para receitas: título, ingredientes (lista), modo de preparo (parágrafos ou passos). Não use blockquote.
     `;
 
