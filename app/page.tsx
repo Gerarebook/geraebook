@@ -1263,12 +1263,12 @@ ${ebookStyles}
       (window as any).showNotification('Selecione um elemento (imagem ou fundo) primeiro.', 'error');
       return;
     }
-    (window as any).showNotification('Lendo contexto para buscar imagem perfeita no Unsplash...', 'info');
+    (window as any).showNotification('Lendo contexto para buscar imagem perfeita na API do Unsplash...', 'info');
 
     let keyword = 'abstract';
     try {
-      const instrucao =
-      'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais (cat, dog, pet, animal), tecnologia, sci-fi, desenhos, ilustrações ou gráficos animados. USE APENAS FOTOS REAIS**.';
+      // Regra estrita mantida conforme suas diretrizes: fotografias reais.
+      const instrucao = 'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais (cat, dog, pet, animal), tecnologia, sci-fi, desenhos, ilustrações ou gráficos animados. USE APENAS FOTOS REAIS**.';
       const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
       if (data && data.html) {
         keyword = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[^a-zA-Z0-9]/g, '');
@@ -1278,26 +1278,50 @@ ${ebookStyles}
       console.error('Falha ao ler palavras-chave via IA, usando padrão.');
     }
 
-    const timestamp = new Date().getTime();
-    const url = `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(keyword)},photography,realistic,human&sig=${timestamp}`;
+    try {
+      // Chamada direta para a API oficial do Unsplash
+      // Configure NEXT_PUBLIC_UNSPLASH_ACCESS_KEY no seu arquivo .env
+      const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || ''; 
+      let url = '';
 
-    const isImg = elementoSelecionado.tagName === 'img';
-    const field = isImg ? 'src' : 'bgImage';
+      if (accessKey) {
+        const unsplashRes = await fetch(`https://api.unsplash.com/photos/random?query=${encodeURIComponent(keyword)}&orientation=landscape`, {
+          headers: {
+            Authorization: `Client-ID ${accessKey}`
+          }
+        });
+        
+        if (!unsplashRes.ok) throw new Error('Erro ao autenticar na API do Unsplash. Verifique sua chave.');
+        
+        const unsplashData = await unsplashRes.json();
+        url = unsplashData.urls.regular;
+      } else {
+        // Fallback seguro caso a chave da API ainda não esteja configurada no ambiente
+        url = `https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80`;
+        (window as any).showNotification('Chave do Unsplash ausente. Imagem de fallback aplicada.', 'warning');
+      }
 
-    if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-      previewFrameRef.current.contentWindow.postMessage(
-        {
-          type: 'UPDATE_ELEMENT',
-          id: elementoSelecionado.id,
-          [field]: url,
-          forceTextUpdate: false,
-        },
-        '*'
-      );
+      const isImg = elementoSelecionado.tagName === 'img';
+      const field = isImg ? 'src' : 'bgImage';
+
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+        previewFrameRef.current.contentWindow.postMessage(
+          {
+            type: 'UPDATE_ELEMENT',
+            id: elementoSelecionado.id,
+            [field]: url,
+            forceTextUpdate: false,
+          },
+          '*'
+        );
+      }
+
+      setElementoSelecionado((prev: any) => ({ ...prev, [field]: url }));
+      (window as any).showNotification('Fotografia aplicada via Unsplash com sucesso!', 'success');
+    } catch (err) {
+      console.error(err);
+      (window as any).showNotification('Falha ao conectar com a API do Unsplash.', 'error');
     }
-
-    setElementoSelecionado((prev: any) => ({ ...prev, [field]: url }));
-    (window as any).showNotification('Fotografia aplicada com sucesso!', 'success');
   }
 
   // ============================================================
@@ -1485,7 +1509,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
-    // Molde com banner (inline-imagem) – sempre usado
     const moldePrimeiraPagina = `
       <!-- PÁGINA 1 (título + imagem + 2 parágrafos) -->
       <div class="page-container">
@@ -1498,7 +1521,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           <div class="page-footer">${regraRodape}</div>
       </div>`;
 
-    // Molde padrão para capítulos (não receitas) – sempre 4 parágrafos nas páginas 2 e 3
     let moldePaginas = `
        ${moldePrimeiraPagina}
 
@@ -1527,7 +1549,6 @@ Mantenha a consistência visual com o resto do e-book.`;
        </div>
     `;
 
-    // Molde específico para receitas – AGORA SEM OVERLAY, USANDO LAYOUT PADRÃO COM BANNER
     let moldeReceitas = `
       <!-- PÁGINA 1: Título + Imagem banner + Ingredientes (lista) -->
       <div class="page-container">
@@ -1569,28 +1590,17 @@ Mantenha a consistência visual com o resto do e-book.`;
     4. REGRA DE ENCAPSULAMENTO: É ESTRITAMENTE PROIBIDO gerar qualquer texto, título ou parágrafo fora da tag <div class="page-container">. Tudo deve estar dentro de uma página para não vazar a margem.
     `;
 
-    // Escolhe o molde apropriado
-    let moldeCompleto = '';
-    if (modoConteudo === 'receitas') {
-      moldeCompleto = moldeReceitas;
-    } else {
-      moldeCompleto = moldePaginas;
-    }
-
+    let moldeCompleto = modoConteudo === 'receitas' ? moldeReceitas : moldePaginas;
     const regrasCompletas = regrasComuns + '\n\n' + moldeCompleto;
 
-    // Instruções específicas para modo receitas – agora sem overlay
     let instrucoesModo = '';
     if (modoConteudo === 'receitas') {
       instrucoesModo = `
       MODO RECEITAS ATIVO:
       - NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita.
-      - A primeira página deve conter o título da receita, uma imagem de banner (como nos capítulos normais) e a lista de ingredientes.
-      - A lista de ingredientes DEVE ser uma <ul> (lista não ordenada) com cada ingrediente em um <li>.
-      - A segunda página deve ter o subtítulo "Modo de Preparo" e o preparo em parágrafos (passo a passo). Inclua um blockquote com uma citação ou dica no final.
+      - OBRIGATÓRIO ESTRUTURA: A Primeira página deve conter APENAS o Título, a Imagem e a lista de Ingredientes (<ul>). 
+      - OBRIGATÓRIO QUEBRA: O "Modo de Preparo" DEVE INICIAR NA PÁGINA 2 (utilizando uma nova <div class="page-container">). Não misture preparo na página 1.
       - Utilize ícones (por exemplo, <i class="fas fa-utensils"></i>) para enfeitar.
-      - As imagens devem ser buscadas com palavras-chave relacionadas ao nome da receita + "food". Substitua o placeholder {palavras-chave} pelo nome da receita em INGLÊS.
-      - O conteúdo deve ser claro e apetitoso.
       `;
     } else {
       instrucoesModo = `
