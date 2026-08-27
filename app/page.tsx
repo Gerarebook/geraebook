@@ -517,7 +517,7 @@ export default function Home() {
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
-  const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso' | 'receitas' | 'historias' | 'academico'>('expandido');
+  const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso' | 'receitas'>('expandido');
   const [indexShowSubtopics, setIndexShowSubtopics] = useState(false);
   const [imagemCapaUrl, setImagemCapaUrl] = useState(
     'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="30%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="70%25" style="stop-color:%230a2342;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E'
@@ -734,6 +734,41 @@ img.chapter-banner-img {
 
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
 .cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+
+/* ===== NOVAS REGRAS PARA OVERLAY DE CAPA DE CAPÍTULO ===== */
+.cap-img-overlay {
+  position: relative !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 40px !important;
+  box-sizing: border-box !important;
+}
+
+.cap-img-overlay .cap-overlay-box,
+.cap-box-rounded {
+  background-color: rgba(255, 255, 255, 0.88) !important; /* Branco neutro com 88% de opacidade */
+  backdrop-filter: blur(6px); /* Efeito fosco/glassmorphism */
+  padding: 40px 30px !important;
+  border-radius: 12px !important;
+  max-width: 85% !important;
+  width: 100% !important;
+  text-align: center !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+  margin: auto !important;
+}
+
+.cap-img-overlay .chapter-title-inline {
+  margin: 0 !important;
+  color: var(--color-primary) !important;
+  font-size: 2.2rem !important;
+  line-height: 1.3 !important;
+  text-align: center !important;
+}
+/* ===== FIM DAS REGRAS ===== */
 
 .cap-img-overlay {
   display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center;
@@ -1469,6 +1504,30 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
+    // Determina o molde da primeira página do capítulo com base em estiloCapitulos
+    let moldePrimeiraPagina = '';
+    if (estiloCapitulos === 'box-arredondado') {
+      moldePrimeiraPagina = `
+      <!-- PÁGINA EXCLUSIVA DE TÍTULO DE CAPÍTULO (COM OVERLAY) -->
+      <div class="page-container cap-img-overlay" style="background-image: url('https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig=${Math.random()}');">
+          <div class="cap-overlay-box">
+              <h2 class="chapter-title-inline">Capítulo X: [Nome do Capítulo]</h2>
+          </div>
+      </div>`;
+    } else {
+      moldePrimeiraPagina = `
+      <!-- PÁGINA 1 (título + imagem + 2 parágrafos) -->
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
+          <h2 class="chapter-title-inline">Capítulo X: [Nome do Capítulo]</h2>
+          <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig=${Math.random()}" alt="Banner">
+          <h3 class="subtopic-title">[Subtítulo 1]</h3>
+          <p>[Parágrafo 1 - 3 a 4 linhas, contendo conteúdo relevante]</p>
+          <p>[Parágrafo 2 - 3 a 4 linhas, complementando o primeiro]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>`;
+    }
+
     const regrasComuns = `
     DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
     ${regraImagem}
@@ -1478,43 +1537,53 @@ Mantenha a consistência visual com o resto do e-book.`;
        Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
     4. REGRA DE ENCAPSULAMENTO: É ESTRITAMENTE PROIBIDO gerar qualquer texto, título ou parágrafo fora da tag <div class="page-container">. Tudo deve estar dentro de uma página para não vazar a margem.
 
-       <!-- PÁGINA 1 (título + imagem + 2 parágrafos) -->
-       <div class="page-container">
-           <div class="page-header"><span>...</span><span>...</span></div>
-           <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-           <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig=\${Math.random()}" alt="Banner">
-           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-           <p>[Parágrafo 1 - 3 a 4 linhas, contendo conteúdo relevante]</p>
-           <p>[Parágrafo 2 - 3 a 4 linhas, complementando o primeiro]</p>
-           <div class="page-footer"><span></span><span class="page-number"></span></div>
-       </div>
+       ${moldePrimeiraPagina}
 
        <!-- PÁGINA 2 (4 parágrafos densos) -->
        <div class="page-container">
-           <div class="page-header"><span>...</span><span>...</span></div>
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
            <p>[Parágrafo 1 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
            <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 4 - denso, 4-6 linhas]</p>
-           <div class="page-footer"><span></span><span class="page-number"></span></div>
+           <div class="page-footer">${regraRodape}</div>
        </div>
 
        <!-- PÁGINA 3 (4 parágrafos densos + blockquote com reflexão) -->
        <div class="page-container">
-           <div class="page-header"><span>...</span><span>...</span></div>
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo X</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
            <p>[Parágrafo 1 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 2 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 3 - denso, 4-6 linhas]</p>
            <p>[Parágrafo 4 - denso, 4-6 linhas, preenchendo bem a página]</p>
            <blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>
-           <div class="page-footer"><span></span><span class="page-number"></span></div>
+           <div class="page-footer">${regraRodape}</div>
        </div>
     `;
 
-    return { regrasComuns, regraCapaHtml, regraRodape, paginaAviso };
+    // Instruções específicas para modo receitas
+    let instrucoesModo = '';
+    if (modoConteudo === 'receitas') {
+      instrucoesModo = `
+      MODO RECEITAS ATIVO:
+      - NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita.
+      - O subtítulo 1 deve ser "Ingredientes" e o subtítulo 2 deve ser "Modo de Preparo".
+      - O subtítulo 3 pode ser "Dicas do Chef" ou similar.
+      - As imagens devem ser buscadas com palavras-chave relacionadas ao nome da receita + "food", PROIBIDO animais.
+      - O conteúdo deve descrever a receita de forma clara e apetitosa.
+      `;
+    } else {
+      instrucoesModo = `
+      MODO PADRÃO (EXPANDIDO):
+      - Gere conteúdo rico e detalhado, com exemplos e explicações profundas.
+      - Use linguagem envolvente e profissional.
+      `;
+    }
+
+    return { regrasComuns, regraCapaHtml, regraRodape, paginaAviso, instrucoesModo };
   }
 
   // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
@@ -1525,10 +1594,11 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasComuns, regraCapaHtml, regraRodape, paginaAviso } = obterInstrucoesBase();
+    const { regrasComuns, regraCapaHtml, regraRodape, paginaAviso, instrucoesModo } = obterInstrucoesBase();
 
     const instrucao = `Você vai INICIAR um e-book gerando APENAS a Capa, Aviso/Direitos, Índice e Introdução.
     ${regrasComuns}
+    ${instrucoesModo}
     ESTRUTURA OBRIGATÓRIA DA RESPOSTA (PASSO 1):
     ${regraCapaHtml}
     ${paginaAviso}
@@ -1572,16 +1642,17 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasComuns } = obterInstrucoesBase();
+    const { regrasComuns, instrucoesModo } = obterInstrucoesBase();
 
     const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
     ${regrasComuns}
+    ${instrucoesModo}
     OBRIGAÇÕES CRÍTICAS (PASSO 2):
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada). As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo.
-    5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter 4 parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo.
+    5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Os subtítulos devem ser "Ingredientes" (Subtítulo 1) e "Modo de Preparo" (Subtítulo 2). O Subtítulo 3 pode ser "Dicas do Chef". As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
     `;
 
     const data = await chamarMotorIA(instrucao, [
@@ -2147,7 +2218,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                         className="input-standard text-[10px]"
                       >
                         <option value="inline-imagem">Padrão com Banner de Imagem</option>
-                        <option value="box-arredondado">Capa Exclusiva com Box Branco</option>
+                        <option value="box-arredondado">Capa Exclusiva com Overlay (Box)</option>
                       </select>
                     </div>
                   </div>
@@ -2216,8 +2287,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                         <option value="expandido">Padrão (Expandido)</option>
                         <option value="rigoroso">Rigoroso (texto original)</option>
                         <option value="receitas">Receitas</option>
-                        <option value="historias">Histórias</option>
-                        <option value="academico">Acadêmico</option>
                       </select>
                     </div>
                     <div>
