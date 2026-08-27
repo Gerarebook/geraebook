@@ -946,7 +946,7 @@ ${ebookStyles}
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (CORRIGIDA)
   // ============================================================
   function validarParagrafos(html: string): string {
-    // Se for modo receitas, não força os parágrafos (estrutura diferente)
+    // Para receitas, não aplicamos a validação genérica (pois a estrutura é diferente)
     if (modoConteudo === 'receitas') return html;
 
     const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
@@ -959,140 +959,55 @@ ${ebookStyles}
 
       // Pular páginas que são overlay de capítulo (primeira página) - não têm subtítulo
       if (conteudo.includes('cap-img-overlay') || conteudo.includes('cap-box-rounded')) {
-        if (!conteudo.includes('subtopic-title')) continue;
+        continue; // primeira página do capítulo, sem subtítulo
       }
 
-      // Verifica se é uma página de capítulo (tem título e não é índice/introdução/conclusão/autor)
-      const temTituloCapitulo = conteudo.includes('chapter-title-inline') &&
-        !conteudo.includes('Índice') &&
-        !conteudo.includes('índice') &&
-        !conteudo.includes('Sumário') &&
-        !conteudo.includes('sumário') &&
-        !conteudo.includes('Introdução') &&
-        !conteudo.includes('introdução') &&
-        !conteudo.includes('Conclusão') &&
-        !conteudo.includes('conclusão') &&
-        !conteudo.includes('Sobre o Autor');
+      // Verifica se é uma página de capítulo (tem subtítulo e não é índice/introdução/conclusão/autor)
+      const temSubtitulo = conteudo.includes('subtopic-title');
+      const isSpecial = conteudo.includes('Índice') || conteudo.includes('índice') ||
+                        conteudo.includes('Sumário') || conteudo.includes('sumário') ||
+                        conteudo.includes('Introdução') || conteudo.includes('introdução') ||
+                        conteudo.includes('Conclusão') || conteudo.includes('conclusão') ||
+                        conteudo.includes('Sobre o Autor');
 
-      if (temTituloCapitulo) {
+      if (temSubtitulo && !isSpecial) {
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
-        const temSubtitulo = conteudo.includes('subtopic-title');
         const temBlockquote = conteudo.includes('<blockquote');
-        const temImagem = conteudo.includes('chapter-banner-img');
 
-        // Se tem subtítulo e não tem imagem (ou seja, é página 2 ou 3)
-        if (temSubtitulo && !temImagem) {
-          // Número mínimo de parágrafos: 5
-          const minParagrafos = 5;
-          let paragrafosExistentes = paragrafos.length;
-
-          if (paragrafosExistentes < minParagrafos) {
-            // Quantos faltam
-            const faltando = minParagrafos - paragrafosExistentes;
-            let paragrafosNovos = '';
-            for (let i = 0; i < faltando; i++) {
-              paragrafosNovos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
-            }
-
-            // Encontrar a posição do rodapé para inserir antes dele
-            const footerMatch = conteudo.match(/<div class="page-footer"[^>]*>[\s\S]*?<\/div>/);
-            if (footerMatch && footerMatch.index !== undefined) {
-              // Inserir antes do rodapé
-              const antes = conteudo.substring(0, footerMatch.index);
-              const depois = conteudo.substring(footerMatch.index);
-              const novoConteudo = antes + paragrafosNovos + depois;
-              novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
-            } else {
-              // Fallback: inserir antes do fechamento do container
-              const footerIndex = conteudo.lastIndexOf('</div>');
-              if (footerIndex !== -1) {
-                const novoConteudo = conteudo.substring(0, footerIndex) + paragrafosNovos + conteudo.substring(footerIndex);
-                novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
-              }
-            }
+        // Exigir no mínimo 5 parágrafos
+        const minParagrafos = 5;
+        if (paragrafos.length < minParagrafos) {
+          const faltando = minParagrafos - paragrafos.length;
+          let novos = '';
+          for (let i = 0; i < faltando; i++) {
+            novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
           }
+          const footerIndex = conteudo.lastIndexOf('</div>');
+          if (footerIndex !== -1) {
+            const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
+            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+          }
+        }
 
-          // Verificar se é a última página do capítulo (detecta "Subtítulo 3")
-          const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
-                               /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
-          if (temSubtitulo3 && !temBlockquote) {
-            // Adicionar blockquote antes do rodapé
-            const footerMatch = conteudo.match(/<div class="page-footer"[^>]*>[\s\S]*?<\/div>/);
-            if (footerMatch && footerMatch.index !== undefined) {
-              const antes = conteudo.substring(0, footerMatch.index);
-              const depois = conteudo.substring(footerMatch.index);
-              const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
-              const novoConteudo = antes + blockquoteHtml + depois;
-              // Atualizar o HTML da página (não substituir o match inteiro porque já fizemos substituições acima)
-              // Vamos refazer a substituição com base no conteúdo original da página para não perder outras mudanças.
-              // Como já podemos ter substituído acima, vamos substituir novamente, mas agora com o conteúdo atualizado.
-              // Para simplificar, vamos refazer a substituição do zero? Melhor: pegar o match atual e substituir.
-              // Vamos reobter o match atualizado? A maneira mais simples é reconstruir a página inteira.
-              // Como estamos dentro do loop, podemos substituir a página atual.
-              // Vamos armazenar o novo conteúdo em uma variável e substituir.
-              // Já estamos substituindo, então podemos fazer uma segunda substituição para adicionar o blockquote.
-              // Mas cuidado: se já adicionamos parágrafos, o conteúdo mudou. Vamos fazer a adição do blockquote após a adição dos parágrafos.
-              // Para garantir, vamos re-executar a lógica de adição de blockquote após a adição de parágrafos.
-              // Podemos simplesmente aplicar as duas correções sequencialmente no mesmo HTML.
-              // Vamos marcar o HTML atualizado e depois aplicar blockquote.
-            }
+        // Se for a última página do capítulo (detecta se tem o terceiro subtítulo)
+        // Consideramos que o terceiro subtítulo pode ser "Subtítulo 3", "Modo de Preparo" (para receitas, mas aqui é modo geral),
+        // ou qualquer texto que indique ser o último. Vamos usar a presença de "3" ou "Subtítulo 3" ou se o subtítulo é o último da página.
+        // Uma abordagem: verificar se existe um subtítulo que contenha "3" ou "Subtítulo 3" ou "Conclusão" (mas não).
+        // Vamos simplificar: se a página contém "Subtítulo 3" ou "3" no subtítulo, consideramos última.
+        // No modo expandido, os subtítulos são "Subtítulo 1", "Subtítulo 2", "Subtítulo 3".
+        const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
+                             /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
+        if (temSubtitulo3 && !temBlockquote) {
+          const footerIndex = conteudo.lastIndexOf('</div>');
+          if (footerIndex !== -1) {
+            const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
+            const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
+            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
           }
         }
       }
     }
-
-    // Segunda passagem para adicionar blockquote na página 3 (se necessário)
-    // Como a lógica acima já pode ter adicionado parágrafos, vamos refazer a busca para blockquote.
-    const regexPaginas2 = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
-    let novoHtml2 = novoHtml;
-    let match2;
-    while ((match2 = regexPaginas2.exec(novoHtml)) !== null) {
-      const paginaCompleta = match2[0];
-      const conteudo = match2[2];
-
-      // Verifica se é página de capítulo (com título)
-      const temTituloCapitulo = conteudo.includes('chapter-title-inline') &&
-        !conteudo.includes('Índice') &&
-        !conteudo.includes('índice') &&
-        !conteudo.includes('Sumário') &&
-        !conteudo.includes('sumário') &&
-        !conteudo.includes('Introdução') &&
-        !conteudo.includes('introdução') &&
-        !conteudo.includes('Conclusão') &&
-        !conteudo.includes('conclusão') &&
-        !conteudo.includes('Sobre o Autor');
-
-      if (temTituloCapitulo) {
-        const temSubtitulo = conteudo.includes('subtopic-title');
-        const temBlockquote = conteudo.includes('<blockquote');
-        const temImagem = conteudo.includes('chapter-banner-img');
-
-        if (temSubtitulo && !temImagem) {
-          const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
-                               /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
-          if (temSubtitulo3 && !temBlockquote) {
-            // Inserir blockquote antes do rodapé
-            const footerMatch = conteudo.match(/<div class="page-footer"[^>]*>[\s\S]*?<\/div>/);
-            if (footerMatch && footerMatch.index !== undefined) {
-              const antes = conteudo.substring(0, footerMatch.index);
-              const depois = conteudo.substring(footerMatch.index);
-              const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
-              const novoConteudo = antes + blockquoteHtml + depois;
-              novoHtml2 = novoHtml2.replace(paginaCompleta, match2[1] + novoConteudo + match2[3]);
-            } else {
-              const footerIndex = conteudo.lastIndexOf('</div>');
-              if (footerIndex !== -1) {
-                const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
-                const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
-                novoHtml2 = novoHtml2.replace(paginaCompleta, match2[1] + novoConteudo + match2[3]);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return novoHtml2;
+    return novoHtml;
   }
 
   // ============================================================
@@ -1603,15 +1518,8 @@ Mantenha a consistência visual com o resto do e-book.`;
     const paragrafosPorPagina = estiloCapitulos === 'box-arredondado' ? 5 : 4;
     const paragrafosExtras = estiloCapitulos === 'box-arredondado' ? '<p>[Parágrafo 5 - denso, 4-6 linhas, para ocupar todo o espaço]</p>' : '';
 
-    const regrasComuns = `
-    DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
-    ${regraImagem}
-    1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
-    2. INTRODUÇÃO E CONCLUSÃO: É terminantemente proibido o uso de qualquer imagem na Introdução ou na Conclusão. Apenas texto.
-    3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
-       Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
-    4. REGRA DE ENCAPSULAMENTO: É ESTRITAMENTE PROIBIDO gerar qualquer texto, título ou parágrafo fora da tag <div class="page-container">. Tudo deve estar dentro de uma página para não vazar a margem.
-
+    // Molde padrão para capítulos (não receitas)
+    let moldePaginas = `
        ${moldePrimeiraPagina}
 
        <!-- PÁGINA 2 (${paragrafosPorPagina} parágrafos densos) -->
@@ -1641,26 +1549,88 @@ Mantenha a consistência visual com o resto do e-book.`;
        </div>
     `;
 
-    // Instruções específicas para modo receitas
+    // Molde específico para receitas
+    let moldeReceitas = '';
+    if (modoConteudo === 'receitas') {
+      moldeReceitas = `
+      <!-- PÁGINA EXCLUSIVA DE TÍTULO DA RECEITA (COM OVERLAY) -->
+      <div class="page-container cap-img-overlay" style="background-image: url('https://source.unsplash.com/featured/1200x800/?{palavras-chave},food&sig=${Math.random()}');">
+          <div class="cap-overlay-box">
+              <h2 class="chapter-title-inline">[Nome da Receita]</h2>
+          </div>
+      </div>
+
+      <!-- PÁGINA 2: INGREDIENTES (lista não ordenada) -->
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>Ingredientes</span></div>
+          <h3 class="subtopic-title">Ingredientes</h3>
+          <ul>
+              <li>[Ingrediente 1 - quantidade]</li>
+              <li>[Ingrediente 2 - quantidade]</li>
+              <li>[Ingrediente 3 - quantidade]</li>
+              <li>[Ingrediente 4 - quantidade]</li>
+              <li>[Ingrediente 5 - quantidade]</li>
+          </ul>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+
+      <!-- PÁGINA 3: MODO DE PREPARO (passos numerados ou parágrafos) -->
+      <div class="page-container">
+          <div class="page-header"><span>${livroTitulo}</span><span>Modo de Preparo</span></div>
+          <h3 class="subtopic-title">Modo de Preparo</h3>
+          <p>[Passo 1: descrição detalhada do preparo]</p>
+          <p>[Passo 2: continuação]</p>
+          <p>[Passo 3: ...]</p>
+          <p>[Passo 4: ...]</p>
+          <p>[Passo 5: finalização]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+      `;
+    }
+
+    const regrasComuns = `
+    DIRETRIZES DE LAYOUT E CONTEÚDO (MOLDE ESTRITO):
+    ${regraImagem}
+    1. REGRA DE FOTOGRAFIA: Use APENAS FOTOGRAFIAS REAIS (humanos, objetos, ambientes). Proibido ilustrações ou 3D.
+    2. INTRODUÇÃO E CONCLUSÃO: É terminantemente proibido o uso de qualquer imagem na Introdução ou na Conclusão. Apenas texto.
+    3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
+       Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
+    4. REGRA DE ENCAPSULAMENTO: É ESTRITAMENTE PROIBIDO gerar qualquer texto, título ou parágrafo fora da tag <div class="page-container">. Tudo deve estar dentro de uma página para não vazar a margem.
+    `;
+
+    // Escolhe o molde apropriado
+    let moldeCompleto = '';
+    if (modoConteudo === 'receitas') {
+      moldeCompleto = moldeReceitas;
+    } else {
+      moldeCompleto = moldePaginas;
+    }
+
+    const regrasCompletas = regrasComuns + '\n\n' + moldeCompleto;
+
+    // Instruções específicas para modo receitas (além do molde)
     let instrucoesModo = '';
     if (modoConteudo === 'receitas') {
       instrucoesModo = `
       MODO RECEITAS ATIVO:
       - NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita.
-      - O subtítulo 1 deve ser "Ingredientes" e o subtítulo 2 deve ser "Modo de Preparo".
-      - O subtítulo 3 pode ser "Dicas do Chef" ou similar.
+      - A primeira página deve conter apenas o título da receita (sem subtítulo).
+      - A segunda página deve ter o subtítulo "Ingredientes" e uma lista não ordenada (<ul>) com os ingredientes.
+      - A terceira página deve ter o subtítulo "Modo de Preparo" e o preparo em parágrafos ou lista ordenada (passo a passo).
+      - Não utilize blockquote ou highlight-box em receitas.
       - As imagens devem ser buscadas com palavras-chave relacionadas ao nome da receita + "food", PROIBIDO animais.
-      - O conteúdo deve descrever a receita de forma clara e apetitosa.
+      - O conteúdo deve ser claro e apetitoso.
       `;
     } else {
       instrucoesModo = `
       MODO PADRÃO (EXPANDIDO):
       - Gere conteúdo rico e detalhado, com exemplos e explicações profundas.
       - Use linguagem envolvente e profissional.
+      - Siga exatamente o molde de 3 páginas por capítulo.
       `;
     }
 
-    return { regrasComuns, regraCapaHtml, regraRodape, paginaAviso, instrucoesModo };
+    return { regrasCompletas, regraCapaHtml, regraRodape, paginaAviso, instrucoesModo };
   }
 
   // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
@@ -1671,10 +1641,10 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasComuns, regraCapaHtml, regraRodape, paginaAviso, instrucoesModo } = obterInstrucoesBase();
+    const { regrasCompletas, regraCapaHtml, regraRodape, paginaAviso, instrucoesModo } = obterInstrucoesBase();
 
     const instrucao = `Você vai INICIAR um e-book gerando APENAS a Capa, Aviso/Direitos, Índice e Introdução.
-    ${regrasComuns}
+    ${regrasCompletas}
     ${instrucoesModo}
     ESTRUTURA OBRIGATÓRIA DA RESPOSTA (PASSO 1):
     ${regraCapaHtml}
@@ -1719,17 +1689,17 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasComuns, instrucoesModo } = obterInstrucoesBase();
+    const { regrasCompletas, instrucoesModo } = obterInstrucoesBase();
 
     const instrucao = `Você vai CONTINUAR a escrita de um e-book já existente.
-    ${regrasComuns}
+    ${regrasCompletas}
     ${instrucoesModo}
     OBRIGAÇÕES CRÍTICAS (PASSO 2):
     1. PROIBIÇÃO ABSOLUTA: A sua resposta HTML DEVE ABRIR IMEDIATAMENTE com o bloco HTML iniciando o primeiro novo capítulo. É ESTRITAMENTE PROIBIDO gerar Capa, Aviso, Índice ou Introdução neste passo.
     2. ONDE CONTINUAR: Leia o código fornecido e comece no capítulo seguinte da numeração (se aplicável).
     3. QUANTIDADE: Gere EXATAMENTE 3 CAPÍTULOS, cada um com o MOLDE ESTRITO (3 páginas) fornecido nas regras comuns.
-    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter ${estiloCapitulos === 'box-arredondado' ? '5' : '4'} parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo.
-    5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Os subtítulos devem ser "Ingredientes" (Subtítulo 1) e "Modo de Preparo" (Subtítulo 2). O Subtítulo 3 pode ser "Dicas do Chef". As imagens devem ser buscadas com palavras-chave relacionadas ao título da receita, PROIBIDO animais.
+    4. NÚMERO DE PARÁGRAFOS: A primeira página de cada capítulo deve ter 2 parágrafos (curtos, mas com 3-4 linhas cada) se não for o overlay exclusivo. As páginas 2 e 3 devem ter ${estiloCapitulos === 'box-arredondado' ? '5' : '4'} parágrafos (densos, 4-6 linhas) cada. A página 3 deve também incluir um blockquote com uma reflexão ou citação relevante sobre o capítulo (exceto no modo receitas).
+    5. MODO RECEITAS: NUNCA use a palavra "Capítulo" nos títulos. Use somente o nome da receita. Siga o molde específico para receitas: título, ingredientes (lista), modo de preparo (parágrafos ou passos). Não use blockquote.
     `;
 
     const data = await chamarMotorIA(instrucao, [
@@ -1753,10 +1723,10 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasComuns, regraRodape } = obterInstrucoesBase();
+    const { regrasCompletas, regraRodape } = obterInstrucoesBase();
 
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
-    ${regrasComuns}
+    ${regrasCompletas}
 
     MOLDE OBRIGATÓRIO (PASSO 3):
     1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
