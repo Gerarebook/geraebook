@@ -978,41 +978,121 @@ ${ebookStyles}
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temSubtitulo = conteudo.includes('subtopic-title');
         const temBlockquote = conteudo.includes('<blockquote');
-
-        // Se tem subtítulo, é página 2 ou 3 (pois a página 1 pode ter subtítulo 1, mas se tiver imagem, é a página 1)
-        // Vamos considerar que páginas com subtítulo e sem imagem são páginas 2 e 3.
         const temImagem = conteudo.includes('chapter-banner-img');
+
+        // Se tem subtítulo e não tem imagem (ou seja, é página 2 ou 3)
         if (temSubtitulo && !temImagem) {
-          // Exigir no mínimo 5 parágrafos
+          // Número mínimo de parágrafos: 5
           const minParagrafos = 5;
-          if (paragrafos.length < minParagrafos) {
-            const faltando = minParagrafos - paragrafos.length;
-            let novos = '';
+          let paragrafosExistentes = paragrafos.length;
+
+          if (paragrafosExistentes < minParagrafos) {
+            // Quantos faltam
+            const faltando = minParagrafos - paragrafosExistentes;
+            let paragrafosNovos = '';
             for (let i = 0; i < faltando; i++) {
-              novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
+              paragrafosNovos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
             }
-            const footerIndex = conteudo.lastIndexOf('</div>');
-            if (footerIndex !== -1) {
-              const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
+
+            // Encontrar a posição do rodapé para inserir antes dele
+            const footerMatch = conteudo.match(/<div class="page-footer"[^>]*>[\s\S]*?<\/div>/);
+            if (footerMatch && footerMatch.index !== undefined) {
+              // Inserir antes do rodapé
+              const antes = conteudo.substring(0, footerMatch.index);
+              const depois = conteudo.substring(footerMatch.index);
+              const novoConteudo = antes + paragrafosNovos + depois;
               novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+            } else {
+              // Fallback: inserir antes do fechamento do container
+              const footerIndex = conteudo.lastIndexOf('</div>');
+              if (footerIndex !== -1) {
+                const novoConteudo = conteudo.substring(0, footerIndex) + paragrafosNovos + conteudo.substring(footerIndex);
+                novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+              }
             }
           }
 
-          // Se for a última página do capítulo (detecta se tem o terceiro subtítulo)
+          // Verificar se é a última página do capítulo (detecta "Subtítulo 3")
           const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
                                /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
           if (temSubtitulo3 && !temBlockquote) {
-            const footerIndex = conteudo.lastIndexOf('</div>');
-            if (footerIndex !== -1) {
+            // Adicionar blockquote antes do rodapé
+            const footerMatch = conteudo.match(/<div class="page-footer"[^>]*>[\s\S]*?<\/div>/);
+            if (footerMatch && footerMatch.index !== undefined) {
+              const antes = conteudo.substring(0, footerMatch.index);
+              const depois = conteudo.substring(footerMatch.index);
               const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
-              const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
-              novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+              const novoConteudo = antes + blockquoteHtml + depois;
+              // Atualizar o HTML da página (não substituir o match inteiro porque já fizemos substituições acima)
+              // Vamos refazer a substituição com base no conteúdo original da página para não perder outras mudanças.
+              // Como já podemos ter substituído acima, vamos substituir novamente, mas agora com o conteúdo atualizado.
+              // Para simplificar, vamos refazer a substituição do zero? Melhor: pegar o match atual e substituir.
+              // Vamos reobter o match atualizado? A maneira mais simples é reconstruir a página inteira.
+              // Como estamos dentro do loop, podemos substituir a página atual.
+              // Vamos armazenar o novo conteúdo em uma variável e substituir.
+              // Já estamos substituindo, então podemos fazer uma segunda substituição para adicionar o blockquote.
+              // Mas cuidado: se já adicionamos parágrafos, o conteúdo mudou. Vamos fazer a adição do blockquote após a adição dos parágrafos.
+              // Para garantir, vamos re-executar a lógica de adição de blockquote após a adição de parágrafos.
+              // Podemos simplesmente aplicar as duas correções sequencialmente no mesmo HTML.
+              // Vamos marcar o HTML atualizado e depois aplicar blockquote.
             }
           }
         }
       }
     }
-    return novoHtml;
+
+    // Segunda passagem para adicionar blockquote na página 3 (se necessário)
+    // Como a lógica acima já pode ter adicionado parágrafos, vamos refazer a busca para blockquote.
+    const regexPaginas2 = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
+    let novoHtml2 = novoHtml;
+    let match2;
+    while ((match2 = regexPaginas2.exec(novoHtml)) !== null) {
+      const paginaCompleta = match2[0];
+      const conteudo = match2[2];
+
+      // Verifica se é página de capítulo (com título)
+      const temTituloCapitulo = conteudo.includes('chapter-title-inline') &&
+        !conteudo.includes('Índice') &&
+        !conteudo.includes('índice') &&
+        !conteudo.includes('Sumário') &&
+        !conteudo.includes('sumário') &&
+        !conteudo.includes('Introdução') &&
+        !conteudo.includes('introdução') &&
+        !conteudo.includes('Conclusão') &&
+        !conteudo.includes('conclusão') &&
+        !conteudo.includes('Sobre o Autor');
+
+      if (temTituloCapitulo) {
+        const temSubtitulo = conteudo.includes('subtopic-title');
+        const temBlockquote = conteudo.includes('<blockquote');
+        const temImagem = conteudo.includes('chapter-banner-img');
+
+        if (temSubtitulo && !temImagem) {
+          const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
+                               /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
+          if (temSubtitulo3 && !temBlockquote) {
+            // Inserir blockquote antes do rodapé
+            const footerMatch = conteudo.match(/<div class="page-footer"[^>]*>[\s\S]*?<\/div>/);
+            if (footerMatch && footerMatch.index !== undefined) {
+              const antes = conteudo.substring(0, footerMatch.index);
+              const depois = conteudo.substring(footerMatch.index);
+              const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
+              const novoConteudo = antes + blockquoteHtml + depois;
+              novoHtml2 = novoHtml2.replace(paginaCompleta, match2[1] + novoConteudo + match2[3]);
+            } else {
+              const footerIndex = conteudo.lastIndexOf('</div>');
+              if (footerIndex !== -1) {
+                const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
+                const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
+                novoHtml2 = novoHtml2.replace(paginaCompleta, match2[1] + novoConteudo + match2[3]);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return novoHtml2;
   }
 
   // ============================================================
