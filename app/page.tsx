@@ -766,8 +766,7 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 
 .chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
-h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1.5rem; color: var(--color-primary); line-height: 1.2; text-align: left; }
-
+h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1em !important; color: var(--color-primary); line-height: 1.2; text-align: left; }
 .page-header {
   position: absolute; top: 12mm; left: 18mm; right: 18mm;
   display: flex; justify-content: space-between; align-items: flex-end;
@@ -1253,7 +1252,7 @@ ${ebookStyles}
     let keyword = 'abstract';
     try {
       const instrucao =
-        'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais (cat, dog, pet, animal, etc.)**.';
+      'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais (cat, dog, pet, animal), tecnologia, sci-fi, desenhos, ilustrações ou gráficos animados. USE APENAS FOTOS REAIS**.';
       const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
       if (data && data.html) {
         keyword = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[^a-zA-Z0-9]/g, '');
@@ -1462,11 +1461,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regraImagem = `
     REGRAS PARA URLs DE IMAGENS (IMPORTANTE):
     - Use sempre o formato: https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig={timestamp}
-    - Para RECEITAS, as palavras-chave devem ser o nome da receita em INGLÊS + "food" (ex: "chocolate cake food"). NUNCA use "cat", "dog", "animal", "pet" ou qualquer termo relacionado a animais.
-    - Para CAPÍTULOS GERAIS, use palavras-chave relevantes do título do capítulo em INGLÊS, sempre evitando animais. Prefira termos como "nature", "city", "people", "business", etc.
-    - Substitua {timestamp} por um número aleatório para evitar cache (ex: Date.now()).
-    - Se não tiver certeza, use "food" para receitas ou "abstract" para outros.
-    - PROIBIDO ABSOLUTAMENTE usar imagens com animais em qualquer contexto.
+    - Para RECEITAS, as palavras-chave devem ser o nome da receita em INGLÊS + "food".
+    - Para CAPÍTULOS GERAIS, use palavras-chave relevantes do título do capítulo em INGLÊS.
+    - PROIBIDO ABSOLUTAMENTE usar imagens com animais, tecnologia, elementos de ficção científica (sci-fi), desenhos, gráficos animados ou 3D se não for solicitado. Apenas imagens fotográficas reais (humanos, ambientes, objetos reais).
     `;
 
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
@@ -1479,12 +1476,13 @@ Mantenha a consistência visual com o resto do e-book.`;
     2. INTRODUÇÃO E CONCLUSÃO: É terminantemente proibido o uso de qualquer imagem na Introdução ou na Conclusão. Apenas texto.
     3. ESTRUTURA DOS CAPÍTULOS (Siga OBRIGATORIAMENTE o HTML abaixo):
        Todo capítulo DEVE ter EXATAMENTE 3 páginas. Não adicione páginas extras.
+    4. REGRA DE ENCAPSULAMENTO: É ESTRITAMENTE PROIBIDO gerar qualquer texto, título ou parágrafo fora da tag <div class="page-container">. Tudo deve estar dentro de uma página para não vazar a margem.
 
        <!-- PÁGINA 1 (título + imagem + 2 parágrafos) -->
        <div class="page-container">
            <div class="page-header"><span>...</span><span>...</span></div>
            <h2 class="chapter-title-inline">Capítulo X: [Nome]</h2>
-           <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig=${Math.random()}" alt="Banner">
+           <img class="chapter-banner-img" src="https://source.unsplash.com/featured/1200x800/?{palavras-chave},photography&sig=\${Math.random()}" alt="Banner">
            <h3 class="subtopic-title">[Subtítulo 1]</h3>
            <p>[Parágrafo 1 - 3 a 4 linhas, contendo conteúdo relevante]</p>
            <p>[Parágrafo 2 - 3 a 4 linhas, complementando o primeiro]</p>
