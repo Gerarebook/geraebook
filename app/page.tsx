@@ -128,20 +128,26 @@ function getScriptPreview(
     function aplicarRefluxoDePagina() {
       let requiresReflow = true;
       let maxIterations = 80;
+      let pageCount = 0;
 
       while (requiresReflow && maxIterations > 0) {
         requiresReflow = false;
         maxIterations--;
         let pages = document.querySelectorAll('.page-container');
+        if (pages.length > 100) break; // segurança para evitar loops com muitas páginas
 
         for (let i = 0; i < pages.length; i++) {
           let page = pages[i];
+          // Ignorar páginas especiais e páginas de receita (que contêm .recipe-title)
           if (page.classList.contains('page-cover-pura') || 
               page.classList.contains('page-cover-img') || 
               page.classList.contains('page-cover-text') || 
               page.classList.contains('cap-img-overlay') || 
               page.classList.contains('cap-box-rounded') || 
-              page.classList.contains('cap-img-pura')) continue;
+              page.classList.contains('cap-img-pura') ||
+              page.querySelector('.recipe-title')) {
+            continue;
+          }
 
           let computedStyle = window.getComputedStyle(page);
           let paddingBottom = parseFloat(computedStyle.paddingBottom);
@@ -243,7 +249,7 @@ function getScriptPreview(
                           page.classList.contains('cap-img-overlay') || 
                           page.classList.contains('cap-box-rounded') || 
                           page.classList.contains('cap-img-pura') ||
-                          page.querySelector('#conclusao, h2.chapter-title-inline:not(:empty)');
+                          page.querySelector('#conclusao, h2.chapter-title-inline:not(:empty), .recipe-title');
         if (isSpecial) return;
         page.remove();
       });
@@ -695,7 +701,7 @@ img.chapter-banner-img {
   max-height: 297mm !important;
   flex-shrink: 0 !important;
   padding: 22mm 20mm 25mm 20mm;
-  margin: 0 auto 20px auto; /* Espaço entre páginas */
+  margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
@@ -1567,7 +1573,6 @@ Mantenha a consistência visual com o resto do e-book.`;
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
     
-    // Agora o regex busca a numeração EXCLUSIVAMENTE dentro dos títulos h2, ignorando o Índice
     const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
     let match;
     let max = 0;
@@ -1592,12 +1597,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     } else {
       regraRodape = `${numSpan}`;
     }
-
-    const regraImagem = `
-    REGRAS PARA URLs DE IMAGENS:
-    - Use o formato exato para a rota de busca interna ou utilize tags limpas.
-    - PROIBIDO ABSOLUTAMENTE usar imagens com animais, tecnologia, sci-fi, desenhos ou gráficos 3D. Apenas fotografias reais.
-    `;
 
     const moldePrimeiraPagina = `
       <!-- PÁGINA 1 -->
@@ -1643,7 +1642,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       <!-- PÁGINA 1: Título + Banner + Ingredientes -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>[Nome da Receita]</span></div>
-          <h2 class="chapter-title-inline">[Nome da Receita]</h2>
+          <h2 class="recipe-title">[Nome da Receita]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner da Receita">
           <h3 class="subtopic-title">Ingredientes</h3>
           <ul>
@@ -1706,7 +1705,6 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    // Não usa numeroCapitulo
     const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'padrao' });
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
@@ -1756,18 +1754,12 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    // Calcula o próximo número de capítulo
     const proximoNumero = getNextChapterNumber(currentHtml);
     const isModoReceitas = modoConteudo === 'receitas';
-
-    // Para receitas, não usamos numeração, mas precisamos do molde
     const modo = isModoReceitas ? 'receitas' : 'padrao';
 
-    // Para gerar 3 capítulos, chamamos a IA com os números sequenciais.
-    // Para receitas, passamos apenas o molde sem numeração.
     let instrucao = '';
     if (isModoReceitas) {
-      // No modo receitas, geramos 3 receitas sem numeração
       const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'receitas' });
       instrucao = `Você vai CONTINUAR a escrita de um e-book de RECEITAS, gerando 3 novas receitas.
       ${regrasCompletas}
@@ -1777,12 +1769,9 @@ Mantenha a consistência visual com o resto do e-book.`;
       A sua resposta deve conter APENAS os blocos HTML das 3 receitas, sem repetir cabeçalhos ou rodapés adicionais.
       `;
     } else {
-      // Modo padrão: gerar 3 capítulos com numeração sequencial
       const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, modo: 'padrao' });
       const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, modo: 'padrao' });
       const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
-      // Juntamos as regras (mas a IA vai receber o molde completo de cada capítulo)
-      // Vamos passar uma instrução única com os três moldes.
       instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
       Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
       Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
@@ -1898,7 +1887,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     try {
       const data = await chamarMotorIA(promptFinalParaIA, [{ text: `Gerar receita: ${tituloDigitado}` }], false);
       if (data && data.html) {
-        // Injetar a receita no final do e-book atual
         aplicarHtmlNovo(data.html, true, true);
         (window as any).showNotification(`Receita "${tituloDigitado}" gerada com sucesso!`, 'success');
       } else {
