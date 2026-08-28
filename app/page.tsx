@@ -970,11 +970,12 @@ ${ebookStyles}
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temBlockquote = conteudo.includes('<blockquote');
 
-        if (paragrafos.length < 2) {
-          const faltando = 2 - paragrafos.length;
+        const minParagrafos = 5;
+        if (paragrafos.length < minParagrafos) {
+          const faltando = minParagrafos - paragrafos.length;
           let novos = '';
           for (let i = 0; i < faltando; i++) {
-            novos += `<p>[Parágrafo com cerca de 450 caracteres ajustado para o formato de página A4.]</p>\n`;
+            novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
           }
           const footerIndex = conteudo.lastIndexOf('</div>');
           if (footerIndex !== -1) {
@@ -1480,8 +1481,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
-    // Procura a numeração estritamente dentro da tag do título do capítulo
-    const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
+    const regex = /Capítulo\s*(\d+)/gi;
     let match;
     let max = 0;
     while ((match = regex.exec(html)) !== null) {
@@ -1491,8 +1491,8 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
-// ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM REGRA SUPREMA E MARGENS)
+  // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number; modo?: 'padrao' | 'receitas' }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1506,49 +1506,55 @@ Mantenha a consistência visual com o resto do e-book.`;
       regraRodape = `${numSpan}`;
     }
 
+    const regraImagem = `
+    REGRAS PARA URLs DE IMAGENS:
+    - Use o formato exato para a rota de busca interna ou utilize tags limpas.
+    - PROIBIDO ABSOLUTAMENTE usar imagens com animais, tecnologia, sci-fi, desenhos ou gráficos 3D. Apenas fotografias reais.
+    `;
+
     const moldePrimeiraPagina = `
-      <!-- PÁGINA 1 (TÍTULO DO CAPÍTULO) -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-break: break-word;">
+      <!-- PÁGINA 1 -->
+      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
           <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-          <p>[Parágrafo 1 - EXATAMENTE ~450 caracteres ajustado para o formato de página A4 dentro das margens]</p>
-          <p>[Parágrafo 2 - EXATAMENTE ~450 caracteres ajustado para o formato de página A4 dentro das margens]</p>
+          <p>[Parágrafo 1 - Mantenha frases concisas dentro das margens]</p>
+          <p>[Parágrafo 2 - Mantenha frases concisas dentro das margens]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>`;
 
     let moldePaginas = `
        ${moldePrimeiraPagina}
 
-       <!-- PÁGINA 2 (DEMAIS PÁGINAS COM TEXTO E BOX) -->
-       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-break: break-word;">
+       <!-- PÁGINA 2 -->
+       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p>[Parágrafo 1 - EXATAMENTE ~450 caracteres]</p>
-           <p>[Parágrafo 2 - EXATAMENTE ~450 caracteres]</p>
-           <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante - concisa]</div>
-           <p>[Parágrafo 3 - EXATAMENTE ~450 caracteres]</p>
-           <p>[Parágrafo 4 - EXATAMENTE ~450 caracteres]</p>
+           <p>[Parágrafo 1]</p>
+           <p>[Parágrafo 2]</p>
+           <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
+           <p>[Parágrafo 3]</p>
+           <p>[Parágrafo 4]</p>
            <div class="page-footer">${regraRodape}</div>
        </div>
 
-       <!-- PÁGINA 3 (DEMAIS PÁGINAS COM TEXTO E QUOTE) -->
-       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-break: break-word;">
+       <!-- PÁGINA 3 -->
+       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p>[Parágrafo 1 - EXATAMENTE ~450 caracteres]</p>
-           <p>[Parágrafo 2 - EXATAMENTE ~450 caracteres]</p>
-           <p>[Parágrafo 3 - EXATAMENTE ~450 caracteres]</p>
-           <p>[Parágrafo 4 - EXATAMENTE ~450 caracteres]</p>
-           <blockquote><i class="fas fa-quote-left"></i> [Citação relevante - concisa]</blockquote>
+           <p>[Parágrafo 1]</p>
+           <p>[Parágrafo 2]</p>
+           <p>[Parágrafo 3]</p>
+           <p>[Parágrafo 4]</p>
+           <blockquote><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
     `;
 
     let moldeReceitas = `
       <!-- PÁGINA 1: Título + Banner + Ingredientes -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-break: break-word;">
+      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>[Nome da Receita]</span></div>
           <h2 class="chapter-title-inline">[Nome da Receita]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner da Receita">
@@ -1564,7 +1570,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       </div>
 
       <!-- PÁGINA 2: Modo de Preparo + Citação -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; word-break: break-word;">
+      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>Modo de Preparo</span></div>
           <h3 class="subtopic-title">Modo de Preparo</h3>
           <p>[Passo 1 - descrição detalhada]</p>
@@ -1578,19 +1584,11 @@ Mantenha a consistência visual com o resto do e-book.`;
     `;
 
     const regrasComuns = `
-    ========================================================================
-    [REGRA SUPREMA INQUEBRÁVEL - SOBRESCREVE QUALQUER OUTRA INSTRUÇÃO]
-    1. QUANTIDADE RIGOROSA DE CAPÍTULOS: Você DEVE gerar obrigatoriamente e sem exceções EXATAMENTE 3 (TRÊS) CAPÍTULOS COMPLETOS em uma única resposta quando solicitado. Nunca pare em 2 capítulos.
-    2. CONTENÇÃO ABSOLUTA NAS MARGENS (A4): Todo e qualquer texto, parágrafo, imagem ou elemento HTML DEVE respeitar estritamente as margens internas da tag <div class="page-container">. É terminantemente proibido gerar blocos longos que transbordem para fora do container da página.
-    ========================================================================
-
-    DIRETRIZES DE SEGURANÇA E FORMATAÇÃO (A4):
-    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Os próximos devem seguir sequencialmente (+1 e +2).
-    2. REGRA DE PARÁGRAFOS E TAMANHO DE FONTE:
-       - Para fonte 14pt, cada parágrafo DEVE ter no máximo ~450 caracteres para caber perfeitamente na página A4 sem estourar as margens.
-       - A PÁGINA DO TÍTULO DO CAPÍTULO DEVE TER EXATAMENTE 2 PARÁGRAFOS.
-       - AS DEMAIS PÁGINAS DEVEM TER EXATAMENTE 4 PARÁGRAFOS.
-    3. FOTOGRAFIA: Use apenas imagens reais (Unsplash).
+    DIRETRIZES DE SEGURANÇA E FORMATAÇÃO:
+    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
+    2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
+    3. FOTOGRAFIA: Use apenas imagens reais.
+    4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento.
     `;
 
     let moldeFinal = '';
@@ -1605,55 +1603,6 @@ Mantenha a consistência visual com o resto do e-book.`;
       regraRodape,
       numero
     };
-  }
-
-  // ---- ETAPA 2: Adicionar exatamente 3 capítulos (com numeração sequencial estrita) ----
-  async function continuarEbookEtapas() {
-    const content = productContent.trim();
-    const currentHtml = htmlAtual;
-    if (!currentHtml || !currentHtml.includes('page-container')) {
-      (window as any).showNotification('Gere o Passo 1 primeiro!', 'error');
-      return;
-    }
-
-    const proximoNumero = getNextChapterNumber(currentHtml);
-    const isModoReceitas = modoConteudo === 'receitas';
-    const modo = isModoReceitas ? 'receitas' : 'padrao';
-
-    let instrucao = '';
-    if (isModoReceitas) {
-      const { regrasCompletas } = obterInstrucoesBase({ modo: 'receitas' });
-      instrucao = `Você vai CONTINUAR a escrita de um e-book de RECEITAS, gerando obrigatoriamente 3 (três) novas receitas completas.
-      ${regrasCompletas}
-      ATENÇÃO: NUNCA use a palavra "Capítulo". Use somente o nome da receita. Respeite rigidamente as margens do A4.`;
-    } else {
-      const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, modo: 'padrao' });
-      const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, modo: 'padrao' });
-      const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
-      
-      instrucao = `Você vai CONTINUAR a escrita do e-book gerando OBRIGATÓRIA E EXATAMENTE 3 (TRÊS) CAPÍTULOS por aquisição (Capítulo ${proximoNumero}, Capítulo ${proximoNumero + 1} e Capítulo ${proximoNumero + 2}).
-      
-      ATENÇÃO MÁXIMA À REGRA SUPREMA: Não entregue apenas 2 capítulos sob hipótese alguma. Valide se os 3 capítulos estão completos, estruturados e contidos perfeitamente dentro das margens das tags <div class="page-container"> sem transbordar o A4.
-
-      MOLDE DOS 3 CAPÍTULOS OBRIGATÓRIOS:
-      ${cap1.regrasCompletas}
-      ${cap2.regrasCompletas}
-      ${cap3.regrasCompletas}
-      `;
-    }
-
-    const data = await chamarMotorIA(instrucao, [
-      { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
-    ], false);
-
-    if (data && data.html) {
-      aplicarHtmlNovo(data.html, true, true);
-      setEtapaAtual(2);
-      (window as any).showNotification('Passo 2 Concluído! Exatamente 3 capítulos adicionados dentro das margens.', 'success');
-    } else {
-      console.error('Dados retornados pela IA são inválidos:', data);
-    }
   }
 
   // ============================================================
@@ -1745,19 +1694,15 @@ Mantenha a consistência visual com o resto do e-book.`;
       const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
       // Juntamos as regras (mas a IA vai receber o molde completo de cada capítulo)
       // Vamos passar uma instrução única com os três moldes.
-      instrucao = `Você vai CONTINUAR a escrita do e-book gerando EXATAMENTE 3 CAPÍTULOS por aquisição.
-      ESTRUTURA DE PARÁGRAFOS PARA CADA PÁGINA FORMATO A4:
-      - Página de Título do Capítulo: EXATAMENTE 2 parágrafos (~450 caracteres cada para fonte 14pt).
-      - Demais Páginas (texto, box e quote): EXATAMENTE 4 parágrafos (~450 caracteres cada para fonte 14pt).
-
-      Use obrigatoriamente a sequência numérica inicial: Capítulo ${proximoNumero}, Capítulo ${proximoNumero + 1}, Capítulo ${proximoNumero + 2}.
-      ATENÇÃO: Não pule números e inicie estritamente do Capítulo ${proximoNumero}.
-
-      MOLDE DOS 3 CAPÍTULOS:
+      instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
+      Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
+      Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
+      ATENÇÃO: Não pule números e não crie capítulos com numeração diferente.
+      MOLDE PARA CADA CAPÍTULO:
       ${cap1.regrasCompletas}
       ${cap2.regrasCompletas}
       ${cap3.regrasCompletas}
-      A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos completos.
+      A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos, sem repetir cabeçalhos ou rodapés adicionais.
       `;
     }
 
