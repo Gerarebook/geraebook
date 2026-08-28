@@ -604,6 +604,9 @@ export default function Home() {
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
+    /* NOVA REGRA: Limpa estilos invasivos que a IA tenta colocar nos parágrafos */
+    clean = clean.replace(/<p\s+[^>]*>/gi, '<p>');
+
     return clean.trim();
   }
 
@@ -647,9 +650,9 @@ ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 
 img.chapter-banner-img {
   width: 100% !important;
-  height: 370px !important;
-  min-height: 370px !important;
-  max-height: 370px !important;
+  height: 360px !important;
+  min-height: 360px !important;
+  max-height: 360px !important;
   object-fit: cover !important;
   border-radius: 8px !important;
   margin-bottom: 1.5rem !important;
@@ -831,7 +834,7 @@ h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; lin
 
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-word !important; }
 
 blockquote {
   page-break-inside: avoid; break-inside: avoid;
@@ -1506,7 +1509,7 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     let moldePaginas = `
     <!-- PÁGINA 1 -->
-    <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+    <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
         <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
@@ -1516,26 +1519,32 @@ Mantenha a consistência visual com o resto do e-book.`;
     </div>
 
     <!-- PÁGINA 2 -->
-    <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+    <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <h3 class="subtopic-title">[Subtítulo 2]</h3>
         <p>[Parágrafo 1 - máximo 400 caracteres]</p>
         <p>[Parágrafo 2 - máximo 400 caracteres]</p>
+        
+        <!-- AQUI ESTÁ O BOX NA PÁGINA 2. VOCÊ PODE MOVER PARA CIMA OU PARA BAIXO -->
         <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica ou destaque importante sobre o tema]</div>
+        
         <p>[Parágrafo 3 - máximo 400 caracteres]</p>
         <p>[Parágrafo 4 - máximo 400 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
 
     <!-- PÁGINA 3 -->
-    <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+    <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <h3 class="subtopic-title">[Subtítulo 3]</h3>
         <p>[Parágrafo 1 - máximo 400 caracteres]</p>
         <p>[Parágrafo 2 - máximo 400 caracteres]</p>
         <p>[Parágrafo 3 - máximo 400 caracteres]</p>
         <p>[Parágrafo 4 - máximo 400 caracteres]</p>
+        
+        <!-- AQUI ESTÁ O QUOTE NA PÁGINA 3. VOCÊ PODE MOVER PARA CIMA OU PARA BAIXO -->
         <blockquote><i class="fas fa-quote-left"></i> [Citação ou reflexão impactante]</blockquote>
+        
         <div class="page-footer">${regraRodape}</div>
     </div>
     `;
@@ -1551,7 +1560,7 @@ Mantenha a consistência visual com o resto do e-book.`;
        - As Páginas 2 e 3 DEVEM ter EXATAMENTE 4 parágrafos.
        - CADA PARÁGRAFO não pode ultrapassar o limite exigido de caracteres (350 a 400) sob hipótese alguma. Caso contrário, o texto vai vazar do layout A4. Seja rigoroso.
     3. Mantenha os elementos <div class="highlight-box"> na página 2 e <blockquote> na página 3 intactos.
-    4. A imagem deve usar SOMENTE a tag <img class="chapter-banner-img" src="...">. Não insira tamanhos (width/height) nela, o CSS cuida disso (370px).
+    4. A imagem deve usar SOMENTE a tag <img class="chapter-banner-img" src="...">. Não insira tamanhos (width/height) nela, o CSS cuida disso (360px).
     `;
 
     return { 
