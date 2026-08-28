@@ -10,8 +10,7 @@ function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
   bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string,
-  corPrimaria: string
+  bgSegundaPaginaOpacidade: string
 ) {
   return `<script id="editor-magic-script">
     let modoEdicao = false;
@@ -51,7 +50,6 @@ function getScriptPreview(
     }
 
     function sincronizarIndice() {
-      // Remove listas de índices anteriores (dentro das páginas de índice)
       document.querySelectorAll('.page-container').forEach(page => {
         const title = page.querySelector('h2');
         if (title && (title.innerText.toLowerCase().includes('índice') || title.innerText.toLowerCase().includes('sumário'))) {
@@ -59,54 +57,43 @@ function getScriptPreview(
         }
       });
 
-      // Pega o primeiro container de índice
       const allTocs = document.querySelectorAll('.toc-container');
       if (allTocs.length === 0) return;
       const mainToc = allTocs[0];
-      // Remove outros índices
-      for (let i = 1; i < allTocs.length; i++) {
-        allTocs[i].closest('.page-container')?.remove();
-      }
+      for (let i = 1; i < allTocs.length; i++) { allTocs[i].closest('.page-container')?.remove(); }
 
-      // Remove páginas de índice duplicadas
       const indexTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => 
         (el.textContent || '').trim().toLowerCase() === 'índice' || 
         (el.textContent || '').trim().toLowerCase() === 'sumário'
       );
-      for (let i = 1; i < indexTitles.length; i++) {
-        indexTitles[i].closest('.page-container')?.remove();
-      }
+      for (let i = 1; i < indexTitles.length; i++) indexTitles[i].closest('.page-container')?.remove();
 
-      // Remove páginas de introdução duplicadas
       const introTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => 
         (el.textContent || '').trim().toLowerCase() === 'introdução'
       );
-      for (let i = 1; i < introTitles.length; i++) {
-        introTitles[i].closest('.page-container')?.remove();
-      }
+      for (let i = 1; i < introTitles.length; i++) introTitles[i].closest('.page-container')?.remove();
 
-      // Remove páginas de capa duplicadas
       const covers = document.querySelectorAll('.page-cover-img, .page-cover-text, .page-cover-pura');
-      for (let i = 1; i < covers.length; i++) {
-        covers[i].closest('.page-container')?.remove();
-      }
+      for (let i = 1; i < covers.length; i++) covers[i].closest('.page-container')?.remove();
 
-      // Seletor para títulos
       const selector = ${indexShowSubtopics ? "'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'" : "'h1.chapter-title-exclusive, h2.chapter-title-inline'"};
       const titles = document.querySelectorAll(selector);
       mainToc.innerHTML = '';
+      const titulosVistos = new Set();
 
       titles.forEach((titleEl) => {
-        // Pula H3 se não mostrar subtópicos
         if (${!indexShowSubtopics} && titleEl.tagName === 'H3') return;
-        // Pula H1 de capa sem ID (já que capas são tratadas separadamente)
         if (titleEl.tagName === 'H1' && !titleEl.id && titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
 
         let textContent = (titleEl.textContent || '').trim();
-        // Pula se for índice ou sumário (já que são páginas especiais)
         if (textContent.toLowerCase() === 'índice' || textContent.toLowerCase() === 'sumário') return;
 
-        // Garante ID para âncora
+        if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+          let nomeNormalizado = textContent.toLowerCase().replace(/capítulo \\d+:/, '').trim();
+          if (titulosVistos.has(nomeNormalizado)) return;
+          titulosVistos.add(nomeNormalizado);
+        }
+
         if (!titleEl.id) titleEl.id = 'sec-auto-' + Math.random().toString(36).substr(2, 9);
 
         const a = document.createElement('a');
@@ -114,14 +101,13 @@ function getScriptPreview(
         if (titleEl.tagName === 'H2' || titleEl.tagName === 'H1') {
           a.classList.add('toc-main-chapter');
           a.style.fontWeight = ${indexShowSubtopics ? "'700'" : "'400'"};
-          a.style.color = '${corPrimaria}';
+          a.style.color = 'var(--color-primary)';
         } else if (titleEl.tagName === 'H3') {
           a.classList.add('toc-subtopic');
           a.style.paddingLeft = '20px';
           a.style.fontSize = '0.9em';
           a.style.opacity = '0.85';
           a.style.fontWeight = '400';
-          a.style.color = '${corPrimaria}';
         }
 
         a.href = '#' + titleEl.id;
@@ -147,20 +133,15 @@ function getScriptPreview(
         requiresReflow = false;
         maxIterations--;
         let pages = document.querySelectorAll('.page-container');
-        if (pages.length > 100) break; // segurança para evitar loops com muitas páginas
 
         for (let i = 0; i < pages.length; i++) {
           let page = pages[i];
-          // Ignorar páginas especiais e páginas de receita (que contêm .recipe-title)
           if (page.classList.contains('page-cover-pura') || 
               page.classList.contains('page-cover-img') || 
               page.classList.contains('page-cover-text') || 
               page.classList.contains('cap-img-overlay') || 
               page.classList.contains('cap-box-rounded') || 
-              page.classList.contains('cap-img-pura') ||
-              page.querySelector('.recipe-title')) {
-            continue;
-          }
+              page.classList.contains('cap-img-pura')) continue;
 
           let computedStyle = window.getComputedStyle(page);
           let paddingBottom = parseFloat(computedStyle.paddingBottom);
@@ -262,7 +243,7 @@ function getScriptPreview(
                           page.classList.contains('cap-img-overlay') || 
                           page.classList.contains('cap-box-rounded') || 
                           page.classList.contains('cap-img-pura') ||
-                          page.querySelector('#conclusao, h2.chapter-title-inline:not(:empty), .recipe-title');
+                          page.querySelector('#conclusao, h2.chapter-title-inline:not(:empty)');
         if (isSpecial) return;
         page.remove();
       });
@@ -319,7 +300,6 @@ function getScriptPreview(
       function runFormatting() {
         sincronizarIndice();
         aplicarRefluxoDePagina();
-        // Atualiza números de página no índice após o refluxo
         const pages = Array.from(document.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura'));
         document.querySelectorAll('.toc-item').forEach(item => {
           const href = item.getAttribute('href');
@@ -537,7 +517,6 @@ export default function Home() {
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
-  const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso' | 'receitas'>('expandido');
   const [indexShowSubtopics, setIndexShowSubtopics] = useState(false);
   const [imagemCapaUrl, setImagemCapaUrl] = useState(
     'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="30%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="70%25" style="stop-color:%230a2342;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E'
@@ -641,11 +620,6 @@ export default function Home() {
     let capBoxTextColor = 'var(--color-primary)';
 
     const ebookStyles = `<style>
-/* ===== NORMALIZAÇÃO GLOBAL ===== */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
 :root {
@@ -662,24 +636,12 @@ export default function Home() {
 }
 
 body {
-  background-color: #e2e8f0;
-  margin: 0;
-  padding: 2rem 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-family: var(--font-body);
-  color: var(--color-text);
+  background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center;
+  font-family: var(--font-body); color: var(--color-text);
   counter-reset: ebook-page;
 }
 
-#ebook-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-}
-
+#ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 
 img.chapter-banner-img {
@@ -698,23 +660,17 @@ img.chapter-banner-img {
   margin-top: 0 !important;
 }
 
-/* ===== PÁGINAS ===== */
-.page-container,
-.page-cover-img,
-.page-cover-pura,
-.page-cover-text,
-.cap-img-overlay,
-.cap-box-rounded,
-.cap-img-pura {
+.page-container, .page-cover-img, .page-cover-pura, .page-cover-text,
+.cap-img-overlay, .cap-box-rounded, .cap-img-pura {
   background-color: var(--color-bg);
-  width: 210mm !important;
-  height: 297mm !important;
-  min-width: 210mm !important;
-  min-height: 297mm !important;
-  max-width: 210mm !important;
-  max-height: 297mm !important;
+  width: ${conf.width} !important;
+  height: ${conf.height} !important;
+  min-width: ${conf.width} !important;
+  min-height: ${conf.height} !important;
+  max-width: ${conf.width} !important;
+  max-height: ${conf.height} !important;
   flex-shrink: 0 !important;
-  padding: 22mm 20mm 25mm 20mm;
+  padding: ${conf.padding};
   margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
@@ -727,59 +683,6 @@ img.chapter-banner-img {
   overflow-wrap: break-word;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
   counter-increment: ebook-page;
-}
-
-/* ===== ESTILOS PARA RECEITAS ===== */
-.recipe-title {
-  font-size: 2.4rem;
-  font-weight: 900;
-  color: var(--color-primary);
-  text-align: center;
-  margin-top: 0;
-  margin-bottom: 1rem;
-}
-
-.recipe-intro p {
-  font-size: ${tamanhoFonteBase};
-  line-height: var(--line-spacing);
-  text-align: justify;
-  margin-bottom: 1.2rem;
-}
-
-.recipe-ingredients h3,
-.recipe-instructions h3 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--color-secondary);
-  margin-top: 1.5rem;
-  margin-bottom: 0.8rem;
-  border-bottom: 2px solid var(--color-secondary);
-  padding-bottom: 0.3rem;
-}
-
-.recipe-ingredients ul {
-  list-style: disc;
-  padding-left: 2rem;
-  margin-bottom: 1rem;
-}
-
-.recipe-ingredients li {
-  font-size: ${tamanhoFonteBase};
-  line-height: 1.6;
-  margin-bottom: 0.3rem;
-}
-
-.recipe-instructions ol {
-  list-style: decimal;
-  padding-left: 2rem;
-  margin-bottom: 1rem;
-}
-
-.recipe-instructions li {
-  font-size: ${tamanhoFonteBase};
-  line-height: var(--line-spacing);
-  text-align: justify;
-  margin-bottom: 0.8rem;
 }
 
 .chapter-text-page { padding-top: 22mm !important; }
@@ -954,16 +857,7 @@ blockquote {
 }
 .highlight-box i { font-size: 1.8rem; color: var(--color-primary); flex-shrink: 0; }
 
-/* ===== RESTRIÇÃO DE IMAGENS ===== */
-.page-container img,
-.page-extra img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-  margin: 0 auto 1.5rem auto;
-}
-
+img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; margin: 1rem auto; display: block; object-fit: cover; page-break-inside: avoid; break-inside: avoid; }
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
@@ -992,10 +886,10 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
 @page { size: A4 portrait; margin: 0; }
 @media print {
-  html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: 210mm !important; height: auto !important; }
+  html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
   #ebook-container { width: 100%; padding: 0; margin: 0; }
   .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
-    width: 210mm !important; height: 297mm !important; box-sizing: border-box !important; margin: 0 !important; padding: 22mm 20mm 25mm 20mm !important; page-break-after: always !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; border: none !important;
+    width: ${conf.width} !important; height: ${conf.height} !important; box-sizing: border-box !important; margin: 0 !important; padding: ${conf.padding} !important; page-break-after: always !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; border: none !important;
   }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 }
@@ -1050,8 +944,7 @@ ${ebookStyles}
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS
   // ============================================================
   function validarParagrafos(html: string): string {
-    if (modoConteudo === 'receitas') return html;
-
+    // Remove a antiga condição de receitas; agora valida todos os casos.
     const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
     let novoHtml = html;
     let match;
@@ -1147,14 +1040,7 @@ ${ebookStyles}
 
     if (recarregar && previewFrameRef.current) {
       setRecarregarIframe(true);
-      const paleta = getPaletaObj();
-      const script = getScriptPreview(
-        indexShowSubtopics,
-        ativarBgSegundaPagina,
-        bgSegundaPaginaUrl,
-        bgSegundaPaginaOpacidade,
-        paleta.pri
-      );
+      const script = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
       previewFrameRef.current.srcdoc = htmlFinal + script;
     } else {
       setRecarregarIframe(false);
@@ -1291,14 +1177,7 @@ ${ebookStyles}
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
     if (previewFrameRef.current) {
-      const paleta = getPaletaObj();
-      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(
-        indexShowSubtopics,
-        ativarBgSegundaPagina,
-        bgSegundaPaginaUrl,
-        bgSegundaPaginaOpacidade,
-        paleta.pri
-      );
+      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
 
     setShowModalPagina(false);
@@ -1361,14 +1240,7 @@ ${ebookStyles}
       localStorage.setItem('ebook_draft_html', estadoAnterior);
       setRecarregarIframe(true);
       if (previewFrameRef.current) {
-        const paleta = getPaletaObj();
-        previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(
-          indexShowSubtopics,
-          ativarBgSegundaPagina,
-          bgSegundaPaginaUrl,
-          bgSegundaPaginaOpacidade,
-          paleta.pri
-        );
+        previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
       }
     }
     setElementoSelecionado(null);
@@ -1607,8 +1479,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
-    
-    const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
+    const regex = /Capítulo\s*(\d+)/gi;
     let match;
     let max = 0;
     while ((match = regex.exec(html)) !== null) {
@@ -1619,11 +1490,10 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA SEM MODO E COM TAMANHO)
   // ============================================================
-  function obterInstrucoesBase(opts?: { numeroCapitulo?: number; modo?: 'padrao' | 'receitas' }) {
-    const numero = opts?.numeroCapitulo || 1;
-    const modo = opts?.modo || 'padrao';
+  function obterInstrucoesBase(numeroCapitulo?: number) {
+    const num = numeroCapitulo || 1;
 
     let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
     let regraRodape = '';
@@ -1633,51 +1503,56 @@ Mantenha a consistência visual com o resto do e-book.`;
       regraRodape = `${numSpan}`;
     }
 
+    const regraImagem = `
+    REGRAS PARA URLs DE IMAGENS:
+    - Use o formato exato para a rota de busca interna ou utilize tags limpas.
+    - PROIBIDO ABSOLUTAMENTE usar imagens com animais, tecnologia, sci-fi, desenhos ou gráficos 3D. Apenas fotografias reais.
+    `;
+
     const moldePrimeiraPagina = `
       <!-- PÁGINA 1 -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
-          <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-          <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
+          <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${num}</span></div>
+          <h2 class="chapter-title-inline">Capítulo ${num}: [Nome do Capítulo]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-          <p>[Parágrafo 1 - Mantenha frases concisas dentro das margens]</p>
-          <p>[Parágrafo 2 - Mantenha frases concisas dentro das margens]</p>
+          <p>[Parágrafo 1 - entre 400 e 430 caracteres]</p>
+          <p>[Parágrafo 2 - entre 400 e 430 caracteres]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>`;
 
-    let moldePaginas = `
-       ${moldePrimeiraPagina}
-
+    const moldePaginasSecundarias = `
        <!-- PÁGINA 2 -->
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
-           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${num}</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p>[Parágrafo 1]</p>
-           <p>[Parágrafo 2]</p>
+           <p>[Parágrafo 1 - entre 400 e 430 caracteres]</p>
+           <p>[Parágrafo 2 - entre 400 e 430 caracteres]</p>
            <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-           <p>[Parágrafo 3]</p>
-           <p>[Parágrafo 4]</p>
+           <p>[Parágrafo 3 - entre 400 e 430 caracteres]</p>
+           <p>[Parágrafo 4 - entre 400 e 430 caracteres]</p>
            <div class="page-footer">${regraRodape}</div>
        </div>
 
        <!-- PÁGINA 3 -->
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
-           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${num}</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p>[Parágrafo 1]</p>
-           <p>[Parágrafo 2]</p>
-           <p>[Parágrafo 3]</p>
-           <p>[Parágrafo 4]</p>
+           <p>[Parágrafo 1 - entre 400 e 430 caracteres]</p>
+           <p>[Parágrafo 2 - entre 400 e 430 caracteres]</p>
+           <p>[Parágrafo 3 - entre 400 e 430 caracteres]</p>
+           <p>[Parágrafo 4 - entre 400 e 430 caracteres]</p>
            <blockquote><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
     `;
 
-    let moldeReceitas = `
-      <!-- PÁGINA 1: Título + Banner + Ingredientes -->
+    // Modelo para receitas (caso a IA identifique que o conteúdo é culinário)
+    const moldeReceitas = `
+      <!-- RECEITA - PÁGINA 1 -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>[Nome da Receita]</span></div>
-          <h2 class="recipe-title">[Nome da Receita]</h2>
+          <h2 class="chapter-title-inline">[Nome da Receita]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner da Receita">
           <h3 class="subtopic-title">Ingredientes</h3>
           <ul>
@@ -1690,17 +1565,14 @@ Mantenha a consistência visual com o resto do e-book.`;
           <div class="page-footer">${regraRodape}</div>
       </div>
 
-      <!-- PÁGINA 2: Modo de Preparo + Citação -->
+      <!-- RECEITA - PÁGINA 2 -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>Modo de Preparo</span></div>
           <h3 class="subtopic-title">Modo de Preparo</h3>
-          <ol>
-              <li>[Passo 1 - descrição detalhada]</li>
-              <li>[Passo 2 - continuação]</li>
-              <li>[Passo 3 - ...]</li>
-              <li>[Passo 4 - ...]</li>
-              <li>[Passo 5 - finalização]</li>
-          </ol>
+          <p>[Passo 1 - entre 400 e 430 caracteres]</p>
+          <p>[Passo 2 - entre 400 e 430 caracteres]</p>
+          <p>[Passo 3 - entre 400 e 430 caracteres]</p>
+          <p>[Passo 4 - entre 400 e 430 caracteres]</p>
           <blockquote><i class="fas fa-quote-left"></i> [Dica ou reflexão sobre a receita]</blockquote>
           <div class="page-footer">${regraRodape}</div>
       </div>
@@ -1708,23 +1580,29 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const regrasComuns = `
     DIRETRIZES DE SEGURANÇA E FORMATAÇÃO:
-    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
+    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${num}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
     2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
     3. FOTOGRAFIA: Use apenas imagens reais.
-    4. COMPRIMENTO DOS PARÁGRAFOS (CRÍTICO): É OBRIGATÓRIO que CADA parágrafo gerado (tag <p>) contenha entre 400 e 450 caracteres. Isso é essencial para preencher o formato A4 de maneira uniforme e evitar vazamentos de margem. Não gere parágrafos com menos de 400 caracteres nem permita que ultrapassem 450 caracteres.
+    4. TAMANHO DOS PARÁGRAFOS: Cada parágrafo deve ter entre 400 e 430 caracteres. Isso é fundamental para a diagramação A4.
+    5. ESTRUTURA: Na primeira página de cada capítulo, obrigatoriamente: título do capítulo, imagem, subtítulo 1 e 2 parágrafos. Nas páginas seguintes, 4 parágrafos cada.
+    6. INTERPRETAÇÃO DO CONTEÚDO: Analise o conteúdo fornecido pelo usuário. Se for claramente uma receita culinária (com ingredientes, modo de preparo), utilize o formato de receitas (molde RECEITAS). Caso contrário, utilize o formato padrão de capítulos (molde PADRÃO). Nunca misture os formatos no mesmo capítulo.
     `;
 
-    let moldeFinal = '';
-    if (modo === 'receitas') {
-      moldeFinal = moldeReceitas;
-    } else {
-      moldeFinal = moldePaginas;
-    }
+    // Retorna as instruções completas, incluindo ambos os moldes para a IA escolher.
+    return {
+      instrucoes: `
+      ${regrasComuns}
+      MOLDE PADRÃO (para textos narrativos, técnicos, etc.):
+      ${moldePrimeiraPagina}
+      ${moldePaginasSecundarias}
 
-    return { 
-      regrasCompletas: regrasComuns + '\n\n' + moldeFinal, 
+      MOLDE RECEITAS (para conteúdo culinário):
+      ${moldeReceitas}
+
+      IMPORTANTE: Escolha o molde adequado com base no conteúdo. Se for receita, use o molde RECEITAS; senão, use o PADRÃO.
+      `,
       regraRodape,
-      numero
+      numero: num
     };
   }
 
@@ -1740,12 +1618,12 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'padrao' });
+    const { instrucoes, regraRodape } = obterInstrucoesBase(); // sem número para a introdução
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
     const instrucao = `Você vai INICIAR um e-book gerando APENAS a Capa, Aviso/Direitos, Índice e Introdução.
-    ${regrasCompletas}
+    ${instrucoes}
     ESTRUTURA OBRIGATÓRIA DA RESPOSTA (PASSO 1):
     ${regraCapaHtml}
     ${paginaAviso}
@@ -1759,11 +1637,11 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">[Primeiro tópico da introdução - relacionado ao conteúdo]</h3>
-        <p>[Parágrafo 1 - 3-4 linhas]</p>
-        <p>[Parágrafo 2 - 3-4 linhas]</p>
+        <p>[Parágrafo 1 - entre 400 e 430 caracteres]</p>
+        <p>[Parágrafo 2 - entre 400 e 430 caracteres]</p>
         <h3 class="subtopic-title">[Segundo tópico da introdução - relacionado ao conteúdo]</h3>
-        <p>[Parágrafo 3 - 3-4 linhas]</p>
-        <p>[Parágrafo 4 - 3-4 linhas]</p>
+        <p>[Parágrafo 3 - entre 400 e 430 caracteres]</p>
+        <p>[Parágrafo 4 - entre 400 e 430 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
     PARE AQUI! NÃO gere Capítulos ou Conclusão. PROIBIDO o uso de imagens na introdução.
@@ -1790,38 +1668,33 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
 
     const proximoNumero = getNextChapterNumber(currentHtml);
-    const isModoReceitas = modoConteudo === 'receitas';
-    const modo = isModoReceitas ? 'receitas' : 'padrao';
 
-    let instrucao = '';
-    if (isModoReceitas) {
-      const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'receitas' });
-      instrucao = `Você vai CONTINUAR a escrita de um e-book de RECEITAS, gerando 3 novas receitas.
-      ${regrasCompletas}
-      ATENÇÃO: NUNCA use a palavra "Capítulo". Use somente o nome da receita.
-      Cada receita deve ocupar 2 páginas: a primeira com título, banner e ingredientes; a segunda com modo de preparo (em lista ordenada <ol>) e uma citação.
-      Não use highlight-box, apenas o blockquote no final da segunda página.
-      A sua resposta deve conter APENAS os blocos HTML das 3 receitas, sem repetir cabeçalhos ou rodapés adicionais.
-      `;
-    } else {
-      const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, modo: 'padrao' });
-      const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, modo: 'padrao' });
-      const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
-      instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
-      Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
-      Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-      ATENÇÃO: Não pule números e não crie capítulos com numeração diferente.
-      MOLDE PARA CADA CAPÍTULO:
-      ${cap1.regrasCompletas}
-      ${cap2.regrasCompletas}
-      ${cap3.regrasCompletas}
-      A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos, sem repetir cabeçalhos ou rodapés adicionais.
-      `;
-    }
+    // Gera instruções para os 3 capítulos
+    const cap1 = obterInstrucoesBase(proximoNumero);
+    const cap2 = obterInstrucoesBase(proximoNumero + 1);
+    const cap3 = obterInstrucoesBase(proximoNumero + 2);
+
+    const instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
+    Cada capítulo deve seguir as instruções detalhadas abaixo.
+    Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
+    ATENÇÃO: Não pule números e não crie capítulos com numeração diferente.
+
+    INSTRUÇÕES PARA O CAPÍTULO ${proximoNumero}:
+    ${cap1.instrucoes}
+
+    INSTRUÇÕES PARA O CAPÍTULO ${proximoNumero + 1}:
+    ${cap2.instrucoes}
+
+    INSTRUÇÕES PARA O CAPÍTULO ${proximoNumero + 2}:
+    ${cap3.instrucoes}
+
+    A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos, sem repetir cabeçalhos ou rodapés adicionais.
+    Lembre-se de que cada parágrafo deve ter entre 400 e 430 caracteres.
+    `;
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
+      { text: `CONTEÚDO BASE PARA OS PRÓXIMOS CAPÍTULOS (siga o que for pedido; se for receitas, use o molde de receitas):\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
     ], false);
 
     if (data && data.html) {
@@ -1840,7 +1713,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regraRodape } = obterInstrucoesBase({ modo: 'padrao' });
+    const { regraRodape } = obterInstrucoesBase();
 
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
     DIRETRIZES:
@@ -1850,7 +1723,7 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
         <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
         <h3 class="subtopic-title">Fechamento</h3>
-        <p>[Conclusão...]</p>
+        <p>[Conclusão - entre 400 e 430 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
     O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará de adicionar o Autor nativamente.
@@ -1864,72 +1737,6 @@ Mantenha a consistência visual com o resto do e-book.`;
       (window as any).showNotification('Passo 3 Concluído! Conclusão e Autor gerados.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
-    }
-  }
-
-  // ============================================================
-  // FUNÇÃO PARA GERAR RECEITA INDIVIDUAL (MODO MANUAL)
-  // ============================================================
-  async function gerarPaginaReceita(tituloDigitado: string) {
-    if (!tituloDigitado || tituloDigitado.trim() === '') {
-      (window as any).showNotification('Digite o nome da receita.', 'error');
-      return;
-    }
-
-    const regrasReceitas = `
-    DIRETRIZES DE FORMATAÇÃO PARA RECEITAS:
-    1. ESTRUTURA TRADICIONAL: A resposta DEVE seguir rigorosamente a estrutura clássica: Título, Introdução, Ingredientes e Modo de Preparo.
-    2. INGREDIENTES (SEM LIMITE): Apresente os ingredientes em formato de lista (tags <ul> e <li>). Os itens devem ser curtos, exatos e diretos (ex: "2 xícaras de farinha"). Não aplique limite de caracteres nesta seção.
-    3. MODO DE PREPARO (PASSO A PASSO): O modo de preparo DEVE ser feito no formato tradicional de etapas sequenciais usando <ol> e <li>. Cada passo deve conter entre 200 e 300 caracteres.
-    4. CONTROLE DE CARACTERES (INTRODUÇÃO E PREPARO): Para manter a padronização visual da página, a "Introdução" e a descrição de CADA etapa do "Modo de Preparo" devem conter estritamente entre 200 e 300 caracteres. Para atingir esse limite nos passos de preparo sem enrolação, adicione dicas culinárias úteis, como o ponto exato da textura, aroma esperado ou sugestões de utensílios.
-    5. NÃO USE NÚMEROS DE CAPÍTULO, pois isso é uma receita avulsa.
-    `;
-
-    const moldeReceita = `
-    Crie uma receita completa para o prato: "${tituloDigitado}".
-    
-    Preencha o seguinte molde HTML, substituindo as instruções entre colchetes pelo conteúdo gerado, respeitando estritamente os limites de caracteres:
-
-    <div class="page-container">
-      <div class="page-header"><span>${livroTitulo || 'Receitas'}</span><span>${tituloDigitado}</span></div>
-      <h2 class="recipe-title">${tituloDigitado}</h2>
-      
-      <div class="recipe-intro">
-        <p>[Escreva uma introdução atraente sobre esta receita contendo estritamente entre 200 e 300 caracteres]</p>
-      </div>
-
-      <div class="recipe-ingredients">
-        <h3>Ingredientes</h3>
-        <ul>
-          [Gere os itens da lista de ingredientes de forma curta e tradicional]
-        </ul>
-      </div>
-
-      <div class="recipe-instructions">
-        <h3>Modo de Preparo</h3>
-        <ol>
-          <li>[Passo 1 - Escreva as instruções iniciais contendo estritamente entre 200 e 300 caracteres. Adicione dicas técnicas se necessário]</li>
-          <li>[Passo 2 - Escreva o próximo passo contendo estritamente entre 200 e 300 caracteres]</li>
-          <li>[Passo 3 - Escreva o passo final/cozimento contendo estritamente entre 200 e 300 caracteres]</li>
-        </ol>
-      </div>
-      <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
-    </div>
-    `;
-
-    const promptFinalParaIA = `${regrasReceitas}\n\n${moldeReceita}`;
-
-    try {
-      const data = await chamarMotorIA(promptFinalParaIA, [{ text: `Gerar receita: ${tituloDigitado}` }], false);
-      if (data && data.html) {
-        aplicarHtmlNovo(data.html, true, true);
-        (window as any).showNotification(`Receita "${tituloDigitado}" gerada com sucesso!`, 'success');
-      } else {
-        throw new Error('A IA não retornou um HTML válido.');
-      }
-    } catch (error: any) {
-      console.error('Erro ao gerar receita:', error);
-      (window as any).showNotification('Falha ao gerar receita. Verifique o console.', 'error');
     }
   }
 
@@ -2024,14 +1831,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       const htmlFinal = moldarApresentacaoHtml(savedHtml);
       setHtmlAtual(htmlFinal);
       if (previewFrameRef.current) {
-        const paleta = getPaletaObj();
-        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(
-          indexShowSubtopics,
-          ativarBgSegundaPagina,
-          bgSegundaPaginaUrl,
-          bgSegundaPaginaOpacidade,
-          paleta.pri
-        );
+        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
       }
     }
 
@@ -2052,14 +1852,7 @@ Mantenha a consistência visual com o resto do e-book.`;
         localStorage.setItem('ebook_draft_html', htmlAtualizado);
         setRecarregarIframe(true);
         if (previewFrameRef.current) {
-          const paleta = getPaletaObj();
-          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(
-            indexShowSubtopics,
-            ativarBgSegundaPagina,
-            bgSegundaPaginaUrl,
-            bgSegundaPaginaOpacidade,
-            paleta.pri
-          );
+          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
         }
       }
     }
@@ -2085,14 +1878,7 @@ Mantenha a consistência visual com o resto do e-book.`;
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(true);
           if (previewFrameRef.current) {
-            const paleta = getPaletaObj();
-            previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(
-              indexShowSubtopics,
-              ativarBgSegundaPagina,
-              bgSegundaPaginaUrl,
-              bgSegundaPaginaOpacidade,
-              paleta.pri
-            );
+            previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
           }
         }
       }
@@ -2104,14 +1890,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
-      const paleta = getPaletaObj();
-      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(
-        indexShowSubtopics,
-        ativarBgSegundaPagina,
-        bgSegundaPaginaUrl,
-        bgSegundaPaginaOpacidade,
-        paleta.pri
-      );
+      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
@@ -2371,7 +2150,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                     </div>
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="input-label mb-0">Texto Base / Sumário / Ideia</label>
+                        <label className="input-label mb-0">Texto Base / Ideia</label>
                         <button
                           onClick={iniciarNovoLivro}
                           className="text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm flex items-center gap-1.5"
@@ -2384,7 +2163,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                         value={productContent}
                         onChange={(e) => setProductContent(e.target.value)}
                         className="input-standard resize-y"
-                        placeholder="Descreva os capítulos ou cole seu texto aqui..."
+                        placeholder="Descreva os capítulos ou cole seu texto aqui. Se for receitas, descreva os pratos e ingredientes."
                       ></textarea>
                       <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
                         <input
@@ -2528,18 +2307,6 @@ Mantenha a consistência visual com o resto do e-book.`;
 
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="input-label text-[9px]">Tipo de Livro</label>
-                      <select
-                        value={modoConteudo}
-                        onChange={(e: any) => setModoConteudo(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="expandido">Padrão (Expandido)</option>
-                        <option value="rigoroso">Rigoroso (texto original)</option>
-                        <option value="receitas">Receitas</option>
-                      </select>
-                    </div>
-                    <div>
                       <label className="input-label text-[9px]">Espaçamento entre Parágrafos</label>
                       <select
                         value={espacamentoParagrafo}
@@ -2552,9 +2319,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                         <option value="1.2em">1.2em</option>
                       </select>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="input-label text-[9px]">Borda das Páginas</label>
                       <select
