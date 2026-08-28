@@ -1479,19 +1479,17 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
   // ============================================================
-  // NOVO CÓDIGO CORRIGIDO
-function getNextChapterNumber(html: string): number {
-  if (!html) return 1;
-  // Busca estritamente dentro das tags <h2> de título de capítulo para ignorar o Índice e o corpo de texto
-  const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
-  let match;
-  let max = 0;
-  while ((match = regex.exec(html)) !== null) {
-    const num = parseInt(match[1], 10);
-    if (num > max) max = num;
+  function getNextChapterNumber(html: string): number {
+    if (!html) return 1;
+    const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
+    let match;
+    let max = 0;
+    while ((match = regex.exec(html)) !== null) {
+      const num = parseInt(match[1], 10);
+      if (num > max) max = num;
+    }
+    return max + 1;
   }
-  return max + 1;
-}
 
   // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
@@ -1623,7 +1621,6 @@ function getNextChapterNumber(html: string): number {
       return;
     }
 
-    // Não usa numeroCapitulo
     const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'padrao' });
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
@@ -1673,18 +1670,12 @@ function getNextChapterNumber(html: string): number {
       return;
     }
 
-    // Calcula o próximo número de capítulo
     const proximoNumero = getNextChapterNumber(currentHtml);
     const isModoReceitas = modoConteudo === 'receitas';
-
-    // Para receitas, não usamos numeração, mas precisamos do molde
     const modo = isModoReceitas ? 'receitas' : 'padrao';
 
-    // Para gerar 3 capítulos, chamamos a IA com os números sequenciais.
-    // Para receitas, passamos apenas o molde sem numeração.
     let instrucao = '';
     if (isModoReceitas) {
-      // No modo receitas, geramos 3 receitas sem numeração
       const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'receitas' });
       instrucao = `Você vai CONTINUAR a escrita de um e-book de RECEITAS, gerando 3 novas receitas.
       ${regrasCompletas}
@@ -1694,12 +1685,9 @@ function getNextChapterNumber(html: string): number {
       A sua resposta deve conter APENAS os blocos HTML das 3 receitas, sem repetir cabeçalhos ou rodapés adicionais.
       `;
     } else {
-      // Modo padrão: gerar 3 capítulos com numeração sequencial
       const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, modo: 'padrao' });
       const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, modo: 'padrao' });
       const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
-      // Juntamos as regras (mas a IA vai receber o molde completo de cada capítulo)
-      // Vamos passar uma instrução única com os três moldes.
       instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
       Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
       Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
@@ -1914,15 +1902,24 @@ function getNextChapterNumber(html: string): number {
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
-  // Reaplicar estilos ao mudar configurações visuais
+  // ============================================================
+  // REAPLICAR ESTILOS AO MUDAR CONFIGURAÇÕES VISUAIS
+  // ============================================================
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
       setHtmlAtual(htmlFinal);
       localStorage.setItem('ebook_draft_html', htmlFinal);
-      setRecarregarIframe(true);
+      if (previewFrameRef.current) {
+        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      }
     }
-  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
+  }, [
+    fontFamily, tamanhoFonteBase, espacamentoLinhas, espacamentoParagrafo,
+    recuoParagrafo, tipoBorda, paletaCores, corManualPri, corManualSec,
+    corManualText, corManualBg, alinhamentoCapitulo, corBoxCapitulo,
+    estiloRodape, autorPosicao, autorFormato, indexShowSubtopics
+  ]);
 
   const isTextElement = elementoSelecionado
     ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
