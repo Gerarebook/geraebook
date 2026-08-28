@@ -1479,6 +1479,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
   // ============================================================
+  // NOVO CÓDIGO CORRIGIDO
 function getNextChapterNumber(html: string): number {
   if (!html) return 1;
   // Busca estritamente dentro das tags <h2> de título de capítulo para ignorar o Índice e o corpo de texto
@@ -1914,32 +1915,135 @@ function getNextChapterNumber(html: string): number {
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
   // ============================================================
-// SOLUÇÃO CORRIGIDA: useMemo para moldar o HTML sem disparar loops
-// ============================================================
-const htmlFinal = useMemo(() => {
-  if (!htmlAtual) return '';
-  return moldarApresentacaoHtml(htmlAtual);
-}, [
-  htmlAtual, fontFamily, tamanhoFonteBase, espacamentoLinhas, espacamentoParagrafo,
-  recuoParagrafo, tipoBorda, paletaCores, corManualPri, corManualSec,
-  corManualText, corManualBg, alinhamentoCapitulo, corBoxCapitulo,
-  estiloRodape, autorPosicao, autorFormato
-]);
+  // ABORDAGEM CORRIGIDA: useMemo para renderização visual reativa
+  // ============================================================
+  const htmlFinal = useMemo(() => {
+    if (!htmlAtual) return '';
+    return moldarApresentacaoHtml(htmlAtual);
+  }, [
+    htmlAtual, fontFamily, tamanhoFonteBase, espacamentoLinhas, espacamentoParagrafo,
+    recuoParagrafo, tipoBorda, paletaCores, corManualPri, corManualSec,
+    corManualText, corManualBg, alinhamentoCapitulo, corBoxCapitulo,
+    estiloRodape, autorPosicao, autorFormato
+  ]);
 
-// Sincroniza o preview e o localStorage sempre que o htmlFinal ou as configs do script mudarem
-useEffect(() => {
-  if (htmlFinal) {
-    localStorage.setItem('ebook_draft_html', htmlFinal);
-    if (previewFrameRef.current) {
-      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(
-        indexShowSubtopics, 
-        ativarBgSegundaPagina, 
-        bgSegundaPaginaUrl, 
-        bgSegundaPaginaOpacidade
-      );
+  // Sincroniza o iframe e o localStorage sempre que o visual ou as subpastas mudarem
+  useEffect(() => {
+    if (htmlFinal) {
+      localStorage.setItem('ebook_draft_html', htmlFinal);
+      if (previewFrameRef.current) {
+        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(
+          indexShowSubtopics, 
+          ativarBgSegundaPagina, 
+          bgSegundaPaginaUrl, 
+          bgSegundaPaginaOpacidade
+        );
+      }
     }
-  }
-}, [htmlFinal, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
+  }, [htmlFinal, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
+
+  // ============================================================
+  // RENDERIZAÇÃO DA INTERFACE (JSX)
+  // ============================================================
+  return (
+    <div className="flex h-screen w-full bg-slate-50 text-slate-800 overflow-hidden font-sans">
+      
+      {/* BARRA LATERAL (CONFIGURAÇÕES E ETAPAS) */}
+      <aside className="w-80 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shadow-sm z-10">
+        <div className="p-4 border-b border-slate-100">
+          <h1 className="text-xl font-bold text-slate-900">E-book Builder</h1>
+        </div>
+        
+        <div className="p-4 space-y-4 flex-1">
+          <div>
+            <label className="block text-sm font-semibold mb-1">Título do Livro</label>
+            <input 
+              className="w-full border p-2 rounded" 
+              value={livroTitulo} 
+              onChange={e => setLivroTitulo(e.target.value)} 
+            />
+          </div>
+
+          <div className="pt-4 border-t border-slate-200 space-y-2">
+            <button onClick={iniciarEbookEtapas} className="w-full bg-blue-600 text-white p-2 rounded font-bold hover:bg-blue-700">
+              Passo 1: Capa e Introdução
+            </button>
+            <button onClick={continuarEbookEtapas} className="w-full bg-green-600 text-white p-2 rounded font-bold hover:bg-green-700">
+              Passo 2: Adicionar 3 Capítulos
+            </button>
+            <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 text-white p-2 rounded font-bold hover:bg-slate-900">
+              Passo 3: Conclusão e Autor
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ÁREA PRINCIPAL (PREVIEW E FERRAMENTAS) */}
+      <main className="flex-1 flex flex-col relative bg-slate-200">
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4">
+          <div className="flex gap-2">
+            <button onClick={toggleInspetor} className={`px-4 py-1.5 rounded font-bold text-sm ${modoInspetor ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              <i className="fas fa-magic mr-2"></i> {modoInspetor ? 'Inspetor Ativo' : 'Ativar Inspetor'}
+            </button>
+            <button onClick={toggleBackground} className="px-4 py-1.5 bg-slate-200 text-slate-700 rounded font-bold text-sm">
+              Alternar Fundo Global
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-xs text-slate-500 flex items-center font-semibold">
+              {statusApis.processing && <i className="fas fa-spinner fa-spin mr-2"></i>}
+              {statusApis.texto}
+            </span>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-auto p-8 flex justify-center">
+          <iframe
+            ref={previewFrameRef}
+            className="w-[210mm] h-[297mm] bg-white shadow-2xl rounded-sm transition-all origin-top"
+            title="E-book Preview"
+            style={{ transform: 'scale(0.9)' }} 
+          />
+        </div>
+
+        {modoInspetor && elementoSelecionado && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 w-full max-w-2xl z-50">
+            <h3 className="text-sm font-bold mb-2 text-indigo-700 flex items-center gap-2">
+              <i className="fas fa-edit"></i> Editando: {elementoSelecionado.tagName}
+            </h3>
+            
+            <div className="flex gap-2 mb-3">
+              <input 
+                id="ai_prompt_local"
+                type="text" 
+                placeholder="Ex: Reescreva em tom formal..." 
+                className="flex-1 border p-2 rounded text-sm"
+              />
+              <button onClick={aplicarModificacaoLocal} className="bg-indigo-600 text-white px-4 rounded text-sm font-bold">
+                Aplicar IA
+              </button>
+            </div>
+            
+            <div className="flex gap-2">
+              <button onClick={() => imageInputRef.current?.click()} className="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded text-sm font-semibold border">
+                <i className="fas fa-upload mr-1"></i> Upload Imagem
+              </button>
+              <button onClick={buscarImagemUnsplash} className="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded text-sm font-semibold border">
+                <i className="fas fa-camera mr-1"></i> Imagem Unsplash
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* INPUTS OCULTOS */}
+      <input type="file" ref={imageInputRef} className="hidden" onChange={handleImageUploadBtn} accept="image/*" />
+      <input type="file" ref={extraImageInputRef} className="hidden" onChange={handleExtraImageUpload} accept="image/*" />
+      <input type="file" ref={uploadInputRef} className="hidden" onChange={handleUploadFile} accept=".html" />
+
+    </div>
+  );
+}
 
         {showModalPagina && (
           <div className="modal-overlay" onClick={() => setShowModalPagina(false)}>
