@@ -1481,7 +1481,8 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
-    const regex = /Capítulo\s*(\d+)/gi;
+    // Procura a numeração estritamente dentro da tag do título do capítulo
+    const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
     let match;
     let max = 0;
     while ((match = regex.exec(html)) !== null) {
@@ -1513,41 +1514,41 @@ Mantenha a consistência visual com o resto do e-book.`;
     `;
 
     const moldePrimeiraPagina = `
-      <!-- PÁGINA 1 -->
+      <!-- PÁGINA 1 (TÍTULO DO CAPÍTULO) -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
           <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-          <p>[Parágrafo 1 - Mantenha frases concisas dentro das margens]</p>
-          <p>[Parágrafo 2 - Mantenha frases concisas dentro das margens]</p>
+          <p>[Parágrafo 1 - EXATAMENTE ~450 caracteres para tamanho de fonte 14pt (se fonte menor, aumente proporcionalmente o texto)]</p>
+          <p>[Parágrafo 2 - EXATAMENTE ~450 caracteres para tamanho de fonte 14pt (se fonte menor, aumente proporcionalmente o texto)]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>`;
 
     let moldePaginas = `
        ${moldePrimeiraPagina}
 
-       <!-- PÁGINA 2 -->
+       <!-- PÁGINA 2 (DEMAIS PÁGINAS COM TEXTO E BOX) -->
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p>[Parágrafo 1]</p>
-           <p>[Parágrafo 2]</p>
-           <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-           <p>[Parágrafo 3]</p>
-           <p>[Parágrafo 4]</p>
+           <p>[Parágrafo 1 - EXATAMENTE ~450 caracteres]</p>
+           <p>[Parágrafo 2 - EXATAMENTE ~450 caracteres]</p>
+           <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante - concisa]</div>
+           <p>[Parágrafo 3 - EXATAMENTE ~450 caracteres]</p>
+           <p>[Parágrafo 4 - EXATAMENTE ~450 caracteres]</p>
            <div class="page-footer">${regraRodape}</div>
        </div>
 
-       <!-- PÁGINA 3 -->
+       <!-- PÁGINA 3 (DEMAIS PÁGINAS COM TEXTO E QUOTE) -->
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p>[Parágrafo 1]</p>
-           <p>[Parágrafo 2]</p>
-           <p>[Parágrafo 3]</p>
-           <p>[Parágrafo 4]</p>
-           <blockquote><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
+           <p>[Parágrafo 1 - EXATAMENTE ~450 caracteres]</p>
+           <p>[Parágrafo 2 - EXATAMENTE ~450 caracteres]</p>
+           <p>[Parágrafo 3 - EXATAMENTE ~450 caracteres]</p>
+           <p>[Parágrafo 4 - EXATAMENTE ~450 caracteres]</p>
+           <blockquote><i class="fas fa-quote-left"></i> [Citação relevante - concisa]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
     `;
