@@ -970,12 +970,11 @@ ${ebookStyles}
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temBlockquote = conteudo.includes('<blockquote');
 
-        const minParagrafos = 5;
-        if (paragrafos.length < minParagrafos) {
-          const faltando = minParagrafos - paragrafos.length;
+        if (paragrafos.length < 2) {
+          const faltando = 2 - paragrafos.length;
           let novos = '';
           for (let i = 0; i < faltando; i++) {
-            novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
+            novos += `<p>[Parágrafo com cerca de 450 caracteres ajustado para o formato de página A4.]</p>\n`;
           }
           const footerIndex = conteudo.lastIndexOf('</div>');
           if (footerIndex !== -1) {
@@ -1698,15 +1697,19 @@ Mantenha a consistência visual com o resto do e-book.`;
       const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
       // Juntamos as regras (mas a IA vai receber o molde completo de cada capítulo)
       // Vamos passar uma instrução única com os três moldes.
-      instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
-      Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
-      Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-      ATENÇÃO: Não pule números e não crie capítulos com numeração diferente.
-      MOLDE PARA CADA CAPÍTULO:
+      instrucao = `Você vai CONTINUAR a escrita do e-book gerando EXATAMENTE 3 CAPÍTULOS por aquisição.
+      ESTRUTURA DE PARÁGRAFOS PARA CADA PÁGINA FORMATO A4:
+      - Página de Título do Capítulo: EXATAMENTE 2 parágrafos (~450 caracteres cada para fonte 14pt).
+      - Demais Páginas (texto, box e quote): EXATAMENTE 4 parágrafos (~450 caracteres cada para fonte 14pt).
+
+      Use obrigatoriamente a sequência numérica inicial: Capítulo ${proximoNumero}, Capítulo ${proximoNumero + 1}, Capítulo ${proximoNumero + 2}.
+      ATENÇÃO: Não pule números e inicie estritamente do Capítulo ${proximoNumero}.
+
+      MOLDE DOS 3 CAPÍTULOS:
       ${cap1.regrasCompletas}
       ${cap2.regrasCompletas}
       ${cap3.regrasCompletas}
-      A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos, sem repetir cabeçalhos ou rodapés adicionais.
+      A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos completos.
       `;
     }
 
