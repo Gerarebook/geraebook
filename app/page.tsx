@@ -11,7 +11,7 @@ function getScriptPreview(
   ativarBgSegundaPagina: boolean,
   bgSegundaPaginaUrl: string,
   bgSegundaPaginaOpacidade: string,
-  corPrimaria: string // <-- NOVO PARÂMETRO
+  corPrimaria: string
 ) {
   return `<script id="editor-magic-script">
     let modoEdicao = false;
@@ -51,6 +51,7 @@ function getScriptPreview(
     }
 
     function sincronizarIndice() {
+      // Remove listas de índices anteriores (dentro das páginas de índice)
       document.querySelectorAll('.page-container').forEach(page => {
         const title = page.querySelector('h2');
         if (title && (title.innerText.toLowerCase().includes('índice') || title.innerText.toLowerCase().includes('sumário'))) {
@@ -58,38 +59,54 @@ function getScriptPreview(
         }
       });
 
+      // Pega o primeiro container de índice
       const allTocs = document.querySelectorAll('.toc-container');
       if (allTocs.length === 0) return;
       const mainToc = allTocs[0];
-      for (let i = 1; i < allTocs.length; i++) { allTocs[i].closest('.page-container')?.remove(); }
+      // Remove outros índices
+      for (let i = 1; i < allTocs.length; i++) {
+        allTocs[i].closest('.page-container')?.remove();
+      }
 
+      // Remove páginas de índice duplicadas
       const indexTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => 
         (el.textContent || '').trim().toLowerCase() === 'índice' || 
         (el.textContent || '').trim().toLowerCase() === 'sumário'
       );
-      for (let i = 1; i < indexTitles.length; i++) indexTitles[i].closest('.page-container')?.remove();
+      for (let i = 1; i < indexTitles.length; i++) {
+        indexTitles[i].closest('.page-container')?.remove();
+      }
 
+      // Remove páginas de introdução duplicadas
       const introTitles = Array.from(document.querySelectorAll('h2.chapter-title-inline')).filter(el => 
         (el.textContent || '').trim().toLowerCase() === 'introdução'
       );
-      for (let i = 1; i < introTitles.length; i++) introTitles[i].closest('.page-container')?.remove();
+      for (let i = 1; i < introTitles.length; i++) {
+        introTitles[i].closest('.page-container')?.remove();
+      }
 
+      // Remove páginas de capa duplicadas
       const covers = document.querySelectorAll('.page-cover-img, .page-cover-text, .page-cover-pura');
-      for (let i = 1; i < covers.length; i++) covers[i].closest('.page-container')?.remove();
+      for (let i = 1; i < covers.length; i++) {
+        covers[i].closest('.page-container')?.remove();
+      }
 
+      // Seletor para títulos
       const selector = ${indexShowSubtopics ? "'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'" : "'h1.chapter-title-exclusive, h2.chapter-title-inline'"};
       const titles = document.querySelectorAll(selector);
       mainToc.innerHTML = '';
 
       titles.forEach((titleEl) => {
+        // Pula H3 se não mostrar subtópicos
         if (${!indexShowSubtopics} && titleEl.tagName === 'H3') return;
+        // Pula H1 de capa sem ID (já que capas são tratadas separadamente)
         if (titleEl.tagName === 'H1' && !titleEl.id && titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
 
         let textContent = (titleEl.textContent || '').trim();
+        // Pula se for índice ou sumário (já que são páginas especiais)
         if (textContent.toLowerCase() === 'índice' || textContent.toLowerCase() === 'sumário') return;
 
-        // REMOVIDA A LÓGICA DE DUPLICIDADE – agora todos os títulos são adicionados
-
+        // Garante ID para âncora
         if (!titleEl.id) titleEl.id = 'sec-auto-' + Math.random().toString(36).substr(2, 9);
 
         const a = document.createElement('a');
@@ -97,7 +114,6 @@ function getScriptPreview(
         if (titleEl.tagName === 'H2' || titleEl.tagName === 'H1') {
           a.classList.add('toc-main-chapter');
           a.style.fontWeight = ${indexShowSubtopics ? "'700'" : "'400'"};
-          // COR FIXA USANDO O VALOR PASSADO
           a.style.color = '${corPrimaria}';
         } else if (titleEl.tagName === 'H3') {
           a.classList.add('toc-subtopic');
@@ -126,7 +142,6 @@ function getScriptPreview(
     function aplicarRefluxoDePagina() {
       let requiresReflow = true;
       let maxIterations = 80;
-      let pageCount = 0;
 
       while (requiresReflow && maxIterations > 0) {
         requiresReflow = false;
@@ -304,6 +319,7 @@ function getScriptPreview(
       function runFormatting() {
         sincronizarIndice();
         aplicarRefluxoDePagina();
+        // Atualiza números de página no índice após o refluxo
         const pages = Array.from(document.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura'));
         document.querySelectorAll('.toc-item').forEach(item => {
           const href = item.getAttribute('href');
@@ -1137,7 +1153,7 @@ ${ebookStyles}
         ativarBgSegundaPagina,
         bgSegundaPaginaUrl,
         bgSegundaPaginaOpacidade,
-        paleta.pri  // <-- COR PRIMÁRIA PASSADA
+        paleta.pri
       );
       previewFrameRef.current.srcdoc = htmlFinal + script;
     } else {
