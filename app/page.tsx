@@ -1914,58 +1914,132 @@ function getNextChapterNumber(html: string): number {
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
-  // Reaplicar estilos ao mudar configurações visuais
+  // Reaplicar estilos ao mudar configurações visuais (Fechamento do bloco cortado)
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
       setHtmlAtual(htmlFinal);
       localStorage.setItem('ebook_draft_html', htmlFinal);
-      setRecarregarIframe(true);
+      if (previewFrameRef.current) {
+        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      }
     }
-  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
-
-  const isTextElement = elementoSelecionado
-    ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
-        elementoSelecionado.tagName.toLowerCase()
-      )
-    : false;
+  }, [
+    fontFamily, tamanhoFonteBase, espacamentoLinhas, espacamentoParagrafo,
+    recuoParagrafo, tipoBorda, paletaCores, corManualPri, corManualSec,
+    corManualText, corManualBg, alinhamentoCapitulo, corBoxCapitulo,
+    estiloRodape, autorPosicao, autorFormato, indexShowSubtopics
+  ]);
 
   // ============================================================
-  // RENDER
+  // RENDERIZAÇÃO DA INTERFACE (JSX FALTANTE)
   // ============================================================
   return (
-    <>
-      <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
-        <i className="fas fa-desktop text-6xl mb-6 text-indigo-400"></i>
-        <h2 className="text-2xl font-black mb-3">Acesso Restrito ao Computador</h2>
-        <p className="text-base text-slate-300">Para garantir uma experiência de nível profissional na edição e diagramação do seu E-book, o painel do E-bookPro deve ser acessado por uma tela maior.</p>
-      </div>
+    <div className="flex h-screen w-full bg-slate-50 text-slate-800 overflow-hidden font-sans">
+      
+      {/* BARRA LATERAL (CONFIGURAÇÕES E ETAPAS) */}
+      <aside className="w-80 bg-white border-r border-slate-200 overflow-y-auto flex flex-col shadow-sm z-10">
+        <div className="p-4 border-b border-slate-100">
+          <h1 className="text-xl font-bold text-slate-900">E-book Builder</h1>
+        </div>
+        
+        <div className="p-4 space-y-4 flex-1">
+          {/* Exemplo de Inputs Iniciais */}
+          <div>
+            <label className="block text-sm font-semibold mb-1">Título do Livro</label>
+            <input 
+              className="w-full border p-2 rounded" 
+              value={livroTitulo} 
+              onChange={e => setLivroTitulo(e.target.value)} 
+            />
+          </div>
+          
+          {/* Coloque aqui seus controles visuais (Fontes, Cores, Margens) */}
 
-      <div className="hidden md:flex h-screen overflow-hidden relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-        <style dangerouslySetInnerHTML={{ __html: `
-          .input-standard { width: 100%; padding: 0.6rem 0.8rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; background-color: #f8fafc; font-size: 0.75rem; outline: none; color: #334155; transition: all 0.2s; font-weight: 500; }
-          .input-standard:focus { border-color: #6366f1; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-          .input-label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; display: block; }
-          .panel-section { padding: 1.2rem; border-bottom: 1px solid #f1f5f9; }
-          ::-webkit-scrollbar { width: 6px; height: 6px; }
-          ::-webkit-scrollbar-track { background: transparent; }
-          ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-          .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-          .modal-content { background: white; border-radius: 1.5rem; padding: 2rem; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-        ` }} />
+          {/* Controles de Etapas */}
+          <div className="pt-4 border-t border-slate-200 space-y-2">
+            <button onClick={iniciarEbookEtapas} className="w-full bg-blue-600 text-white p-2 rounded font-bold hover:bg-blue-700">
+              Passo 1: Capa e Introdução
+            </button>
+            <button onClick={continuarEbookEtapas} className="w-full bg-green-600 text-white p-2 rounded font-bold hover:bg-green-700">
+              Passo 2: Adicionar 3 Capítulos
+            </button>
+            <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 text-white p-2 rounded font-bold hover:bg-slate-900">
+              Passo 3: Conclusão e Autor
+            </button>
+          </div>
+        </div>
+      </aside>
 
-        <input type="file" ref={imageInputRef} onChange={handleImageUploadBtn} accept="image/*" className="hidden" />
-        <input type="file" ref={extraImageInputRef} onChange={handleExtraImageUpload} accept="image/*" className="hidden" />
-        <input type="file" ref={uploadInputRef} onChange={handleUploadFile} accept=".html,.htm" className="hidden" />
+      {/* ÁREA PRINCIPAL (PREVIEW E FERRAMENTAS) */}
+      <main className="flex-1 flex flex-col relative bg-slate-200">
+        {/* Barra Superior */}
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4">
+          <div className="flex gap-2">
+            <button onClick={toggleInspetor} className={`px-4 py-1.5 rounded font-bold text-sm ${modoInspetor ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              <i className="fas fa-magic mr-2"></i> {modoInspetor ? 'Inspetor Ativo' : 'Ativar Inspetor'}
+            </button>
+            <button onClick={toggleBackground} className="px-4 py-1.5 bg-slate-200 text-slate-700 rounded font-bold text-sm">
+              Alternar Fundo Global
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-xs text-slate-500 flex items-center font-semibold">
+              {statusApis.processing && <i className="fas fa-spinner fa-spin mr-2"></i>}
+              {statusApis.texto}
+            </span>
+          </div>
+        </header>
 
-        {statusApis.processing && (
-          <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
-            <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-5"></div>
-            <p className="text-slate-800 font-black text-xl tracking-tight mb-2">{statusApis.texto}</p>
-            <p className="text-slate-500 font-medium text-sm">Organizando estrutura e conteúdo editorial...</p>
+        {/* Iframe de Visualização A4 */}
+        <div className="flex-1 overflow-auto p-8 flex justify-center">
+          <iframe
+            ref={previewFrameRef}
+            className="w-[210mm] h-[297mm] bg-white shadow-2xl rounded-sm transition-all origin-top"
+            title="E-book Preview"
+            style={{ transform: 'scale(0.9)' }} 
+          />
+        </div>
+
+        {/* PAINEL DO INSPETOR (CONDICIONAL) */}
+        {modoInspetor && elementoSelecionado && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 w-full max-w-2xl z-50">
+            <h3 className="text-sm font-bold mb-2 text-indigo-700 flex items-center gap-2">
+              <i className="fas fa-edit"></i> Editando: {elementoSelecionado.tagName}
+            </h3>
+            
+            <div className="flex gap-2 mb-3">
+              <input 
+                id="ai_prompt_local"
+                type="text" 
+                placeholder="Ex: Reescreva em tom formal..." 
+                className="flex-1 border p-2 rounded text-sm"
+              />
+              <button onClick={aplicarModificacaoLocal} className="bg-indigo-600 text-white px-4 rounded text-sm font-bold">
+                Aplicar IA
+              </button>
+            </div>
+            
+            <div className="flex gap-2">
+              <button onClick={() => imageInputRef.current?.click()} className="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded text-sm font-semibold border">
+                <i className="fas fa-upload mr-1"></i> Upload Imagem
+              </button>
+              <button onClick={buscarImagemUnsplash} className="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded text-sm font-semibold border">
+                <i className="fas fa-camera mr-1"></i> Imagem Unsplash
+              </button>
+            </div>
           </div>
         )}
+      </main>
+
+      {/* INPUTS OCULTOS */}
+      <input type="file" ref={imageInputRef} className="hidden" onChange={handleImageUploadBtn} accept="image/*" />
+      <input type="file" ref={extraImageInputRef} className="hidden" onChange={handleExtraImageUpload} accept="image/*" />
+      <input type="file" ref={uploadInputRef} className="hidden" onChange={handleUploadFile} accept=".html" />
+
+    </div>
+  );
+}
 
         {showModalPagina && (
           <div className="modal-overlay" onClick={() => setShowModalPagina(false)}>
