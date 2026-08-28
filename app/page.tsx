@@ -942,7 +942,7 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (AJUSTADA)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS
   // ============================================================
   function validarParagrafos(html: string): string {
     if (modoConteudo === 'receitas') return html;
@@ -955,10 +955,7 @@ ${ebookStyles}
       const paginaCompleta = match[0];
       const conteudo = match[2];
 
-      // Páginas especiais (capa, índice, etc) não são validadas
-      if (conteudo.includes('cap-img-overlay') || conteudo.includes('cap-box-rounded') ||
-          conteudo.includes('page-cover') || conteudo.includes('legal-page') ||
-          conteudo.includes('author-page')) {
+      if (conteudo.includes('cap-img-overlay') || conteudo.includes('cap-box-rounded')) {
         continue;
       }
 
@@ -972,16 +969,13 @@ ${ebookStyles}
       if (temSubtitulo && !isSpecial) {
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temBlockquote = conteudo.includes('<blockquote');
-        const temBanner = conteudo.includes('chapter-banner-img');
 
-        // Define o número mínimo de parágrafos com base na presença de banner
-        const minParagrafos = temBanner ? 2 : 4;
-
+        const minParagrafos = 5;
         if (paragrafos.length < minParagrafos) {
           const faltando = minParagrafos - paragrafos.length;
           let novos = '';
           for (let i = 0; i < faltando; i++) {
-            novos += `<p>[Parágrafo ${i+1} - preencha com conteúdo relevante para ocupar a página]</p>\n`;
+            novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
           }
           const footerIndex = conteudo.lastIndexOf('</div>');
           if (footerIndex !== -1) {
@@ -990,9 +984,9 @@ ${ebookStyles}
           }
         }
 
-        // Se for página com subtítulo 3 e ainda não houver blockquote, adiciona um (apenas se for a página 3)
-        // Mas já temos um no molde, então só adicionamos se não existir
-        if (!temBlockquote && conteudo.includes('Subtítulo 3')) {
+        const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
+                             /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
+        if (temSubtitulo3 && !temBlockquote) {
           const footerIndex = conteudo.lastIndexOf('</div>');
           if (footerIndex !== -1) {
             const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
@@ -1498,7 +1492,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO E QUANTIDADE DE PARÁGRAFOS)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number; modo?: 'padrao' | 'receitas' }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1518,42 +1512,41 @@ Mantenha a consistência visual com o resto do e-book.`;
     - PROIBIDO ABSOLUTAMENTE usar imagens com animais, tecnologia, sci-fi, desenhos ou gráficos 3D. Apenas fotografias reais.
     `;
 
-    // MOLDE ATUALIZADO – respeita a contagem de parágrafos e o tamanho para caber na página
     const moldePrimeiraPagina = `
-      <!-- PÁGINA 1 (COM BANNER) – 2 parágrafos mais extensos -->
+      <!-- PÁGINA 1 -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
           <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-          <p>[Parágrafo 1 – mais extenso, até 5 linhas, sem ultrapassar a margem inferior]</p>
-          <p>[Parágrafo 2 – mais extenso, até 5 linhas, sem ultrapassar a margem inferior]</p>
+          <p>[Parágrafo 1 - Mantenha frases concisas dentro das margens]</p>
+          <p>[Parágrafo 2 - Mantenha frases concisas dentro das margens]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>`;
 
     let moldePaginas = `
        ${moldePrimeiraPagina}
 
-       <!-- PÁGINA 2 – 4 parágrafos + highlight-box -->
+       <!-- PÁGINA 2 -->
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p>[Parágrafo 1 – no máximo 4 linhas]</p>
-           <p>[Parágrafo 2 – no máximo 4 linhas]</p>
+           <p>[Parágrafo 1]</p>
+           <p>[Parágrafo 2]</p>
            <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-           <p>[Parágrafo 3 – no máximo 4 linhas]</p>
-           <p>[Parágrafo 4 – no máximo 4 linhas]</p>
+           <p>[Parágrafo 3]</p>
+           <p>[Parágrafo 4]</p>
            <div class="page-footer">${regraRodape}</div>
        </div>
 
-       <!-- PÁGINA 3 – 4 parágrafos + blockquote -->
+       <!-- PÁGINA 3 -->
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p>[Parágrafo 1 – no máximo 4 linhas]</p>
-           <p>[Parágrafo 2 – no máximo 4 linhas]</p>
-           <p>[Parágrafo 3 – no máximo 4 linhas]</p>
-           <p>[Parágrafo 4 – no máximo 4 linhas]</p>
+           <p>[Parágrafo 1]</p>
+           <p>[Parágrafo 2]</p>
+           <p>[Parágrafo 3]</p>
+           <p>[Parágrafo 4]</p>
            <blockquote><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
            <div class="page-footer">${regraRodape}</div>
        </div>
@@ -1595,10 +1588,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
     2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
     3. FOTOGRAFIA: Use apenas imagens reais.
-    4. QUANTIDADE DE PARÁGRAFOS E TAMANHO:
-       - Página 1 (com banner): EXATAMENTE 2 parágrafos, cada um com até 5 linhas (mais extensos).
-       - Página 2 e 3: EXATAMENTE 4 parágrafos cada, além do highlight-box (página 2) e do blockquote (página 3). Cada parágrafo deve ter no máximo 4 linhas para caber sem ultrapassar a margem inferior.
-       - Não adicione parágrafos extras nem remova os existentes.
+    4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento.
     `;
 
     let moldeFinal = '';
