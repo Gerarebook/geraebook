@@ -1585,11 +1585,14 @@ Mantenha a consistência visual com o resto do e-book.`;
     `;
 
     const regrasComuns = `
-    DIRETRIZES DE SEGURANÇA E FORMATAÇÃO:
-    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
-    2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
-    3. FOTOGRAFIA: Use apenas imagens reais.
-    4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento.
+    DIRETRIZES DE SEGURANÇA E FORMATAÇÃO (A4):
+    1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente.
+    2. REGRA DE PARÁGRAFOS E TAMANHO DE FONTE:
+       - Para fonte 14pt (ou ajustado se for menor), cada parágrafo DEVE ter aproximadamente 450 caracteres.
+       - A PÁGINA DO TÍTULO DO CAPÍTULO DEVE TER EXATAMENTE 2 PARÁGRAFOS com ~450 caracteres cada.
+       - AS DEMAIS PÁGINAS (somente com textos, box e quotes) DEVEM TER EXATAMENTE 4 PARÁGRAFOS com ~450 caracteres cada.
+    3. MARGENS E LAYOUT A4: Todo conteúdo DEVE ficar contido na tag <div class="page-container"> sem transbordar.
+    4. FOTOGRAFIA: Use apenas imagens reais.
     `;
 
     let moldeFinal = '';
