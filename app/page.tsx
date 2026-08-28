@@ -10,7 +10,8 @@ function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
   bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string
+  bgSegundaPaginaOpacidade: string,
+  corPrimaria: string // <-- NOVO PARÂMETRO
 ) {
   return `<script id="editor-magic-script">
     let modoEdicao = false;
@@ -79,7 +80,6 @@ function getScriptPreview(
       const selector = ${indexShowSubtopics ? "'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'" : "'h1.chapter-title-exclusive, h2.chapter-title-inline'"};
       const titles = document.querySelectorAll(selector);
       mainToc.innerHTML = '';
-      const titulosVistos = new Set();
 
       titles.forEach((titleEl) => {
         if (${!indexShowSubtopics} && titleEl.tagName === 'H3') return;
@@ -88,11 +88,7 @@ function getScriptPreview(
         let textContent = (titleEl.textContent || '').trim();
         if (textContent.toLowerCase() === 'índice' || textContent.toLowerCase() === 'sumário') return;
 
-        if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
-          let nomeNormalizado = textContent.toLowerCase().replace(/capítulo \\d+:/, '').trim();
-          if (titulosVistos.has(nomeNormalizado)) return;
-          titulosVistos.add(nomeNormalizado);
-        }
+        // REMOVIDA A LÓGICA DE DUPLICIDADE – agora todos os títulos são adicionados
 
         if (!titleEl.id) titleEl.id = 'sec-auto-' + Math.random().toString(36).substr(2, 9);
 
@@ -101,13 +97,15 @@ function getScriptPreview(
         if (titleEl.tagName === 'H2' || titleEl.tagName === 'H1') {
           a.classList.add('toc-main-chapter');
           a.style.fontWeight = ${indexShowSubtopics ? "'700'" : "'400'"};
-          a.style.color = 'var(--color-primary)';
+          // COR FIXA USANDO O VALOR PASSADO
+          a.style.color = '${corPrimaria}';
         } else if (titleEl.tagName === 'H3') {
           a.classList.add('toc-subtopic');
           a.style.paddingLeft = '20px';
           a.style.fontSize = '0.9em';
           a.style.opacity = '0.85';
           a.style.fontWeight = '400';
+          a.style.color = '${corPrimaria}';
         }
 
         a.href = '#' + titleEl.id;
@@ -1133,7 +1131,14 @@ ${ebookStyles}
 
     if (recarregar && previewFrameRef.current) {
       setRecarregarIframe(true);
-      const script = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      const paleta = getPaletaObj();
+      const script = getScriptPreview(
+        indexShowSubtopics,
+        ativarBgSegundaPagina,
+        bgSegundaPaginaUrl,
+        bgSegundaPaginaOpacidade,
+        paleta.pri  // <-- COR PRIMÁRIA PASSADA
+      );
       previewFrameRef.current.srcdoc = htmlFinal + script;
     } else {
       setRecarregarIframe(false);
@@ -1270,7 +1275,14 @@ ${ebookStyles}
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
     if (previewFrameRef.current) {
-      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      const paleta = getPaletaObj();
+      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(
+        indexShowSubtopics,
+        ativarBgSegundaPagina,
+        bgSegundaPaginaUrl,
+        bgSegundaPaginaOpacidade,
+        paleta.pri
+      );
     }
 
     setShowModalPagina(false);
@@ -1333,7 +1345,14 @@ ${ebookStyles}
       localStorage.setItem('ebook_draft_html', estadoAnterior);
       setRecarregarIframe(true);
       if (previewFrameRef.current) {
-        previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+        const paleta = getPaletaObj();
+        previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(
+          indexShowSubtopics,
+          ativarBgSegundaPagina,
+          bgSegundaPaginaUrl,
+          bgSegundaPaginaOpacidade,
+          paleta.pri
+        );
       }
     }
     setElementoSelecionado(null);
@@ -1989,7 +2008,14 @@ Mantenha a consistência visual com o resto do e-book.`;
       const htmlFinal = moldarApresentacaoHtml(savedHtml);
       setHtmlAtual(htmlFinal);
       if (previewFrameRef.current) {
-        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+        const paleta = getPaletaObj();
+        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(
+          indexShowSubtopics,
+          ativarBgSegundaPagina,
+          bgSegundaPaginaUrl,
+          bgSegundaPaginaOpacidade,
+          paleta.pri
+        );
       }
     }
 
@@ -2010,7 +2036,14 @@ Mantenha a consistência visual com o resto do e-book.`;
         localStorage.setItem('ebook_draft_html', htmlAtualizado);
         setRecarregarIframe(true);
         if (previewFrameRef.current) {
-          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+          const paleta = getPaletaObj();
+          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(
+            indexShowSubtopics,
+            ativarBgSegundaPagina,
+            bgSegundaPaginaUrl,
+            bgSegundaPaginaOpacidade,
+            paleta.pri
+          );
         }
       }
     }
@@ -2036,7 +2069,14 @@ Mantenha a consistência visual com o resto do e-book.`;
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(true);
           if (previewFrameRef.current) {
-            previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+            const paleta = getPaletaObj();
+            previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(
+              indexShowSubtopics,
+              ativarBgSegundaPagina,
+              bgSegundaPaginaUrl,
+              bgSegundaPaginaOpacidade,
+              paleta.pri
+            );
           }
         }
       }
@@ -2048,7 +2088,14 @@ Mantenha a consistência visual com o resto do e-book.`;
   // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
-      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      const paleta = getPaletaObj();
+      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(
+        indexShowSubtopics,
+        ativarBgSegundaPagina,
+        bgSegundaPaginaUrl,
+        bgSegundaPaginaOpacidade,
+        paleta.pri
+      );
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
