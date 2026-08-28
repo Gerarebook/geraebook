@@ -970,7 +970,8 @@ ${ebookStyles}
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temBlockquote = conteudo.includes('<blockquote');
 
-        const minParagrafos = 5;
+        // AUMENTADO para 7 parágrafos mínimos
+        const minParagrafos = 7;
         if (paragrafos.length < minParagrafos) {
           const faltando = minParagrafos - paragrafos.length;
           let novos = '';
@@ -1492,7 +1493,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO E MAIS CONTEÚDO)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number; modo?: 'padrao' | 'receitas' }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1512,6 +1513,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     - PROIBIDO ABSOLUTAMENTE usar imagens com animais, tecnologia, sci-fi, desenhos ou gráficos 3D. Apenas fotografias reais.
     `;
 
+    // --- MOLDES COM MUITO MAIS CONTEÚDO (PÁGINAS CHEIAS) ---
     const moldePrimeiraPagina = `
       <!-- PÁGINA 1 -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
@@ -1519,23 +1521,35 @@ Mantenha a consistência visual com o resto do e-book.`;
           <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
           <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
           <h3 class="subtopic-title">[Subtítulo 1]</h3>
-          <p>[Parágrafo 1 - Mantenha frases concisas dentro das margens]</p>
-          <p>[Parágrafo 2 - Mantenha frases concisas dentro das margens]</p>
+          <p>[Parágrafo 1 - Desenvolva o tema com profundidade.]</p>
+          <p>[Parágrafo 2 - Continue a explicação, trazendo dados ou exemplos.]</p>
+          <p>[Parágrafo 3 - Faça uma transição para o próximo ponto.]</p>
+          <p>[Parágrafo 4 - Apresente uma análise crítica ou reflexão.]</p>
+          <p>[Parágrafo 5 - Conecte com a prática ou aplicação real.]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>`;
 
-    let moldePaginas = `
+    const moldePaginas = `
        ${moldePrimeiraPagina}
 
        <!-- PÁGINA 2 -->
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 2]</h3>
-           <p>[Parágrafo 1]</p>
-           <p>[Parágrafo 2]</p>
-           <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica Importante]</div>
-           <p>[Parágrafo 3]</p>
-           <p>[Parágrafo 4]</p>
+           <p>[Parágrafo 1 - Desenvolva o segundo tópico com riqueza de detalhes.]</p>
+           <p>[Parágrafo 2 - Use exemplos concretos para ilustrar.]</p>
+           <p>[Parágrafo 3 - Apresente uma visão diferente ou contraponto.]</p>
+           <ul>
+               <li>[Item 1 - elemento importante]</li>
+               <li>[Item 2 - elemento importante]</li>
+               <li>[Item 3 - elemento importante]</li>
+               <li>[Item 4 - elemento importante]</li>
+               <li>[Item 5 - elemento importante]</li>
+           </ul>
+           <p>[Parágrafo 4 - Amarre os itens da lista com o raciocínio principal.]</p>
+           <p>[Parágrafo 5 - Avance para a próxima ideia.]</p>
+           <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica importante: resuma o aprendizado chave]</div>
+           <p>[Parágrafo 6 - Conclua a página com uma síntese.]</p>
            <div class="page-footer">${regraRodape}</div>
        </div>
 
@@ -1543,16 +1557,19 @@ Mantenha a consistência visual com o resto do e-book.`;
        <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
            <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
            <h3 class="subtopic-title">[Subtítulo 3]</h3>
-           <p>[Parágrafo 1]</p>
-           <p>[Parágrafo 2]</p>
-           <p>[Parágrafo 3]</p>
-           <p>[Parágrafo 4]</p>
-           <blockquote><i class="fas fa-quote-left"></i> [Citação relevante]</blockquote>
+           <p>[Parágrafo 1 - Inicie o terceiro subtópico com uma pergunta provocadora.]</p>
+           <p>[Parágrafo 2 - Desenvolva a resposta com argumentos sólidos.]</p>
+           <p>[Parágrafo 3 - Insira um exemplo prático ou estudo de caso.]</p>
+           <p>[Parágrafo 4 - Relacione com o contexto mais amplo do livro.]</p>
+           <blockquote><i class="fas fa-quote-left"></i> [Citação impactante de autoridade no assunto]</blockquote>
+           <p>[Parágrafo 5 - Discuta a citação e conecte ao seu ponto.]</p>
+           <p>[Parágrafo 6 - Finalize a página com um resumo do capítulo.]</p>
            <div class="page-footer">${regraRodape}</div>
        </div>
     `;
 
-    let moldeReceitas = `
+    // MODO RECEITAS – mais ingredientes e passos
+    const moldeReceitas = `
       <!-- PÁGINA 1: Título + Banner + Ingredientes -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>[Nome da Receita]</span></div>
@@ -1565,7 +1582,11 @@ Mantenha a consistência visual com o resto do e-book.`;
               <li>[Ingrediente 3 - quantidade]</li>
               <li>[Ingrediente 4 - quantidade]</li>
               <li>[Ingrediente 5 - quantidade]</li>
+              <li>[Ingrediente 6 - quantidade]</li>
+              <li>[Ingrediente 7 - quantidade]</li>
+              <li>[Ingrediente 8 - quantidade (opcional)]</li>
           </ul>
+          <p>[Dica extra: sugestão de substituição ou utensílio necessário.]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
 
@@ -1577,8 +1598,11 @@ Mantenha a consistência visual com o resto do e-book.`;
           <p>[Passo 2 - continuação]</p>
           <p>[Passo 3 - ...]</p>
           <p>[Passo 4 - ...]</p>
-          <p>[Passo 5 - finalização]</p>
+          <p>[Passo 5 - ...]</p>
+          <p>[Passo 6 - ...]</p>
+          <p>[Passo 7 - finalização]</p>
           <blockquote><i class="fas fa-quote-left"></i> [Dica ou reflexão sobre a receita]</blockquote>
+          <p>[Sugestão de acompanhamento ou variação.]</p>
           <div class="page-footer">${regraRodape}</div>
       </div>
     `;
@@ -1589,6 +1613,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
     3. FOTOGRAFIA: Use apenas imagens reais.
     4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento.
+    5. PREENCHIMENTO: Garanta que cada página contenha parágrafos, listas e/ou blocos de citação suficientes para ocupar a maior parte da altura da página.
     `;
 
     let moldeFinal = '';
@@ -1609,7 +1634,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
   // ============================================================
 
-  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
+  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução (mais conteúdo) ----
   async function iniciarEbookEtapas() {
     const content = productContent.trim();
     if (!content) {
@@ -1617,7 +1642,6 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    // Não usa numeroCapitulo
     const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'padrao' });
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
@@ -1637,15 +1661,18 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">[Primeiro tópico da introdução - relacionado ao conteúdo]</h3>
-        <p>[Parágrafo 1 - 3-4 linhas]</p>
-        <p>[Parágrafo 2 - 3-4 linhas]</p>
+        <p>[Parágrafo 1 - apresente o contexto geral.]</p>
+        <p>[Parágrafo 2 - aprofunde a problemática.]</p>
         <h3 class="subtopic-title">[Segundo tópico da introdução - relacionado ao conteúdo]</h3>
-        <p>[Parágrafo 3 - 3-4 linhas]</p>
-        <p>[Parágrafo 4 - 3-4 linhas]</p>
+        <p>[Parágrafo 3 - desenvolva a primeira solução ou abordagem.]</p>
+        <p>[Parágrafo 4 - traga dados ou exemplos.]</p>
+        <h3 class="subtopic-title">[Terceiro tópico da introdução - relacionado ao conteúdo]</h3>
+        <p>[Parágrafo 5 - amplie o horizonte do leitor.]</p>
+        <p>[Parágrafo 6 - finalize com uma ponte para os capítulos seguintes.]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
     PARE AQUI! NÃO gere Capítulos ou Conclusão. PROIBIDO o uso de imagens na introdução.
-    IMPORTANTE: A introdução deve ter exatamente 2 subtópicos (h3) e 4 parágrafos no total. Os tópicos devem ser específicos para o conteúdo do livro.
+    IMPORTANTE: A introdução deve ter exatamente 3 subtópicos (h3) e 6 parágrafos no total. Os tópicos devem ser específicos para o conteúdo do livro.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
@@ -1667,35 +1694,25 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    // Calcula o próximo número de capítulo
     const proximoNumero = getNextChapterNumber(currentHtml);
     const isModoReceitas = modoConteudo === 'receitas';
-
-    // Para receitas, não usamos numeração, mas precisamos do molde
     const modo = isModoReceitas ? 'receitas' : 'padrao';
 
-    // Para gerar 3 capítulos, chamamos a IA com os números sequenciais.
-    // Para receitas, passamos apenas o molde sem numeração.
     let instrucao = '';
     if (isModoReceitas) {
-      // No modo receitas, geramos 3 receitas sem numeração
       const { regrasCompletas, regraRodape } = obterInstrucoesBase({ modo: 'receitas' });
       instrucao = `Você vai CONTINUAR a escrita de um e-book de RECEITAS, gerando 3 novas receitas.
       ${regrasCompletas}
       ATENÇÃO: NUNCA use a palavra "Capítulo". Use somente o nome da receita.
-      Cada receita deve ocupar 2 páginas: a primeira com título, banner e ingredientes; a segunda com modo de preparo e uma citação.
-      Não use highlight-box, apenas o blockquote no final da segunda página.
+      Cada receita deve ocupar 2 páginas com bastante conteúdo: a primeira com título, banner, ingredientes (mínimo 8 itens) e dica extra; a segunda com modo de preparo (mínimo 7 passos) e uma citação.
       A sua resposta deve conter APENAS os blocos HTML das 3 receitas, sem repetir cabeçalhos ou rodapés adicionais.
       `;
     } else {
-      // Modo padrão: gerar 3 capítulos com numeração sequencial
       const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, modo: 'padrao' });
       const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, modo: 'padrao' });
       const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, modo: 'padrao' });
-      // Juntamos as regras (mas a IA vai receber o molde completo de cada capítulo)
-      // Vamos passar uma instrução única com os três moldes.
       instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
-      Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
+      Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo, com parágrafos, listas e citações para preencher as páginas.
       Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
       ATENÇÃO: Não pule números e não crie capítulos com numeração diferente.
       MOLDE PARA CADA CAPÍTULO:
@@ -1720,7 +1737,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
+  // ---- ETAPA 3: Finalizar com Conclusão e Autor (mais conteúdo) ----
   async function finalizarEbookEtapas() {
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
@@ -1732,12 +1749,19 @@ Mantenha a consistência visual com o resto do e-book.`;
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
     DIRETRIZES:
     1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
-    2. MOLDE DE CONCLUSÃO:
+    2. MOLDE DE CONCLUSÃO com conteúdo denso:
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
         <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-        <h3 class="subtopic-title">Fechamento</h3>
-        <p>[Conclusão...]</p>
+        <h3 class="subtopic-title">Síntese dos aprendizados</h3>
+        <p>[Parágrafo 1 - resumo geral do que foi abordado no livro.]</p>
+        <p>[Parágrafo 2 - destaque os principais insights.]</p>
+        <h3 class="subtopic-title">Impacto e aplicação prática</h3>
+        <p>[Parágrafo 3 - como o leitor pode aplicar o conhecimento.]</p>
+        <p>[Parágrafo 4 - exemplos de situações reais.]</p>
+        <h3 class="subtopic-title">Convite à ação</h3>
+        <p>[Parágrafo 5 - encoraje o leitor a dar o próximo passo.]</p>
+        <p>[Parágrafo 6 - mensagem final inspiradora.]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
     O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará de adicionar o Autor nativamente.
