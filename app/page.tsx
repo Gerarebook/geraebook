@@ -646,12 +646,12 @@ ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 
 img.chapter-banner-img {
   width: 100% !important;
-  height: 280px !important;
-  min-height: 280px !important;
-  max-height: 280px !important;
+  height: 250px !important;
+  min-height: 250px !important;
+  max-height: 250px !important;
   object-fit: cover !important;
   border-radius: 8px !important;
-  margin-bottom: 1.5rem !important;
+  margin-bottom: 1rem !important;
   display: block !important;
 }
 
@@ -778,9 +778,9 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
+.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
-h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1em !important; color: var(--color-primary); line-height: 1.2; text-align: left; }
+h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.2rem; margin-bottom: 0.8rem !important; color: var(--color-primary); line-height: 1.2; text-align: left; }
 .page-header {
   position: absolute; top: 12mm; left: 18mm; right: 18mm;
   display: flex; justify-content: space-between; align-items: flex-end;
@@ -925,7 +925,6 @@ ${ebookStyles}
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS
   // ============================================================
   function validarParagrafos(html: string): string {
-    // Agora todo o conteúdo (inclusive receitas) passa pela validação base.
     const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
     let novoHtml = html;
     let match;
@@ -947,9 +946,7 @@ ${ebookStyles}
 
       if (temSubtitulo && !isSpecial) {
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
-        const temBlockquote = conteudo.includes('<blockquote');
 
-        // Garante as 4 tags P preenchendo as que faltam. 
         const minParagrafos = 4;
         if (paragrafos.length < minParagrafos && !conteudo.includes('chapter-title-inline')) {
           const faltando = minParagrafos - paragrafos.length;
@@ -1450,7 +1447,9 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
-    const regex = /Capítulo\s*(\d+)/gi;
+    // OTIMIZAÇÃO AQUI: Procura o número apenas dentro da tag do Título Real. 
+    // Assim ignoramos números perdidos no Índice ou em sumários soltos gerados no Passo 1.
+    const regex = /<h2[^>]*class="chapter-title-inline"[^>]*>Capítulo\s*(\d+)/gi;
     let match;
     let max = 0;
     while ((match = regex.exec(html)) !== null) {
@@ -1478,8 +1477,9 @@ Mantenha a consistência visual com o resto do e-book.`;
       <!-- PÁGINA 1 (TÍTULO DO CAPÍTULO) -->
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-          <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
           <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
+          <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
+          <h3 class="subtopic-title">[Subtítulo 1]</h3>
           <p>[Parágrafo 1 - Obrigatório ter entre 400 e 430 caracteres]</p>
           <p>[Parágrafo 2 - Obrigatório ter entre 400 e 430 caracteres]</p>
           <div class="page-footer">${regraRodape}</div>
@@ -1517,14 +1517,14 @@ Mantenha a consistência visual com o resto do e-book.`;
     
     1. CONTAGEM DE CARACTERES: CADA parágrafo gerado DEVE TER RIGOROSAMENTE entre 400 e 430 caracteres. Isso é essencial para não estourar as margens da página A4. Não faça parágrafos curtos, nem longos demais.
     
-    2. PÁGINA DE TÍTULO (Primeira do Capítulo): DEVE ter primeiro a IMAGEM, depois o TÍTULO (h2) abaixo da imagem, e logo após EXATAMENTE 2 PARÁGRAFOS.
+    2. PÁGINA DE TÍTULO (Primeira do Capítulo): DEVE ter primeiro o TÍTULO (h2), depois a IMAGEM (img), seguida de um Subtítulo (h3) e, logo após, EXATAMENTE 2 PARÁGRAFOS (p). Respeite esta ordem!
     
     3. PÁGINAS SEGUINTES: Devem ter um Subtítulo (h3) e EXATAMENTE 4 PARÁGRAFOS em cada página.
     
     4. MODO INTELIGENTE (RECEITAS): Se o conteúdo pedido for um livro de RECEITAS, adapte o molde:
        - O nome do Capítulo será o Nome da Receita.
-       - A página 1 terá: Imagem, Título da Receita, e 2 parágrafos contando a história/origem do prato.
-       - As páginas 2 e 3 terão Ingredientes e o Modo de Preparo, muito bem organizados usando o limite de 4 parágrafos/blocos exigidos.
+       - A página 1 terá: Título da Receita, Imagem, Subtítulo (Ex: História) e 2 parágrafos contando a origem do prato.
+       - As páginas 2 e 3 terão Ingredientes e o Modo de Preparo, muito bem organizados usando o limite de 4 blocos de texto exigidos.
 
     5. NUMERAÇÃO: Você está gerando o CAPÍTULO ${numero}. Siga estritamente esta numeração.
     `;
@@ -1602,18 +1602,18 @@ Mantenha a consistência visual com o resto do e-book.`;
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2 });
 
     const instrucao = `Você é um Especialista Editorial. 
-    VAI CONTINUAR a escrita do e-book, gerando OBRIGATORIAMENTE E EXATAMENTE 3 CAPÍTULOS/TÓPICOS COMPLETOS.
-    Nunca pare na metade. Você precisa fornecer o código dos 3.
+    VAI CONTINUAR a escrita do e-book, gerando OBRIGATORIAMENTE E EXATAMENTE 3 CAPÍTULOS/TÓPICOS COMPLETOS NESTA ÚNICA RESPOSTA.
+    ATENÇÃO: Você é obrigado a entregar o código completo dos 3 capítulos. Não resuma e não pare na metade.
     Use estritamente a sequência de números: ${proximoNumero}, ${proximoNumero + 1} e ${proximoNumero + 2}.
     
-    Lembrete vital: O Título da Página 1 do Capítulo SEMPRE fica ABAIXO da imagem, seguido de EXATAMENTE 2 parágrafos. As páginas seguintes do capítulo (Pág 2 e 3) recebem EXATAMENTE 4 parágrafos. Todos os parágrafos com 400-430 caracteres.
+    Lembrete vital: O Título da Página 1 do Capítulo (h2) SEMPRE fica ACIMA da imagem, seguido da imagem, depois um Subtítulo (h3) e EXATAMENTE 2 parágrafos. As páginas seguintes do capítulo (Pág 2 e 3) recebem EXATAMENTE 4 parágrafos. Todos os parágrafos devem ter rigorosamente entre 400 a 430 caracteres.
 
-    MOLDES:
+    MOLDES OBRIGATÓRIOS:
     ${cap1.regrasCompletas}
     ${cap2.regrasCompletas}
     ${cap3.regrasCompletas}
 
-    Retorne APENAS os blocos HTML gerados.
+    Retorne APENAS os blocos HTML gerados. Sem introduções em texto.
     `;
 
     const data = await chamarMotorIA(instrucao, [
