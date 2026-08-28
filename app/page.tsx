@@ -971,9 +971,8 @@ ${ebookStyles}
         const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
         const temBlockquote = conteudo.includes('<blockquote');
 
-        const minParagrafos = 4; // Ajustado de acordo com a exigência para 4 parágrafos na pág 2 e 3
+        const minParagrafos = 4;
         if (paragrafos.length < minParagrafos && paragrafos.length > 2) { 
-          // Omiti a injeção forçada de [Parágrafo denso] se for a página 1 que só tem 2 parágrafos
           const faltando = minParagrafos - paragrafos.length;
           let novos = '';
           for (let i = 0; i < faltando; i++) {
@@ -1494,7 +1493,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO E MARGENS)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1511,8 +1510,8 @@ Mantenha a consistência visual com o resto do e-book.`;
     <!-- PÁGINA 1 -->
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
         <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
+        <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
         <p>[Parágrafo 1 - MÁXIMO 350 caracteres]</p>
         <p>[Parágrafo 2 - MÁXIMO 350 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
@@ -1559,8 +1558,8 @@ Mantenha a consistência visual com o resto do e-book.`;
        - A Página 1 DEVE ter EXATAMENTE 2 parágrafos curtos.
        - As Páginas 2 e 3 DEVEM ter EXATAMENTE 4 parágrafos.
        - CADA PARÁGRAFO não pode ultrapassar o limite exigido de caracteres (350 a 400) sob hipótese alguma. Caso contrário, o texto vai vazar do layout A4. Seja rigoroso.
-    3. Mantenha os elementos <div class="highlight-box"> na página 2 e <blockquote> na página 3 intactos.
-    4. A imagem deve usar SOMENTE a tag <img class="chapter-banner-img" src="...">. Não insira tamanhos (width/height) nela, o CSS cuida disso (360px).
+    3. A IMAGEM DEVE FICAR ABAIXO DO TÍTULO: Siga rigorosamente o molde. Use apenas a tag <img class="chapter-banner-img" src="...">. Não insira tamanhos (width/height) nela, o CSS cuida disso (360px).
+    4. Mantenha a <div class="highlight-box"> na página 2 e o <blockquote> na página 3 intactos.
     `;
 
     return { 
@@ -1612,7 +1611,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     
     REGRAS CRÍTICAS DE PARADA E SEGURANÇA:
     1. PARE AQUI! NÃO gere Capítulos! Apenas devolva a Capa, o Aviso, o Índice e a Introdução.
-    2. PROIBIDO ESCREVER DENTRO DA DIV DO ÍNDICE: A tag <div class="toc-container"></div> DEVE FICAR COMPLETAMENTE VAZIA. O sistema criará os links depois. Não liste os capítulos nela.
+    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto, linha ou lista dentro. O meu script interno fará a leitura e criará o índice sozinho depois.
     3. Não use imagens na introdução.
     `;
 
