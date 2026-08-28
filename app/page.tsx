@@ -229,7 +229,6 @@ function getScriptPreview(
         }
       }
 
-      // Remove páginas vazias
       document.querySelectorAll('.page-container').forEach(page => {
         const contentNodes = Array.from(page.children).filter(el => 
           !el.classList.contains('page-header') && 
@@ -248,7 +247,6 @@ function getScriptPreview(
         page.remove();
       });
 
-      // Aplica fundo da 2ª página
       let chIndex = 0;
       let currentChapterImg = '';
       document.querySelectorAll('.page-container').forEach((p) => {
@@ -553,25 +551,6 @@ export default function Home() {
     }
   }
 
-  function isDarkColor(colorStr: string) {
-    if (colorStr.startsWith('#')) {
-      const hex = colorStr.replace('#', '');
-      const r = parseInt(hex.substr(0, 2), 16) || 255;
-      const g = parseInt(hex.substr(2, 2), 16) || 255;
-      const b = parseInt(hex.substr(4, 2), 16) || 255;
-      const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-      return yiq < 128;
-    }
-    if (colorStr.startsWith('rgb')) {
-      const match = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (match) {
-        const yiq = (parseInt(match[1]) * 299 + parseInt(match[2]) * 587 + parseInt(match[3]) * 114) / 1000;
-        return yiq < 128;
-      }
-    }
-    return false;
-  }
-
   function purificarHTML(rawHtml: string) {
     let clean = rawHtml;
     const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
@@ -704,16 +683,6 @@ img.chapter-banner-img {
 }
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after { display: none !important; }
 
-.page-extra { padding: 32mm 20mm 25mm 20mm; }
-.page-extra img { max-width: 100%; height: auto; margin: 1rem auto; display: block; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-.page-extra .img-left { float: left; margin: 0 1.5rem 1rem 0; max-width: 45%; }
-.page-extra .img-center { display: block; margin: 0 auto 1.5rem auto; max-width: 70%; }
-.page-extra .img-top { display: block; margin: 0 auto 1rem auto; max-width: 80%; }
-.page-extra .img-horizontal { display: block; width: 100%; height: auto; max-height: 320px; object-fit: cover; border-radius: 8px; margin: 0 auto 1.5rem auto; }
-.page-extra .img-vertical { display: block; width: auto; height: 70%; max-height: 70vh; object-fit: contain; border-radius: 8px; margin: 0 auto 1.5rem auto; }
-.page-extra h2 { text-align: center; font-size: 2rem; margin-bottom: 1.5rem; color: var(--color-primary); }
-.page-extra p { text-align: justify; line-height: 1.6; margin-bottom: 0.8rem; }
-
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
 .cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
@@ -755,19 +724,11 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
   background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;
   color: #ffffff;
 }
-.cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
 
 .cap-box-rounded {
   display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center;
   background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;
 }
-.cap-box-inner {
-  background: ${capBoxBackground}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: ${capBoxBorder}; z-index: 10; position: relative; color: ${capBoxTextColor};
-}
-.cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: ${capBoxTextColor}; text-shadow: none; }
-
-.cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
 
 .page-cover-img {
   display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center;
@@ -775,11 +736,8 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
   -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff;
 }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
-.page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0.5rem; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
+.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1em !important; color: var(--color-primary); line-height: 1.2; text-align: left; }
 .page-header {
@@ -812,7 +770,9 @@ h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; lin
 
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; }
+/* FIX DE MARGENS E COMPRIMENTO DE TEXTO */
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100%; box-sizing: border-box; word-break: break-word; }
+li { max-width: 100%; box-sizing: border-box; word-break: break-word; }
 
 blockquote {
   page-break-inside: avoid; break-inside: avoid;
@@ -934,55 +894,47 @@ ${ebookStyles}
       const paginaCompleta = match[0];
       const conteudo = match[2];
 
-      // Páginas especiais (capa, aviso, índice, introdução, conclusão, autor) não são validadas
-      const isSpecial = conteudo.includes('page-cover-') ||
-                        conteudo.includes('legal-page') ||
-                        conteudo.includes('toc-container') ||
-                        conteudo.includes('Índice') ||
-                        conteudo.includes('índice') ||
-                        conteudo.includes('Sumário') ||
-                        conteudo.includes('sumário') ||
-                        conteudo.includes('Introdução') ||
-                        conteudo.includes('introdução') ||
-                        conteudo.includes('Conclusão') ||
-                        conteudo.includes('conclusão') ||
-                        conteudo.includes('author-page') ||
-                        conteudo.includes('cap-img-overlay') ||
-                        conteudo.includes('cap-box-rounded');
-
-      if (isSpecial) continue;
-
-      // Detecta se é a primeira página do capítulo (contém chapter-title-inline e chapter-banner-img)
-      const isFirstPage = conteudo.includes('chapter-title-inline') && conteudo.includes('chapter-banner-img');
-
-      const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
-      const temBlockquote = conteudo.includes('<blockquote');
-      const temHighlight = conteudo.includes('highlight-box');
-
-      // Número mínimo de parágrafos: 2 na primeira página, 4 nas demais
-      const minParagrafos = isFirstPage ? 2 : 4;
-
-      if (paragrafos.length < minParagrafos) {
-        const faltando = minParagrafos - paragrafos.length;
-        let novos = '';
-        for (let i = 0; i < faltando; i++) {
-          novos += `<p>[Preencha com conteúdo relevante, com aproximadamente 400-430 caracteres, respeitando as margens A4]</p>\n`;
-        }
-        // Inserir antes do rodapé ou no final do conteúdo
-        const footerIndex = conteudo.lastIndexOf('</div>');
-        if (footerIndex !== -1) {
-          const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
-          novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
-        }
+      if (conteudo.includes('cap-img-overlay') || conteudo.includes('cap-box-rounded')) {
+        continue;
       }
 
-      // Se a página não for a primeira e não tiver blockquote, adicionar um
-      if (!isFirstPage && !temBlockquote && !temHighlight && paragrafos.length >= minParagrafos) {
-        const footerIndex = conteudo.lastIndexOf('</div>');
-        if (footerIndex !== -1) {
-          const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o conteúdo]</blockquote>\n`;
-          const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
-          novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+      const temSubtitulo = conteudo.includes('subtopic-title');
+      const isPage1 = conteudo.includes('chapter-banner-img'); // Página 1 tem imagem
+      const isSpecial = conteudo.includes('Índice') || conteudo.includes('índice') ||
+                        conteudo.includes('Sumário') || conteudo.includes('sumário') ||
+                        conteudo.includes('Introdução') || conteudo.includes('introdução') ||
+                        conteudo.includes('Conclusão') || conteudo.includes('conclusão') ||
+                        conteudo.includes('Sobre o Autor');
+
+      if (temSubtitulo && !isSpecial) {
+        const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
+        const temBlockquote = conteudo.includes('<blockquote');
+
+        // Página 1: exatos 2 parágrafos. Demais: exatos 4 parágrafos.
+        const minParagrafos = isPage1 ? 2 : 4;
+        
+        if (paragrafos.length < minParagrafos) {
+          const faltando = minParagrafos - paragrafos.length;
+          let novos = '';
+          for (let i = 0; i < faltando; i++) {
+            novos += `<p>[Parágrafo gerado automaticamente para manter as margens. Preencha com cerca de 400 a 430 caracteres de um conteúdo relevante e extenso.]</p>\n`;
+          }
+          const footerIndex = conteudo.lastIndexOf('</div>');
+          if (footerIndex !== -1) {
+            const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
+            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+          }
+        }
+
+        const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
+                             /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
+        if (temSubtitulo3 && !temBlockquote) {
+          const footerIndex = conteudo.lastIndexOf('</div>');
+          if (footerIndex !== -1) {
+            const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
+            const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
+            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
+          }
         }
       }
     }
@@ -1482,9 +1434,9 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO E DIRETRIZES)
+  // FUNÇÃO DE INSTRUÇÕES BASE E REGRAS DA IA
   // ============================================================
-  function obterInstrucoesBase(numero: number) {
+  function obterInstrucoesBase(numeroCapitulo: number) {
     let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
     let regraRodape = '';
     if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) {
@@ -1493,74 +1445,53 @@ Mantenha a consistência visual com o resto do e-book.`;
       regraRodape = `${numSpan}`;
     }
 
-    const moldePrimeiraPagina = `
-      <!-- PÁGINA 1 DO CAPÍTULO ${numero} -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
-        <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
-        <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-        <p>[Parágrafo 1 – 400 a 430 caracteres, conteúdo relevante]</p>
-        <p>[Parágrafo 2 – 400 a 430 caracteres, conteúdo relevante]</p>
-        <div class="page-footer">${regraRodape}</div>
-      </div>`;
-
-    const moldePaginasSecundarias = `
-      <!-- PÁGINA 2 DO CAPÍTULO ${numero} -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
-        <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <h3 class="subtopic-title">[Subtítulo 2]</h3>
-        <p>[Parágrafo 1 – 400 a 430 caracteres]</p>
-        <p>[Parágrafo 2 – 400 a 430 caracteres]</p>
-        <p>[Parágrafo 3 – 400 a 430 caracteres]</p>
-        <p>[Parágrafo 4 – 400 a 430 caracteres]</p>
-        <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Destaque ou dica relevante]</div>
-        <div class="page-footer">${regraRodape}</div>
-      </div>
-
-      <!-- PÁGINA 3 DO CAPÍTULO ${numero} -->
-      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
-        <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <h3 class="subtopic-title">[Subtítulo 3]</h3>
-        <p>[Parágrafo 1 – 400 a 430 caracteres]</p>
-        <p>[Parágrafo 2 – 400 a 430 caracteres]</p>
-        <p>[Parágrafo 3 – 400 a 430 caracteres]</p>
-        <p>[Parágrafo 4 – 400 a 430 caracteres]</p>
-        <blockquote><i class="fas fa-quote-left"></i> [Citação ou reflexão final]</blockquote>
-        <div class="page-footer">${regraRodape}</div>
-      </div>`;
-
-    let instrucao = `
-    Você é um especialista em redação e diagramação de e-books no formato A4.
-    Gere o conteúdo para o CAPÍTULO ${numero} seguindo rigorosamente estas regras:
-
-    1. **Estrutura obrigatória**:
-       - Página 1: banner (imagem), título do capítulo (h2) e **exatamente 2 parágrafos**.
-       - Página 2: subtítulo (h3), **exatamente 4 parágrafos** e um box de destaque (highlight-box).
-       - Página 3: subtítulo (h3), **exatamente 4 parágrafos** e um blockquote (citação).
-
-    2. **Comprimento dos parágrafos**: cada parágrafo deve conter entre **400 e 430 caracteres** (espaços incluídos). Isso garante que o texto ocupe bem o espaço A4 sem vazar das margens.
-
-    3. **Conteúdo**:
-       - Adapte o tema conforme o texto base fornecido pelo usuário.
-       - Se o assunto for receitas culinárias, organize a página 2 como "Ingredientes" (lista ou parágrafos) e a página 3 como "Modo de Preparo" (passos detalhados), sempre mantendo o número de parágrafos e o comprimento exigidos.
-       - Os títulos e subtítulos devem ser claros e relevantes.
-
-    4. **Formatação**:
-       - Use as classes CSS já definidas (page-container, page-header, page-footer, chapter-title-inline, subtopic-title, etc.).
-       - Não insira elementos que possam ultrapassar as margens (ex: imagens muito grandes, tabelas, etc.).
-       - Mantenha o estilo visual consistente com o restante do livro.
-
-    5. **Proibições**:
-       - Não altere a numeração do capítulo.
-       - Não adicione ou remova parágrafos além do especificado.
-       - Não use imagens nas páginas 2 e 3.
-
-    Utilize o seguinte molde HTML (substitua os colchetes pelos conteúdos reais):
-    ${moldePrimeiraPagina}
-    ${moldePaginasSecundarias}
+    const regrasComuns = `
+    DIRETRIZES DE SEGURANÇA, FORMATAÇÃO E CONTEÚDO (MUITO IMPORTANTE):
+    1. VOCÊ É UM ESPECIALISTA EDITORIAL: Obedeça estritamente ao tema pedido. Se o usuário pedir algo sobre RECEITAS na requisição, estruture de forma lógica (Página 1: Ingredientes; Páginas 2 e 3: Modo de preparo). Mesmo sendo receitas, mantenha os limites de formatação exigidos.
+    2. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numeroCapitulo}. É proibido alterar este número ou pular.
+    3. TAMANHO DOS PARÁGRAFOS (CRÍTICO): Para não vazar das margens do papel A4, CADA PARÁGRAFO gerado deve ter RIGOROSAMENTE entre 400 e 430 caracteres no total. Escreva de forma que preencha essa quantidade de letras.
+    4. ESTRUTURA DA PÁGINA 1: Deve conter o Título, a Imagem de Banner, o Subtítulo e EXATAMENTE 2 PARÁGRAFOS longos.
+    5. ESTRUTURA DAS PÁGINAS 2 E 3: Cada uma deve conter um subtítulo e EXATAMENTE 4 PARÁGRAFOS longos cada, podendo conter 1 bloco de citação no final.
+    6. FOTOGRAFIA: Use apenas links de imagens reais. Proibido imagens de animais, tecnologia, sci-fi ou desenhos.
     `;
 
-    return { instrucao, regraRodape, numero };
+    const moldePaginas = `
+      <!-- PÁGINA 1 -->
+      <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+          <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numeroCapitulo}</span></div>
+          <h2 class="chapter-title-inline">Capítulo ${numeroCapitulo}: [Nome do Capítulo]</h2>
+          <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
+          <h3 class="subtopic-title">[Título do Tópico]</h3>
+          <p>[Parágrafo 1 - Escreva um conteúdo com o mínimo de 400 caracteres e máximo de 430 caracteres para caber perfeitamente]</p>
+          <p>[Parágrafo 2 - Escreva um conteúdo com o mínimo de 400 caracteres e máximo de 430 caracteres para caber perfeitamente]</p>
+          <div class="page-footer">${regraRodape}</div>
+      </div>
+
+       <!-- PÁGINA 2 -->
+       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numeroCapitulo}</span></div>
+           <h3 class="subtopic-title">[Subtítulo 2]</h3>
+           <p>[Parágrafo 1 - Média de 400 a 430 caracteres]</p>
+           <p>[Parágrafo 2 - Média de 400 a 430 caracteres]</p>
+           <p>[Parágrafo 3 - Média de 400 a 430 caracteres]</p>
+           <p>[Parágrafo 4 - Média de 400 a 430 caracteres]</p>
+           <div class="page-footer">${regraRodape}</div>
+       </div>
+
+       <!-- PÁGINA 3 -->
+       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
+           <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numeroCapitulo}</span></div>
+           <h3 class="subtopic-title">[Subtítulo 3]</h3>
+           <p>[Parágrafo 1 - Média de 400 a 430 caracteres]</p>
+           <p>[Parágrafo 2 - Média de 400 a 430 caracteres]</p>
+           <p>[Parágrafo 3 - Média de 400 a 430 caracteres]</p>
+           <p>[Parágrafo 4 - Média de 400 a 430 caracteres]</p>
+           <blockquote><i class="fas fa-quote-left"></i> [Citação ou reflexão inspiradora relacionada ao capítulo]</blockquote>
+           <div class="page-footer">${regraRodape}</div>
+       </div>
+    `;
+
+    return { regrasCompletas: regrasComuns + '\n\n' + moldePaginas, regraRodape };
   }
 
   // ============================================================
@@ -1575,11 +1506,12 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regraRodape } = obterInstrucoesBase(1); // não usado, só para pegar rodapé
+    const { regrasCompletas, regraRodape } = obterInstrucoesBase(1);
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
     const instrucao = `Você vai INICIAR um e-book gerando APENAS a Capa, Aviso/Direitos, Índice e Introdução.
+    ${regrasCompletas}
     ESTRUTURA OBRIGATÓRIA DA RESPOSTA (PASSO 1):
     ${regraCapaHtml}
     ${paginaAviso}
@@ -1592,16 +1524,15 @@ Mantenha a consistência visual com o resto do e-book.`;
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-        <h3 class="subtopic-title">[Primeiro tópico da introdução - relacionado ao conteúdo]</h3>
-        <p>[Parágrafo 1 - 400-430 caracteres]</p>
-        <p>[Parágrafo 2 - 400-430 caracteres]</p>
-        <h3 class="subtopic-title">[Segundo tópico da introdução - relacionado ao conteúdo]</h3>
-        <p>[Parágrafo 3 - 400-430 caracteres]</p>
-        <p>[Parágrafo 4 - 400-430 caracteres]</p>
+        <h3 class="subtopic-title">[Primeiro tópico da introdução]</h3>
+        <p>[Parágrafo 1 - Entre 400 e 430 caracteres]</p>
+        <p>[Parágrafo 2 - Entre 400 e 430 caracteres]</p>
+        <h3 class="subtopic-title">[Segundo tópico da introdução]</h3>
+        <p>[Parágrafo 3 - Entre 400 e 430 caracteres]</p>
+        <p>[Parágrafo 4 - Entre 400 e 430 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
     PARE AQUI! NÃO gere Capítulos ou Conclusão. PROIBIDO o uso de imagens na introdução.
-    IMPORTANTE: A introdução deve ter exatamente 2 subtópicos (h3) e 4 parágrafos no total. Cada parágrafo deve ter entre 400-430 caracteres.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
@@ -1614,7 +1545,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial) ----
+  // ---- ETAPA 2: Adicionar 3 capítulos sequenciais ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1624,32 +1555,36 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
 
     const proximoNumero = getNextChapterNumber(currentHtml);
-
-    // Gerar instruções para 3 capítulos
+    
     const cap1 = obterInstrucoesBase(proximoNumero);
     const cap2 = obterInstrucoesBase(proximoNumero + 1);
     const cap3 = obterInstrucoesBase(proximoNumero + 2);
-
-    const instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
-    Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
-    Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-    ATENÇÃO: Não pule números e não crie capítulos com numeração diferente.
-    MOLDE PARA CADA CAPÍTULO:
-    ${cap1.instrucao}
-    ${cap2.instrucao}
-    ${cap3.instrucao}
-    A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos, sem repetir cabeçalhos ou rodapés adicionais.
+    
+    const instrucao = `Você é um ESPECIALISTA EDITORIAL. Sua missão é CONTINUAR a escrita deste e-book, gerando EXATAMENTE 3 CAPÍTULOS completos na sequência, atendendo a qualquer requisição do usuário (inclusive receitas com ingredientes/modos de preparo)
+    Cada capítulo deve seguir estritamente o molde de 3 páginas fornecido abaixo, contendo 2 parágrafos de 400-430 caracteres na Página 1, e 4 parágrafos de 400-430 caracteres nas Páginas 2 e 3.
+    Use rigorosamente os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
+    
+    MOLDE DO CAPÍTULO 1:
+    ${cap1.regrasCompletas}
+    
+    MOLDE DO CAPÍTULO 2:
+    ${cap2.regrasCompletas}
+    
+    MOLDE DO CAPÍTULO 3:
+    ${cap3.regrasCompletas}
+    
+    A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos completos sem explicações em texto fora do HTML.
     `;
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
+      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS (Siga se pedir receitas ou outro assunto):\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
     ], false);
 
     if (data && data.html) {
       aplicarHtmlNovo(data.html, true, true);
       setEtapaAtual(2);
-      (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
+      (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados perfeitamente.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
     }
@@ -1667,16 +1602,18 @@ Mantenha a consistência visual com o resto do e-book.`;
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
     DIRETRIZES:
     1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
-    2. MOLDE DE CONCLUSÃO:
+    2. TAMANHO DOS PARÁGRAFOS: Assim como no livro, escreva parágrafos longos, cada um com 400 a 430 caracteres em média.
+    3. MOLDE DE CONCLUSÃO:
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
         <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
         <h3 class="subtopic-title">Fechamento</h3>
-        <p>[Conclusão – 400-430 caracteres]</p>
-        <p>[Conclusão – 400-430 caracteres]</p>
+        <p>[Conclusão 1 - 400 a 430 caracteres...]</p>
+        <p>[Conclusão 2 - 400 a 430 caracteres...]</p>
+        <p>[Conclusão 3 - 400 a 430 caracteres...]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
-    O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará de adicionar o Autor nativamente.
+    O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
@@ -2113,7 +2050,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                         value={productContent}
                         onChange={(e) => setProductContent(e.target.value)}
                         className="input-standard resize-y"
-                        placeholder="Descreva os capítulos ou cole seu texto aqui..."
+                        placeholder="Descreva os capítulos ou cole seu texto (inclusive receitas) aqui..."
                       ></textarea>
                       <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
                         <input
@@ -2197,7 +2134,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                     <div>
                       <label className="input-label text-[9px]">Molde de Capítulos</label>
                       <div className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                        <i className="fas fa-image text-indigo-400 mr-1"></i> Padrão com Banner
+                        <i className="fas fa-image text-indigo-400 mr-1"></i> Padrão Inteligente
                       </div>
                     </div>
                   </div>
