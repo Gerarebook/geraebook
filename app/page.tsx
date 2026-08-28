@@ -1587,7 +1587,7 @@ function getNextChapterNumber(html: string): number {
 
     const regraParagrafos = modo === 'receitas'
       ? "4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento."
-      : "4. COMPRIMENTO DOS PARÁGRAFOS: OBRIGATÓRIO gerar EXATAMENTE 450 caracteres por parágrafo. Limite-se a EXATAMENTE 2 parágrafos na página de título (Página 1) e EXATAMENTE 4 parágrafos nas páginas internas (Páginas 2 e 3). Isso garante o encaixe perfeito nas margens A4.";
+      : "4. COMPRIMENTO DOS PARÁGRAFOS: OBRIGATÓRIO gerar EXATAMENTE 400 caracteres por parágrafo. Limite-se a EXATAMENTE 2 parágrafos na página de título (Página 1) e EXATAMENTE 4 parágrafos nas páginas internas (Páginas 2 e 3). Isso garante o encaixe perfeito nas margens A4.";
 
     const regrasComuns = `
     DIRETRIZES DE SEGURANÇA E FORMATAÇÃO:
