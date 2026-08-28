@@ -948,56 +948,9 @@ ${ebookStyles}
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS
   // ============================================================
   function validarParagrafos(html: string): string {
-    const regexPaginas = /(<div class="page-container"[^>]*>)([\s\S]*?)(<\/div>)/gi;
-    let novoHtml = html;
-    let match;
-
-    while ((match = regexPaginas.exec(html)) !== null) {
-      const paginaCompleta = match[0];
-      const conteudo = match[2];
-
-      if (conteudo.includes('cap-img-overlay') || conteudo.includes('cap-box-rounded')) {
-        continue;
-      }
-
-      const temSubtitulo = conteudo.includes('subtopic-title');
-      const isSpecial = conteudo.includes('Índice') || conteudo.includes('índice') ||
-                        conteudo.includes('Sumário') || conteudo.includes('sumário') ||
-                        conteudo.includes('Introdução') || conteudo.includes('introdução') ||
-                        conteudo.includes('Conclusão') || conteudo.includes('conclusão') ||
-                        conteudo.includes('Sobre o Autor');
-
-      if (temSubtitulo && !isSpecial) {
-        const paragrafos = conteudo.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [];
-        const temBlockquote = conteudo.includes('<blockquote');
-
-        const minParagrafos = 4;
-        if (paragrafos.length < minParagrafos && paragrafos.length > 2) { 
-          const faltando = minParagrafos - paragrafos.length;
-          let novos = '';
-          for (let i = 0; i < faltando; i++) {
-            novos += `<p>[Parágrafo denso ${i+1} - preencha com conteúdo relevante e extenso para ocupar a página]</p>\n`;
-          }
-          const footerIndex = conteudo.lastIndexOf('</div>');
-          if (footerIndex !== -1) {
-            const novoConteudo = conteudo.substring(0, footerIndex) + novos + conteudo.substring(footerIndex);
-            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
-          }
-        }
-
-        const temSubtitulo3 = /<h3[^>]*class="subtopic-title"[^>]*>.*?3.*?<\/h3>/i.test(conteudo) ||
-                             /<h3[^>]*class="subtopic-title"[^>]*>.*?Subtítulo 3.*?<\/h3>/i.test(conteudo);
-        if (temSubtitulo3 && !temBlockquote) {
-          const footerIndex = conteudo.lastIndexOf('</div>');
-          if (footerIndex !== -1) {
-            const blockquoteHtml = `<blockquote><i class="fas fa-quote-left"></i> [Insira uma reflexão ou citação relevante sobre o capítulo]</blockquote>\n`;
-            const novoConteudo = conteudo.substring(0, footerIndex) + blockquoteHtml + conteudo.substring(footerIndex);
-            novoHtml = novoHtml.replace(paginaCompleta, match[1] + novoConteudo + match[3]);
-          }
-        }
-      }
-    }
-    return novoHtml;
+    // Retorna o HTML diretamente sem forçar parágrafos falsos, 
+    // evitando que o texto passe do limite da página e quebre o layout.
+    return html;
   }
 
   // ============================================================
@@ -1512,8 +1465,8 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
         <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
-        <p>[Parágrafo 1 - MÁXIMO 350 caracteres]</p>
-        <p>[Parágrafo 2 - MÁXIMO 350 caracteres]</p>
+        <p>[Parágrafo 1 - MÁXIMO 250 caracteres]</p>
+        <p>[Parágrafo 2 - MÁXIMO 250 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
 
@@ -1521,14 +1474,13 @@ Mantenha a consistência visual com o resto do e-book.`;
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <h3 class="subtopic-title">[Subtítulo 2]</h3>
-        <p>[Parágrafo 1 - máximo 400 caracteres]</p>
-        <p>[Parágrafo 2 - máximo 400 caracteres]</p>
+        <p>[Parágrafo 1 - máximo 300 caracteres]</p>
+        <p>[Parágrafo 2 - máximo 300 caracteres]</p>
         
-        <!-- AQUI ESTÁ O BOX NA PÁGINA 2. VOCÊ PODE MOVER PARA CIMA OU PARA BAIXO -->
         <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica ou destaque importante sobre o tema]</div>
         
-        <p>[Parágrafo 3 - máximo 400 caracteres]</p>
-        <p>[Parágrafo 4 - máximo 400 caracteres]</p>
+        <p>[Parágrafo 3 - máximo 300 caracteres]</p>
+        <p>[Parágrafo 4 - máximo 300 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
 
@@ -1536,12 +1488,11 @@ Mantenha a consistência visual com o resto do e-book.`;
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <h3 class="subtopic-title">[Subtítulo 3]</h3>
-        <p>[Parágrafo 1 - máximo 400 caracteres]</p>
-        <p>[Parágrafo 2 - máximo 400 caracteres]</p>
-        <p>[Parágrafo 3 - máximo 400 caracteres]</p>
-        <p>[Parágrafo 4 - máximo 400 caracteres]</p>
+        <p>[Parágrafo 1 - máximo 300 caracteres]</p>
+        <p>[Parágrafo 2 - máximo 300 caracteres]</p>
+        <p>[Parágrafo 3 - máximo 300 caracteres]</p>
+        <p>[Parágrafo 4 - máximo 300 caracteres]</p>
         
-        <!-- AQUI ESTÁ O QUOTE NA PÁGINA 3. VOCÊ PODE MOVER PARA CIMA OU PARA BAIXO -->
         <blockquote><i class="fas fa-quote-left"></i> [Citação ou reflexão impactante]</blockquote>
         
         <div class="page-footer">${regraRodape}</div>
@@ -1549,17 +1500,14 @@ Mantenha a consistência visual com o resto do e-book.`;
     `;
 
     const regrasComuns = `
-    Você é um ESPECIALISTA ABSOLUTO no tema solicitado.
-    Se for pedido RECEITAS, adapte este molde HTML para acomodar listas de ingredientes e passos, mas mantendo a organização rígida das páginas.
-    
-    DIRETRIZES DE FORMATAÇÃO E SEGURANÇA (NÃO SAIA DAS MARGENS):
-    1. NUMERAÇÃO: Este é o CAPÍTULO ${numero}. Siga a ordem exata.
-    2. REGRA EXTREMA DE PARÁGRAFOS E TAMANHO: 
+    DIRETRIZES DE FORMATAÇÃO E SEGURANÇA (OBRIGATÓRIO):
+    1. IMAGEM INTOCÁVEL: É expressamente PROIBIDO alterar o atributo "src" da imagem. Mantenha EXATAMENTE a URL fornecida no molde (https://images.unsplash.com/...). NUNCA invente links para a imagem, pois isso quebrará o sistema.
+    2. NUMERAÇÃO: Este é o CAPÍTULO ${numero}. Siga a ordem exata.
+    3. REGRA EXTREMA DE PARÁGRAFOS E TAMANHO: 
        - A Página 1 DEVE ter EXATAMENTE 2 parágrafos curtos.
        - As Páginas 2 e 3 DEVEM ter EXATAMENTE 4 parágrafos.
-       - CADA PARÁGRAFO não pode ultrapassar o limite exigido de caracteres (350 a 400) sob hipótese alguma. Caso contrário, o texto vai vazar do layout A4. Seja rigoroso.
-    3. A IMAGEM DEVE FICAR ABAIXO DO TÍTULO: Siga rigorosamente o molde. Use apenas a tag <img class="chapter-banner-img" src="...">. Não insira tamanhos (width/height) nela, o CSS cuida disso (360px).
-    4. Mantenha a <div class="highlight-box"> na página 2 e o <blockquote> na página 3 intactos.
+       - CADA PARÁGRAFO não pode ultrapassar o limite de 300 caracteres de texto. Se o texto for longo, ele vai vazar da folha A4 e destruir o layout visual. Seja muito direto.
+    4. Mantenha os blocos <div class="highlight-box"> na página 2 e <blockquote> na página 3 exatamente como estão no molde.
     `;
 
     return { 
