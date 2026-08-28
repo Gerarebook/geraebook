@@ -621,9 +621,11 @@ export default function Home() {
     let capBoxTextColor = 'var(--color-primary)';
 
     const ebookStyles = `<style>
+/* ===== NORMALIZAÇÃO GLOBAL ===== */
 *, *::before, *::after {
   box-sizing: border-box;
 }
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
 :root {
@@ -640,12 +642,24 @@ export default function Home() {
 }
 
 body {
-  background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center;
-  font-family: var(--font-body); color: var(--color-text);
+  background-color: #e2e8f0;
+  margin: 0;
+  padding: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-body);
+  color: var(--color-text);
   counter-reset: ebook-page;
 }
 
-#ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
+#ebook-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 
 img.chapter-banner-img {
@@ -664,19 +678,25 @@ img.chapter-banner-img {
   margin-top: 0 !important;
 }
 
-.page-container, .page-cover-img, .page-cover-pura, .page-cover-text,
-.cap-img-overlay, .cap-box-rounded, .cap-img-pura {
+/* ===== PÁGINAS ===== */
+.page-container,
+.page-cover-img,
+.page-cover-pura,
+.page-cover-text,
+.cap-img-overlay,
+.cap-box-rounded,
+.cap-img-pura {
   background-color: var(--color-bg);
-  width: ${conf.width} !important;
-  height: ${conf.height} !important;
-  min-width: ${conf.width} !important;
-  min-height: ${conf.height} !important;
-  max-width: ${conf.width} !important;
-  max-height: ${conf.height} !important;
+  width: 210mm !important;
+  height: 297mm !important;
+  min-width: 210mm !important;
+  min-height: 297mm !important;
+  max-width: 210mm !important;
+  max-height: 297mm !important;
   flex-shrink: 0 !important;
-  padding: 20mm !important; /* ajustado conforme solicitação */
-  margin: 0 auto !important; /* centraliza */
-  box-sizing: border-box !important;
+  padding: 22mm 20mm 25mm 20mm;
+  margin: 0 auto 20px auto; /* Espaço entre páginas */
+  box-sizing: border-box;
   position: relative;
   overflow: hidden;
   page-break-after: always;
@@ -689,13 +709,57 @@ img.chapter-banner-img {
   counter-increment: ebook-page;
 }
 
-/* Restrição de imagens dentro de page-container */
-.page-container img {
-  max-width: 100% !important;
-  height: auto !important;
-  display: block !important;
-  object-fit: cover !important;
-  margin: 0 auto 1.5rem auto !important;
+/* ===== ESTILOS PARA RECEITAS ===== */
+.recipe-title {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: var(--color-primary);
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.recipe-intro p {
+  font-size: ${tamanhoFonteBase};
+  line-height: var(--line-spacing);
+  text-align: justify;
+  margin-bottom: 1.2rem;
+}
+
+.recipe-ingredients h3,
+.recipe-instructions h3 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+  margin-top: 1.5rem;
+  margin-bottom: 0.8rem;
+  border-bottom: 2px solid var(--color-secondary);
+  padding-bottom: 0.3rem;
+}
+
+.recipe-ingredients ul {
+  list-style: disc;
+  padding-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+.recipe-ingredients li {
+  font-size: ${tamanhoFonteBase};
+  line-height: 1.6;
+  margin-bottom: 0.3rem;
+}
+
+.recipe-instructions ol {
+  list-style: decimal;
+  padding-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+.recipe-instructions li {
+  font-size: ${tamanhoFonteBase};
+  line-height: var(--line-spacing);
+  text-align: justify;
+  margin-bottom: 0.8rem;
 }
 
 .chapter-text-page { padding-top: 22mm !important; }
@@ -870,7 +934,16 @@ blockquote {
 }
 .highlight-box i { font-size: 1.8rem; color: var(--color-primary); flex-shrink: 0; }
 
-img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; margin: 1rem auto; display: block; object-fit: cover; page-break-inside: avoid; break-inside: avoid; }
+/* ===== RESTRIÇÃO DE IMAGENS ===== */
+.page-container img,
+.page-extra img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  margin: 0 auto 1.5rem auto;
+}
+
 ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
 li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
@@ -899,10 +972,10 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 
 @page { size: A4 portrait; margin: 0; }
 @media print {
-  html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
+  html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: 210mm !important; height: auto !important; }
   #ebook-container { width: 100%; padding: 0; margin: 0; }
   .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
-    width: ${conf.width} !important; height: ${conf.height} !important; box-sizing: border-box !important; margin: 0 !important; padding: ${conf.padding} !important; page-break-after: always !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; border: none !important;
+    width: 210mm !important; height: 297mm !important; box-sizing: border-box !important; margin: 0 !important; padding: 22mm 20mm 25mm 20mm !important; page-break-after: always !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; border: none !important;
   }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 }
@@ -1587,11 +1660,13 @@ Mantenha a consistência visual com o resto do e-book.`;
       <div class="page-container" style="box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden;">
           <div class="page-header"><span>${livroTitulo}</span><span>Modo de Preparo</span></div>
           <h3 class="subtopic-title">Modo de Preparo</h3>
-          <p>[Passo 1 - descrição detalhada]</p>
-          <p>[Passo 2 - continuação]</p>
-          <p>[Passo 3 - ...]</p>
-          <p>[Passo 4 - ...]</p>
-          <p>[Passo 5 - finalização]</p>
+          <ol>
+              <li>[Passo 1 - descrição detalhada]</li>
+              <li>[Passo 2 - continuação]</li>
+              <li>[Passo 3 - ...]</li>
+              <li>[Passo 4 - ...]</li>
+              <li>[Passo 5 - finalização]</li>
+          </ol>
           <blockquote><i class="fas fa-quote-left"></i> [Dica ou reflexão sobre a receita]</blockquote>
           <div class="page-footer">${regraRodape}</div>
       </div>
@@ -1697,7 +1772,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       instrucao = `Você vai CONTINUAR a escrita de um e-book de RECEITAS, gerando 3 novas receitas.
       ${regrasCompletas}
       ATENÇÃO: NUNCA use a palavra "Capítulo". Use somente o nome da receita.
-      Cada receita deve ocupar 2 páginas: a primeira com título, banner e ingredientes; a segunda com modo de preparo e uma citação.
+      Cada receita deve ocupar 2 páginas: a primeira com título, banner e ingredientes; a segunda com modo de preparo (em lista ordenada <ol>) e uma citação.
       Não use highlight-box, apenas o blockquote no final da segunda página.
       A sua resposta deve conter APENAS os blocos HTML das 3 receitas, sem repetir cabeçalhos ou rodapés adicionais.
       `;
@@ -1765,6 +1840,73 @@ Mantenha a consistência visual com o resto do e-book.`;
       (window as any).showNotification('Passo 3 Concluído! Conclusão e Autor gerados.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
+    }
+  }
+
+  // ============================================================
+  // FUNÇÃO PARA GERAR RECEITA INDIVIDUAL (MODO MANUAL)
+  // ============================================================
+  async function gerarPaginaReceita(tituloDigitado: string) {
+    if (!tituloDigitado || tituloDigitado.trim() === '') {
+      (window as any).showNotification('Digite o nome da receita.', 'error');
+      return;
+    }
+
+    const regrasReceitas = `
+    DIRETRIZES DE FORMATAÇÃO PARA RECEITAS:
+    1. ESTRUTURA TRADICIONAL: A resposta DEVE seguir rigorosamente a estrutura clássica: Título, Introdução, Ingredientes e Modo de Preparo.
+    2. INGREDIENTES (SEM LIMITE): Apresente os ingredientes em formato de lista (tags <ul> e <li>). Os itens devem ser curtos, exatos e diretos (ex: "2 xícaras de farinha"). Não aplique limite de caracteres nesta seção.
+    3. MODO DE PREPARO (PASSO A PASSO): O modo de preparo DEVE ser feito no formato tradicional de etapas sequenciais usando <ol> e <li>. Cada passo deve conter entre 200 e 300 caracteres.
+    4. CONTROLE DE CARACTERES (INTRODUÇÃO E PREPARO): Para manter a padronização visual da página, a "Introdução" e a descrição de CADA etapa do "Modo de Preparo" devem conter estritamente entre 200 e 300 caracteres. Para atingir esse limite nos passos de preparo sem enrolação, adicione dicas culinárias úteis, como o ponto exato da textura, aroma esperado ou sugestões de utensílios.
+    5. NÃO USE NÚMEROS DE CAPÍTULO, pois isso é uma receita avulsa.
+    `;
+
+    const moldeReceita = `
+    Crie uma receita completa para o prato: "${tituloDigitado}".
+    
+    Preencha o seguinte molde HTML, substituindo as instruções entre colchetes pelo conteúdo gerado, respeitando estritamente os limites de caracteres:
+
+    <div class="page-container">
+      <div class="page-header"><span>${livroTitulo || 'Receitas'}</span><span>${tituloDigitado}</span></div>
+      <h2 class="recipe-title">${tituloDigitado}</h2>
+      
+      <div class="recipe-intro">
+        <p>[Escreva uma introdução atraente sobre esta receita contendo estritamente entre 200 e 300 caracteres]</p>
+      </div>
+
+      <div class="recipe-ingredients">
+        <h3>Ingredientes</h3>
+        <ul>
+          [Gere os itens da lista de ingredientes de forma curta e tradicional]
+        </ul>
+      </div>
+
+      <div class="recipe-instructions">
+        <h3>Modo de Preparo</h3>
+        <ol>
+          <li>[Passo 1 - Escreva as instruções iniciais contendo estritamente entre 200 e 300 caracteres. Adicione dicas técnicas se necessário]</li>
+          <li>[Passo 2 - Escreva o próximo passo contendo estritamente entre 200 e 300 caracteres]</li>
+          <li>[Passo 3 - Escreva o passo final/cozimento contendo estritamente entre 200 e 300 caracteres]</li>
+        </ol>
+      </div>
+      <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
+    </div>
+    `;
+
+    const promptFinalParaIA = `${regrasReceitas}\n\n${moldeReceita}`;
+
+    try {
+      const data = await chamarMotorIA(promptFinalParaIA, [{ text: `Gerar receita: ${tituloDigitado}` }], false);
+      if (data && data.html) {
+        // Injetar a receita no final do e-book atual
+        aplicarHtmlNovo(data.html, true, true);
+        (window as any).showNotification(`Receita "${tituloDigitado}" gerada com sucesso!`, 'success');
+      } else {
+        throw new Error('A IA não retornou um HTML válido.');
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar receita:', error);
+      (window as any).showNotification('Falha ao gerar receita. Verifique o console.', 'error');
     }
   }
 
