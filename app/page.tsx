@@ -1479,17 +1479,19 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
   // ============================================================
-  function getNextChapterNumber(html: string): number {
-    if (!html) return 1;
-    const regex = /Capítulo\s*(\d+)/gi;
-    let match;
-    let max = 0;
-    while ((match = regex.exec(html)) !== null) {
-      const num = parseInt(match[1], 10);
-      if (num > max) max = num;
-    }
-    return max + 1;
+  // NOVO CÓDIGO CORRIGIDO
+function getNextChapterNumber(html: string): number {
+  if (!html) return 1;
+  // Busca estritamente dentro das tags <h2> de título de capítulo para ignorar o Índice e o corpo de texto
+  const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
+  let match;
+  let max = 0;
+  while ((match = regex.exec(html)) !== null) {
+    const num = parseInt(match[1], 10);
+    if (num > max) max = num;
   }
+  return max + 1;
+}
 
   // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO)
@@ -1583,12 +1585,16 @@ Mantenha a consistência visual com o resto do e-book.`;
       </div>
     `;
 
+    const regraParagrafos = modo === 'receitas'
+      ? "4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento."
+      : "4. COMPRIMENTO DOS PARÁGRAFOS: OBRIGATÓRIO gerar EXATAMENTE 450 caracteres por parágrafo. Limite-se a EXATAMENTE 2 parágrafos na página de título (Página 1) e EXATAMENTE 4 parágrafos nas páginas internas (Páginas 2 e 3). Isso garante o encaixe perfeito nas margens A4.";
+
     const regrasComuns = `
     DIRETRIZES DE SEGURANÇA E FORMATAÇÃO:
     1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
     2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
     3. FOTOGRAFIA: Use apenas imagens reais.
-    4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento.
+    ${regraParagrafos}
     `;
 
     let moldeFinal = '';
