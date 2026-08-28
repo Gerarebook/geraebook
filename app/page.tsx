@@ -1481,7 +1481,9 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
-    const regex = /Capítulo\s*(\d+)/gi;
+    
+    // Agora o regex busca a numeração EXCLUSIVAMENTE dentro dos títulos h2, ignorando o Índice
+    const regex = /<h2[^>]*class="[^"]*chapter-title-inline[^"]*"[^>]*>\s*Capítulo\s*(\d+)/gi;
     let match;
     let max = 0;
     while ((match = regex.exec(html)) !== null) {
@@ -1588,7 +1590,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. NUMERAÇÃO OBRIGATÓRIA: Este é o CAPÍTULO ${numero}. É proibido alterar este número ou pular para frente. Siga a ordem exata.
     2. MARGENS E CAIXAS: Todo o conteúdo DEVE estar estritamente contido dentro da tag <div class="page-container">. Nunca crie textos compridos sem quebras que estourem a largura da página.
     3. FOTOGRAFIA: Use apenas imagens reais.
-    4. COMPRIMENTO DOS PARÁGRAFOS: Cada parágrafo deve ter no máximo 4 linhas, para evitar vazamento.
+    4. COMPRIMENTO DOS PARÁGRAFOS (CRÍTICO): É OBRIGATÓRIO que CADA parágrafo gerado (tag <p>) contenha entre 400 e 450 caracteres. Isso é essencial para preencher o formato A4 de maneira uniforme e evitar vazamentos de margem. Não gere parágrafos com menos de 400 caracteres nem permita que ultrapassem 450 caracteres.
     `;
 
     let moldeFinal = '';
