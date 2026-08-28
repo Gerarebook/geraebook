@@ -621,6 +621,9 @@ export default function Home() {
     let capBoxTextColor = 'var(--color-primary)';
 
     const ebookStyles = `<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
 :root {
@@ -671,9 +674,9 @@ img.chapter-banner-img {
   max-width: ${conf.width} !important;
   max-height: ${conf.height} !important;
   flex-shrink: 0 !important;
-  padding: ${conf.padding};
-  margin: 0 auto 20px auto;
-  box-sizing: border-box;
+  padding: 20mm !important; /* ajustado conforme solicitação */
+  margin: 0 auto !important; /* centraliza */
+  box-sizing: border-box !important;
   position: relative;
   overflow: hidden;
   page-break-after: always;
@@ -684,6 +687,15 @@ img.chapter-banner-img {
   overflow-wrap: break-word;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
   counter-increment: ebook-page;
+}
+
+/* Restrição de imagens dentro de page-container */
+.page-container img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  object-fit: cover !important;
+  margin: 0 auto 1.5rem auto !important;
 }
 
 .chapter-text-page { padding-top: 22mm !important; }
