@@ -18,8 +18,6 @@ import React, { useEffect, useState, useRef } from 'react';
       el.tagName !== 'SCRIPT'
     );
 
-    if (todosElementos.length === 0) return;
-
     const ALTURA_MAXIMA = 980; 
 
     function criarNovaPagina() {
