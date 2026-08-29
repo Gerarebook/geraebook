@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
-
+import { jsPDF } from 'jspdf';
 // ============================================================
 // FUNÇÕES AUXILIARES DE PAGINAÇÃO E ÍNDICE (UNIFICADAS)
 // ============================================================
