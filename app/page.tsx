@@ -1539,7 +1539,10 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
   const numero = opts?.numeroCapitulo || 1;
-  const temaBusca = encodeURIComponent(opts?.tema || `abstract photography chapter ${numero}`);
+  const temaBusca = encodeURIComponent(opts?.tema || `abstract minimal corporate photography chapter ${numero}`);
+  
+  // GERA UM NÚMERO ALEATÓRIO PARA QUEBRAR O CACHE DA API E DO NAVEGADOR
+  const seedUnica = Math.floor(Math.random() * 9999999);
 
   const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E ESTRUTURA (OBRIGATÓRIO):
@@ -1548,7 +1551,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   
   ESTRUTURA OBRIGATÓRIA EXATA DO CAPÍTULO:
   <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-  <img class="chapter-banner-img" src="https://image.pollinations.ai/prompt/${temaBusca}?width=800&height=400&nologo=true" alt="Banner do Capítulo" />
+  <img class="chapter-banner-img" src="https://image.pollinations.ai/prompt/${temaBusca}?width=800&height=400&nologo=true&seed=${seedUnica}" alt="Banner do Capítulo ${numero}" />
   <h3 class="subtopic-title">[Título do Primeiro Tópico Obrigatório]</h3>
   <p>[Primeiro parágrafo do texto...]</p>
   
