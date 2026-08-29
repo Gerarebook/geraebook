@@ -1512,7 +1512,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   1. GERE APENAS CONTEÚDO HTML PURO. É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, cabeçalhos ou rodapés.
   2. Use APENAS as seguintes tags: <h2>, <h3>, <p>, <blockquote>, <ul>, <li> e <div class="highlight-box">.
   3. Comece o retorno diretamente com <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>.
-  4. CADA PARÁGRAFO deve ter no mínimo 400 caracteres e no máximo 430 caracteres para manter o texto dinâmico e direto para o formato a4.
+  4. CADA PARÁGRAFO deve ter no mínimo 430 caracteres e no máximo 450 caracteres para manter o texto dinâmico e direto para o formato a4.
   `;
 
   return { regrasCompletas, numero };
