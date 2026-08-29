@@ -227,30 +227,22 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (com a função unificada)
 // ============================================================
 
-function getScriptPreview(
-  indexShowSubtopics: boolean,
-  bgEnabled: boolean,
-  bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string
-) {
-  return `
-<script>
-  (function() {
-    // Função unificada de paginação e índice
-    function executarRefluxoCompleto() {
+function executarRefluxoCompleto() {
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // Limpa páginas antigas (exceto capas)
+      // 1. Limpa páginas antigas (exceto capas)
       const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
       paginasExistentes.forEach(p => p.remove());
 
-      const todosElementos = Array.from(container.children).filter(el =>
+      // Pega todos os elementos brutos
+      const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         el.tagName !== 'STYLE' &&
         el.tagName !== 'SCRIPT'
       );
 
+      // Altura máxima super restrita (A4)
       const ALTURA_MAXIMA = 980;
 
       function criarNovaPagina() {
@@ -264,46 +256,83 @@ function getScriptPreview(
         header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
         novaPagina.appendChild(header);
 
+        // Área restrita apenas para o texto, para podermos medir com precisão
+        const contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        contentArea.style.display = 'flex';
+        contentArea.style.flexDirection = 'column';
+        novaPagina.appendChild(contentArea);
+
         const footer = document.createElement('div');
         footer.className = 'page-footer';
         footer.innerHTML = '<span class="page-number"></span>';
         novaPagina.appendChild(footer);
 
         container.appendChild(novaPagina);
-        return novaPagina;
+        return { pagina: novaPagina, areaTexto: contentArea };
       }
 
-      let paginaAtual = criarNovaPagina();
+      if (elementosIA.length === 0) return;
 
-      todosElementos.forEach(elemento => {
-        const footer = paginaAtual.querySelector('.page-footer');
-        paginaAtual.insertBefore(elemento, footer);
+      let atual = criarNovaPagina();
 
-        if (paginaAtual.scrollHeight > ALTURA_MAXIMA) {
-          const novaPagina = criarNovaPagina();
-          const novoFooter = novaPagina.querySelector('.page-footer');
-          novaPagina.insertBefore(elemento, novoFooter);
+      // 2. Loop de Paginação Rigoroso
+      for (let i = 0; i < elementosIA.length; i++) {
+        let el = elementosIA[i];
+        atual.areaTexto.appendChild(el);
 
-          const paginaAnterior = paginaAtual.previousElementSibling;
-          if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
-            const footerAnterior = paginaAnterior.querySelector('.page-footer');
-            const ultimoElemento = footerAnterior.previousElementSibling;
-            if (ultimoElemento && (ultimoElemento.tagName === 'H2' || ultimoElemento.tagName === 'H3')) {
-              novaPagina.insertBefore(ultimoElemento, elemento);
+        // O elemento fez a página estourar?
+        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+          
+          // Se for um parágrafo longo, fatiamos palavra por palavra
+          if (el.tagName === 'P') {
+            let textoOriginal = el.innerHTML;
+            let palavras = textoOriginal.split(' ');
+            
+            el.innerHTML = ''; 
+            let pIndex = 0;
+
+            // Preenche até o limite exato
+            while (pIndex < palavras.length) {
+              el.innerHTML += palavras[pIndex] + ' ';
+              
+              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+                // Remove a última palavra que causou o estouro
+                let htmlAtual = el.innerHTML;
+                el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+                break;
+              }
+              pIndex++;
             }
-          }
-          paginaAtual = novaPagina;
-        }
-      });
 
+            // O texto que sobrou vira um novo elemento
+            let textoRestante = palavras.slice(pIndex).join(' ');
+            atual = criarNovaPagina();
+            
+            if (textoRestante.trim() !== '') {
+               let novoParagrafo = document.createElement('p');
+               novoParagrafo.innerHTML = textoRestante;
+               // Insere o restante de volta no loop para ser processado na nova folha
+               elementosIA.splice(i + 1, 0, novoParagrafo);
+            }
+          } 
+          // Se for uma imagem ou título, joga o bloco inteiro pra próxima página
+          else {
+            atual = criarNovaPagina();
+            atual.areaTexto.appendChild(el);
+          }
+        }
+      }
+
+      // 3. Limpeza Final
       container.querySelectorAll('.page-container').forEach(page => {
-        const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
+        const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
         if (conteudo.length === 0) {
           page.remove();
         }
       });
 
-      // Sincronizar índice
+      // 4. Sincronizar índice (só roda AGORA que as páginas estão perfeitas)
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
@@ -385,7 +414,7 @@ function getScriptPreview(
 
       sincronizarIndice();
 
-      // Fundo da segunda página
+      // Fundo da segunda página (Mantido do seu original)
       let chIndex = 0;
       let currentChapterImg = '';
       container.querySelectorAll('.page-container').forEach((p) => {
