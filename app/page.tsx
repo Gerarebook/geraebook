@@ -11,7 +11,6 @@ import React, { useEffect, useState, useRef } from 'react';
   } // <-- Final da linha 50 da image_065525.png
 
   function motorDePaginacaoJS() {
-    // 1. Pega todo o conteúdo cru gerado (assumindo que ele está solto no ebook-container)
     const containerPrincipal = document.getElementById('ebook-container');
     const todosElementos = Array.from(containerPrincipal.children).filter(el => 
       !el.classList.contains('page-container') && 
@@ -19,23 +18,19 @@ import React, { useEffect, useState, useRef } from 'react';
       el.tagName !== 'SCRIPT'
     );
 
-    if (todosElementos.length === 0) return; // Já está paginado
+    if (todosElementos.length === 0) return;
 
-    // Altura limite de uma página A4 padrão descontando o padding (~1122px - paddings)
     const ALTURA_MAXIMA = 980; 
 
-    // Função auxiliar para criar uma nova página em branco
     function criarNovaPagina() {
       const novaPagina = document.createElement('div');
       novaPagina.className = 'page-container chapter-text-page';
       
-      // Injeta Header (Você pode injetar os dados do livro usando variáveis dinâmicas aqui)
       const header = document.createElement('div');
       header.className = 'page-header';
       header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
       novaPagina.appendChild(header);
 
-      // Injeta Footer
       const footer = document.createElement('div');
       footer.className = 'page-footer';
       footer.innerHTML = '<span class="page-number"></span>';
@@ -47,6 +42,39 @@ import React, { useEffect, useState, useRef } from 'react';
 
     let paginaAtual = criarNovaPagina();
 
+    todosElementos.forEach(elemento => {
+      const footer = paginaAtual.querySelector('.page-footer');
+      paginaAtual.insertBefore(elemento, footer);
+
+      // Se o elemento fez a página estourar, ele vai para a próxima folha
+      if (paginaAtual.scrollHeight > ALTURA_MAXIMA) {
+        paginaAtual = criarNovaPagina();
+        const novoFooter = paginaAtual.querySelector('.page-footer');
+        paginaAtual.insertBefore(elemento, novoFooter);
+
+        // VERIFICAÇÃO ANTI-ÓRFÃOS
+        // Olha para a página anterior para ver se algum título ficou sozinho no final dela
+        const paginaAnterior = paginaAtual.previousElementSibling;
+        if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
+           const footerAnterior = paginaAnterior.querySelector('.page-footer');
+           const ultimoElementoAnterior = footerAnterior.previousElementSibling;
+           
+           // Se o último elemento da página anterior for um H2 ou H3 (sem o seu parágrafo), ele ficou órfão
+           if (ultimoElementoAnterior && (ultimoElementoAnterior.tagName === 'H2' || ultimoElementoAnterior.tagName === 'H3')) {
+               // Move o título órfão para o topo da nova página, junto do parágrafo dele
+               paginaAtual.insertBefore(ultimoElementoAnterior, elemento);
+           }
+        }
+      }
+    });
+
+    // Limpa páginas vazias e garante que a última folha do capítulo termine onde o texto acabar
+    document.querySelectorAll('.page-container').forEach(page => {
+      if (page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote').length === 0) {
+        page.remove();
+      }
+    });
+  }
     // 2. Distribui os elementos nas páginas
     todosElementos.forEach(elemento => {
       // Insere o elemento antes do rodapé
