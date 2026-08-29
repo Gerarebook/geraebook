@@ -1465,22 +1465,23 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
         <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
-        <p>[Parágrafo 1 - MÁXIMO 250 caracteres]</p>
-        <p>[Parágrafo 2 - MÁXIMO 250 caracteres]</p>
+        <p>[Parágrafo 1 - MÁXIMO 400 caracteres]</p>
+        <p>[Parágrafo 2 - MÁXIMO 400 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
 
     <!-- PÁGINA 2 -->
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <h3 class="subtopic-title">[Subtítulo 2]</h3>
-        <p>[Parágrafo 1 - máximo 300 caracteres]</p>
-        <p>[Parágrafo 2 - máximo 300 caracteres]</p>
+        <!-- NOVO TÓPICO ADICIONADO AQUI -->
+        <h3 class="subtopic-title">[Início do Assunto]</h3>
+        <p>[Parágrafo 1 - máximo 420 caracteres]</p>
+        <p>[Parágrafo 2 - máximo 420 caracteres]</p>
         
         <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica ou destaque importante sobre o tema]</div>
         
-        <p>[Parágrafo 3 - máximo 300 caracteres]</p>
-        <p>[Parágrafo 4 - máximo 300 caracteres]</p>
+        <p>[Parágrafo 3 - máximo 420 caracteres]</p>
+        <p>[Parágrafo 4 - máximo 420 caracteres]</p>
         <div class="page-footer">${regraRodape}</div>
     </div>
 
@@ -1488,10 +1489,10 @@ Mantenha a consistência visual com o resto do e-book.`;
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
         <h3 class="subtopic-title">[Subtítulo 3]</h3>
-        <p>[Parágrafo 1 - máximo 300 caracteres]</p>
-        <p>[Parágrafo 2 - máximo 300 caracteres]</p>
-        <p>[Parágrafo 3 - máximo 300 caracteres]</p>
-        <p>[Parágrafo 4 - máximo 300 caracteres]</p>
+        <p>[Parágrafo 1 - máximo 420 caracteres]</p>
+        <p>[Parágrafo 2 - máximo 420 caracteres]</p>
+        <p>[Parágrafo 3 - máximo 420 caracteres]</p>
+        <p>[Parágrafo 4 - máximo 420 caracteres]</p>
         
         <blockquote><i class="fas fa-quote-left"></i> [Citação ou reflexão impactante]</blockquote>
         
@@ -1506,7 +1507,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     3. REGRA EXTREMA DE PARÁGRAFOS E TAMANHO: 
        - A Página 1 DEVE ter EXATAMENTE 2 parágrafos curtos.
        - As Páginas 2 e 3 DEVEM ter EXATAMENTE 4 parágrafos.
-       - CADA PARÁGRAFO não pode ultrapassar o limite de 300 caracteres de texto. Se o texto for longo, ele vai vazar da folha A4 e destruir o layout visual. Seja muito direto.
+       - CADA PARÁGRAFO não pode ultrapassar o limite de 420 caracteres de texto. Se o texto for longo, ele vai vazar da folha A4 e destruir o layout visual. Seja muito direto.
     4. Mantenha os blocos <div class="highlight-box"> na página 2 e <blockquote> na página 3 exatamente como estão no molde.
     `;
 
