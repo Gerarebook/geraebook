@@ -6,49 +6,71 @@ import React, { useEffect, useState, useRef } from 'react';
 // ============================================================
 // SCRIPT DE INJEÇÃO NO IFRAME (MOTOR A4)
 // ============================================================
-function getScriptPreview(
-  indexShowSubtopics: boolean,
-  ativarBgSegundaPagina: boolean,
-  bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string
-) {
-  return `<script id="editor-magic-script">
-    let modoEdicao = false;
-    let elSelecionado = null;
-    let bgEnabled = true;
+}
+    });
+  } // <-- Final da linha 50 da image_065525.png
 
-    if (!document.getElementById('builder-core-styles')) {
-      const style = document.createElement('style');
-      style.id = 'builder-core-styles';
-      style.innerHTML = \`body.builder-editing * { cursor: pointer !important; }\`;
-      document.head.appendChild(style);
+  function motorDePaginacaoJS() {
+    // 1. Pega todo o conteúdo cru gerado (assumindo que ele está solto no ebook-container)
+    const containerPrincipal = document.getElementById('ebook-container');
+    const todosElementos = Array.from(containerPrincipal.children).filter(el => 
+      !el.classList.contains('page-container') && 
+      el.tagName !== 'STYLE' && 
+      el.tagName !== 'SCRIPT'
+    );
+
+    if (todosElementos.length === 0) return; // Já está paginado
+
+    // Altura limite de uma página A4 padrão descontando o padding (~1122px - paddings)
+    const ALTURA_MAXIMA = 980; 
+
+    // Função auxiliar para criar uma nova página em branco
+    function criarNovaPagina() {
+      const novaPagina = document.createElement('div');
+      novaPagina.className = 'page-container chapter-text-page';
+      
+      // Injeta Header (Você pode injetar os dados do livro usando variáveis dinâmicas aqui)
+      const header = document.createElement('div');
+      header.className = 'page-header';
+      header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
+      novaPagina.appendChild(header);
+
+      // Injeta Footer
+      const footer = document.createElement('div');
+      footer.className = 'page-footer';
+      footer.innerHTML = '<span class="page-number"></span>';
+      novaPagina.appendChild(footer);
+
+      containerPrincipal.appendChild(novaPagina);
+      return novaPagina;
     }
 
-    function rgbToHex(rgb) {
-      if (!rgb || rgb === 'rgba(0,0,0,0)' || rgb === 'transparent') return '';
-      let res = rgb.match(/\\d+/g);
-      if (!res || res.length < 3) return '';
-      return "#" + res.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2,'0')).join('');
-    }
+    let paginaAtual = criarNovaPagina();
 
-    function toggleAllBg() {
-      bgEnabled = !bgEnabled;
-      document.querySelectorAll('.page-container.chapter-page-2').forEach(p => {
-        if (bgEnabled) {
-          const url = p.dataset.bgUrl;
-          if (url && url.trim() !== '') {
-            p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${url}')\`, 'important');
-            p.style.setProperty('background-size', 'cover', 'important');
-            p.style.setProperty('background-position', 'center', 'important');
-          }
-        } else {
-          p.style.removeProperty('background-image');
-          p.style.removeProperty('background-size');
-          p.style.removeProperty('background-position');
-        }
-      });
-    }
+    // 2. Distribui os elementos nas páginas
+    todosElementos.forEach(elemento => {
+      // Insere o elemento antes do rodapé
+      const footer = paginaAtual.querySelector('.page-footer');
+      paginaAtual.insertBefore(elemento, footer);
 
+      // Se o elemento fez a página ultrapassar a altura máxima, joga pra próxima
+      if (paginaAtual.scrollHeight > ALTURA_MAXIMA) {
+        paginaAtual = criarNovaPagina();
+        const novoFooter = paginaAtual.querySelector('.page-footer');
+        paginaAtual.insertBefore(elemento, novoFooter);
+      }
+    });
+
+    // Limpa páginas vazias (caso existam)
+    document.querySelectorAll('.page-container').forEach(page => {
+      if (page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote').length === 0) {
+        page.remove();
+      }
+    });
+  }
+
+  function sincronizarIndice() { // <-- Sua linha 52 atual da image_065525.png
+    document.querySelectorAll('.page-container').forEach(page => {
     function sincronizarIndice() {
       document.querySelectorAll('.page-container').forEach(page => {
         const title = page.querySelector('h2');
@@ -298,10 +320,12 @@ function getScriptPreview(
       const images = Array.from(document.images);
       let loaded = 0;
       function runFormatting() {
-        sincronizarIndice();
-        aplicarRefluxoDePagina();
-        const pages = Array.from(document.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura'));
-        document.querySelectorAll('.toc-item').forEach(item => {
+        function runFormatting() {
+      motorDePaginacaoJS(); // 1º: Cria as páginas dinâmicas e distribui o texto
+      sincronizarIndice();  // 2º: Atualiza o índice lendo as páginas que acabaram de ser criadas    
+      const pages = Array.from(document.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura'));
+      const pages = Array.from(document.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura'));
+      document.querySelectorAll('.toc-item').forEach(item => {
           const href = item.getAttribute('href');
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
@@ -647,7 +671,20 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
+/* BLINDAGEM CONTRA VAZAMENTO LATERAL */
+#ebook-container * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+}
 
+#ebook-container img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
 img.chapter-banner-img {
   width: 100% !important;
   height: 360px !important;
@@ -1449,74 +1486,18 @@ Mantenha a consistência visual com o resto do e-book.`;
   // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO E MARGENS)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number }) {
-    const numero = opts?.numeroCapitulo || 1;
+  const numero = opts?.numeroCapitulo || 1;
 
-    let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
-    let regraRodape = '';
-    if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) {
-      regraRodape = `<span>${livroAutores}</span>${numSpan}`;
-    } else {
-      regraRodape = `${numSpan}`;
-    }
+  const regrasCompletas = `
+  DIRETRIZES DE FORMATAÇÃO E SEGURANÇA (OBRIGATÓRIO):
+  1. GERE APENAS CONTEÚDO HTML PURO. É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, cabeçalhos ou rodapés.
+  2. Use APENAS as seguintes tags: <h2>, <h3>, <p>, <blockquote>, <ul>, <li> e <div class="highlight-box">.
+  3. Comece o retorno diretamente com <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>.
+  4. Seja direto nos parágrafos, priorizando frases curtas.
+  `;
 
-    let moldePaginas = `
-    <!-- PÁGINA 1 -->
-    <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-        <img class="chapter-banner-img" src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80" alt="Banner">
-        <p>[Parágrafo 1 - MÁXIMO 400 caracteres]</p>
-        <p>[Parágrafo 2 - MÁXIMO 400 caracteres]</p>
-        <div class="page-footer">${regraRodape}</div>
-    </div>
-
-    <!-- PÁGINA 2 -->
-    <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <!-- NOVO TÓPICO ADICIONADO AQUI -->
-        <h3 class="subtopic-title">[Início do Assunto]</h3>
-        <p>[Parágrafo 1 - máximo 420 caracteres]</p>
-        <p>[Parágrafo 2 - máximo 420 caracteres]</p>
-        
-        <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Dica ou destaque importante sobre o tema]</div>
-        
-        <p>[Parágrafo 3 - máximo 420 caracteres]</p>
-        <p>[Parágrafo 4 - máximo 420 caracteres]</p>
-        <div class="page-footer">${regraRodape}</div>
-    </div>
-
-    <!-- PÁGINA 3 -->
-    <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>Capítulo ${numero}</span></div>
-        <h3 class="subtopic-title">[Subtítulo 3]</h3>
-        <p>[Parágrafo 1 - máximo 420 caracteres]</p>
-        <p>[Parágrafo 2 - máximo 420 caracteres]</p>
-        <p>[Parágrafo 3 - máximo 420 caracteres]</p>
-        <p>[Parágrafo 4 - máximo 420 caracteres]</p>
-        
-        <blockquote><i class="fas fa-quote-left"></i> [Citação ou reflexão impactante]</blockquote>
-        
-        <div class="page-footer">${regraRodape}</div>
-    </div>
-    `;
-
-    const regrasComuns = `
-    DIRETRIZES DE FORMATAÇÃO E SEGURANÇA (OBRIGATÓRIO):
-    1. IMAGEM INTOCÁVEL: É expressamente PROIBIDO alterar o atributo "src" da imagem. Mantenha EXATAMENTE a URL fornecida no molde (https://images.unsplash.com/...). NUNCA invente links para a imagem, pois isso quebrará o sistema.
-    2. NUMERAÇÃO: Este é o CAPÍTULO ${numero}. Siga a ordem exata.
-    3. REGRA EXTREMA DE PARÁGRAFOS E TAMANHO: 
-       - A Página 1 DEVE ter EXATAMENTE 2 parágrafos curtos.
-       - As Páginas 2 e 3 DEVEM ter EXATAMENTE 4 parágrafos.
-       - CADA PARÁGRAFO não pode ultrapassar o limite de 420 caracteres de texto. Se o texto for longo, ele vai vazar da folha A4 e destruir o layout visual. Seja muito direto.
-    4. Mantenha os blocos <div class="highlight-box"> na página 2 e <blockquote> na página 3 exatamente como estão no molde.
-    `;
-
-    return { 
-      regrasCompletas: regrasComuns + '\n\n' + moldePaginas, 
-      regraRodape,
-      numero
-    };
-  }
+  return { regrasCompletas, numero };
+}
 
   // ============================================================
   // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
