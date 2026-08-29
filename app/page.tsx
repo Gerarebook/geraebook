@@ -566,7 +566,95 @@ export default function Home() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+async function gerarEbookPDF(textoBruto: string) {
+    // 1. Inicializa o motor matemático em A4
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const pageBottom = pageHeight - margin;
+    
+    let yPos = margin;
+    
+    // Configurações base
+    doc.setFont("helvetica", "normal");
+    const fontSize = 12;
+    const lineHeight = fontSize * 0.352778 * 1.5; // Fator de entrelinhas exato
+    
+    const lines = textoBruto.split('\n');
 
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      if (line === '') {
+          yPos += lineHeight;
+          if (yPos > pageBottom) { doc.addPage(); yPos = margin; }
+          continue;
+      }
+
+      // Detecta a tag de Capítulo gerada pela IA
+      if (line.toUpperCase().includes('[CAP]')) {
+        let tituloCapitulo = line.replace(/\[\/?CAP\]/gi, '').replace(/\*\*/g, '').trim();
+        
+        if (yPos > margin) { doc.addPage(); yPos = margin; }
+        
+        doc.setFont("helvetica", "bold").setFontSize(18).setTextColor(37, 99, 235);
+        const titleLines = doc.splitTextToSize(tituloCapitulo, pageWidth - margin * 2);
+        doc.text(titleLines, pageWidth / 2, yPos, { align: 'center' });
+        yPos += (titleLines.length * lineHeight) + 15;
+        continue;
+      }
+
+      // Detecta a tag de Imagem
+      if (line.includes('[IMG]')) {
+        const imgH = 60; 
+        if (yPos + imgH > pageBottom) { doc.addPage(); yPos = margin; }
+        
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin, yPos, pageWidth - (margin * 2), imgH, 'F');
+        doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(150, 150, 150);
+        doc.text("Imagem do Capítulo (Banner)", pageWidth / 2, yPos + (imgH / 2), { align: 'center' });
+        
+        yPos += imgH + 15;
+        continue;
+      }
+
+      // Processamento de Subtópicos (Negrito)
+      let isBold = false;
+      if (line.startsWith('**') && line.endsWith('**')) {
+          isBold = true;
+          line = line.replace(/\*\*/g, '');
+          doc.setFont("helvetica", "bold").setFontSize(14).setTextColor(37, 99, 235);
+      } else {
+          doc.setFont("helvetica", "normal").setFontSize(fontSize).setTextColor(0, 0, 0);
+      }
+
+      // Fatiamento Matemático Rígido
+      const textLines = doc.splitTextToSize(line, pageWidth - margin * 2);
+      
+      for (let j = 0; j < textLines.length; j++) {
+        if (yPos + lineHeight > pageBottom) { 
+            doc.addPage(); 
+            yPos = margin; 
+        }
+        
+        if (!isBold && j < textLines.length - 1) {
+             doc.text(textLines[j], margin, yPos, { align: 'justify', maxWidth: pageWidth - margin * 2 });
+        } else {
+             doc.text(textLines[j], margin, yPos);
+        }
+        yPos += lineHeight;
+      }
+      yPos += 3;
+    }
+
+    // 4. Renderiza direto no Iframe com segurança para o TypeScript
+    const pdfBlobUrl = String(doc.output('bloburl'));
+    const iframe = previewFrameRef.current;
+    if (iframe) {
+      iframe.removeAttribute('srcdoc'); 
+      iframe.src = pdfBlobUrl; 
+    }
+  }
   // ============================================================
   // FUNÇÕES AUXILIARES
   // ============================================================
