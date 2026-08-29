@@ -4,83 +4,52 @@ import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 
 function motorDePaginacaoJS() {
-    const containerPrincipal = document.getElementById('ebook-container');
-    if (!containerPrincipal) return;
+  const containerPrincipal = document.getElementById('ebook-container');
+  if (!containerPrincipal) return;
 
-    const todosElementos = Array.from(containerPrincipal.children).filter(el => 
-      !el.classList.contains('page-container') && 
-      !el.classList.contains('page-cover-img') &&
-      !el.classList.contains('page-cover-text') &&
-      el.tagName !== 'STYLE' && 
-      el.tagName !== 'SCRIPT'
-    );
+  const todosElementos = Array.from(containerPrincipal.children).filter(el => 
+    !el.classList.contains('page-container') && el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
+  );
 
-    if (todosElementos.length === 0) return;
+  const ALTURA_MAXIMA = 950; // Margem de segurança para folha A4 de 1123px
 
-    const ALTURA_MAXIMA = 950;
+  function criarNovaPagina() {
+    const novaPagina = document.createElement('div');
+    novaPagina.className = 'page-container chapter-text-page';
+    novaPagina.innerHTML = '<div class="page-header"><span>E-book</span><span>Conteúdo</span></div><div class="page-footer"><span class="page-number"></span></div>';
+    containerPrincipal.appendChild(novaPagina);
+    return novaPagina;
+  }
 
-    function criarNovaPagina() {
-      const novaPagina = document.createElement('div');
-      novaPagina.className = 'page-container chapter-text-page';
-      
-      const header = document.createElement('div');
-      header.className = 'page-header';
-      header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
-      novaPagina.appendChild(header);
+  if (todosElementos.length === 0) return;
+  let paginaAtual = criarNovaPagina();
 
-      const footer = document.createElement('div');
-      footer.className = 'page-footer';
-      footer.innerHTML = '<span class="page-number"></span>';
-      novaPagina.appendChild(footer);
+  todosElementos.forEach(elemento => {
+    const footer = paginaAtual.querySelector('.page-footer');
+    paginaAtual.insertBefore(elemento, footer);
 
-      containerPrincipal.appendChild(novaPagina);
-      return novaPagina;
+    if (paginaAtual.scrollHeight > ALTURA_MAXIMA) {
+      paginaAtual = criarNovaPagina();
+      const novoFooter = paginaAtual.querySelector('.page-footer');
+      paginaAtual.insertBefore(elemento, novoFooter);
+
+      const paginaAnterior = paginaAtual.previousElementSibling;
+      if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
+         const footerAnterior = paginaAnterior.querySelector('.page-footer');
+         const ultimoElementoAnterior = footerAnterior.previousElementSibling;
+         if (ultimoElementoAnterior && ultimoElementoAnterior.tagName.match(/^H[2-4]$/)) {
+             paginaAtual.insertBefore(ultimoElementoAnterior, elemento);
+         }
+      }
     }
+  });
 
-    let paginaAtual = containerPrincipal.querySelector('.chapter-text-page:last-of-type') || criarNovaPagina();
-
-    todosElementos.forEach(elemento => {
-      const footer = paginaAtual.querySelector('.page-footer');
-      paginaAtual.insertBefore(elemento, footer);
-
-      if (paginaAtual.scrollHeight > ALTURA_MAXIMA) {
-        paginaAtual.removeChild(elemento);
-        
-        paginaAtual = criarNovaPagina();
-        const novoFooter = paginaAtual.querySelector('.page-footer');
-        paginaAtual.insertBefore(elemento, novoFooter);
-
-        const paginaAnterior = paginaAtual.previousElementSibling;
-        if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
-           const footerAnterior = paginaAnterior.querySelector('.page-footer');
-           const ultimoElementoAnterior = footerAnterior.previousElementSibling;
-           
-           if (ultimoElementoAnterior && (ultimoElementoAnterior.tagName === 'H2' || ultimoElementoAnterior.tagName === 'H3')) {
-               paginaAtual.insertBefore(ultimoElementoAnterior, elemento);
-           }
-        }
-      }
-    });
-
-    document.querySelectorAll('.chapter-text-page').forEach(page => {
-      if (page.querySelectorAll('p, h2, h3, img, ul, blockquote').length === 0) {
-        page.remove();
-      }
-    });
+  document.querySelectorAll('.page-container').forEach(page => {
+    if (page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote').length === 0) {
+      page.remove();
+    }
+  });
 }
-
-function sincronizarIndice() {
-    document.querySelectorAll('.page-container').forEach(page => {
-      const title = page.querySelector('h2');
-      if (title && (title.innerText.toLowerCase().includes('índice') || title.innerText.toLowerCase().includes('sumário'))) {
-        const existingToc = page.querySelector('.toc-container');
-        if (!existingToc) {
-          const newToc = document.createElement('div');
-          newToc.className = 'toc-container';
-          page.insertBefore(newToc, page.querySelector('.page-footer'));
-        }
-      }
-    });
 
     const allTocs = document.querySelectorAll('.toc-container');
     if (allTocs.length === 0) return;
@@ -767,22 +736,21 @@ img.chapter-banner-img {
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text,
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
   background-color: var(--color-bg);
-  width: ${conf.width} !important;
-  height: ${conf.height} !important;
-  min-width: ${conf.width} !important;
-  min-height: ${conf.height} !important;
-  max-width: ${conf.width} !important;
-  max-height: ${conf.height} !important;
+  width: 794px !important;
+  height: 1123px !important;
+  min-width: 794px !important;
+  min-height: 1123px !important;
+  max-width: 794px !important;
+  max-height: 1123px !important;
   flex-shrink: 0 !important;
-  padding: ${conf.padding};
+  padding: 80px 75px 95px 75px !important;
   margin: 0 auto 20px auto;
-  box-sizing: border-box !important;
+  box-sizing: border-box;
   position: relative;
   overflow: hidden !important;
   page-break-after: always;
   break-after: page;
-  page-break-inside: avoid;
-  break-inside: avoid;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
 }
 
 .page-container * {
@@ -1051,10 +1019,27 @@ ${ebookStyles}
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS
   // ============================================================
   function validarParagrafos(html: string): string {
-    // Retorna o HTML diretamente sem forçar parágrafos falsos, 
-    // evitando que o texto passe do limite da página e quebre o layout.
-    return html;
-  }
+  if (typeof document === 'undefined') return html; 
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+
+  const paragrafos = tempDiv.querySelectorAll('p');
+  paragrafos.forEach(p => {
+    const texto = p.textContent || '';
+    if (texto.length > 420 && texto.includes('. ')) {
+      const splitIndex = texto.indexOf('. ', 200) + 1; 
+      if (splitIndex > 1) {
+        const parte1 = texto.substring(0, splitIndex).trim();
+        const parte2 = texto.substring(splitIndex).trim();
+        p.textContent = parte1;
+        const novoP = document.createElement('p');
+        novoP.textContent = parte2;
+        p.parentNode?.insertBefore(novoP, p.nextSibling);
+      }
+    }
+  });
+  return tempDiv.innerHTML;
+}
 
   // ============================================================
   // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
@@ -1552,17 +1537,23 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (ATUALIZADA COM NUMERAÇÃO E MARGENS)
   // ============================================================
-  function obterInstrucoesBase(opts?: { numeroCapitulo?: number }) {
+  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
   const numero = opts?.numeroCapitulo || 1;
+  const temaBusca = encodeURIComponent(opts?.tema || `abstract photography chapter ${numero}`);
 
   const regrasCompletas = `
-  DIRETRIZES DE FORMATAÇÃO E SEGURANÇA (OBRIGATÓRIO):
-  1. GERE APENAS CONTEÚDO HTML PURO. É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, cabeçalhos ou rodapés.
-  2. Use APENAS as seguintes tags: <h2>, <h3>, <p>, <blockquote>, <ul>, <li> e <div class="highlight-box">.
-  3. Comece o retorno diretamente com <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>.
-  4. CADA PARÁGRAFO deve ter no mínimo 430 caracteres e no máximo 450 caracteres para manter o texto dinâmico e direto para o formato a4.
+  DIRETRIZES DE FORMATAÇÃO E ESTRUTURA (OBRIGATÓRIO):
+  1. GERE APENAS CONTEÚDO HTML PURO. É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">.
+  2. USE APENAS: <h2>, <h3>, <p>, <blockquote>, <ul>, <li>.
+  
+  ESTRUTURA OBRIGATÓRIA EXATA DO CAPÍTULO:
+  <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
+  <img class="chapter-banner-img" src="https://image.pollinations.ai/prompt/${temaBusca}?width=800&height=400&nologo=true" alt="Banner do Capítulo" />
+  <h3 class="subtopic-title">[Título do Primeiro Tópico Obrigatório]</h3>
+  <p>[Primeiro parágrafo do texto...]</p>
+  
+  3. TAMANHO: Escreva os textos em blocos estruturados. Nenhum parágrafo deve ter mais que 3 a 4 linhas visuais. Seja direto e evite enrolação.
   `;
-
   return { regrasCompletas, numero };
 }
   // ============================================================
