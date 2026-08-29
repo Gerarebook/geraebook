@@ -3,14 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 
-// ============================================================
-// SCRIPT DE INJEÇÃO NO IFRAME (MOTOR A4)
-// ============================================================
-}
-    });
-  } // <-- Final da linha 50 da image_065525.png
-
-  function motorDePaginacaoJS() {
+function motorDePaginacaoJS() {
     const containerPrincipal = document.getElementById('ebook-container');
     const todosElementos = Array.from(containerPrincipal.children).filter(el => 
       !el.classList.contains('page-container') && 
