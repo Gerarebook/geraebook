@@ -1297,8 +1297,9 @@ ${ebookStyles}
         const unsplashData = await unsplashRes.json();
         url = unsplashData.urls.regular;
       } else {
-        url = `https://images.unsplash.com/photo-1542204165-65bf26472b9b?auto=format&fit=crop&w=1200&q=80`;
-        (window as any).showNotification('Chave do Unsplash ausente. Imagem de fallback aplicada.', 'warning');
+        const termoDinamico = encodeURIComponent((elementoSelecionado?.innerText || "chapter portrait") + " real human photography");
+    url = `https://images.unsplash.com/featured/?${termoDinamico}`;
+    (window as any).showNotification('Imagem dinâmica aplicada por tema.', 'warning');
       }
 
       const isImg = elementoSelecionado.tagName === 'img';
