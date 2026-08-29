@@ -5,13 +5,19 @@ import React, { useEffect, useState, useRef } from 'react';
 
 function motorDePaginacaoJS() {
     const containerPrincipal = document.getElementById('ebook-container');
+    if (!containerPrincipal) return;
+
     const todosElementos = Array.from(containerPrincipal.children).filter(el => 
       !el.classList.contains('page-container') && 
+      !el.classList.contains('page-cover-img') &&
+      !el.classList.contains('page-cover-text') &&
       el.tagName !== 'STYLE' && 
       el.tagName !== 'SCRIPT'
     );
 
-    const ALTURA_MAXIMA = 980; 
+    if (todosElementos.length === 0) return;
+
+    const ALTURA_MAXIMA = 950;
 
     function criarNovaPagina() {
       const novaPagina = document.createElement('div');
@@ -31,63 +37,106 @@ function motorDePaginacaoJS() {
       return novaPagina;
     }
 
-    let paginaAtual = criarNovaPagina();
+    let paginaAtual = containerPrincipal.querySelector('.chapter-text-page:last-of-type') || criarNovaPagina();
 
     todosElementos.forEach(elemento => {
       const footer = paginaAtual.querySelector('.page-footer');
       paginaAtual.insertBefore(elemento, footer);
 
-      // Se o elemento fez a página estourar, ele vai para a próxima folha
       if (paginaAtual.scrollHeight > ALTURA_MAXIMA) {
+        paginaAtual.removeChild(elemento);
+        
         paginaAtual = criarNovaPagina();
         const novoFooter = paginaAtual.querySelector('.page-footer');
         paginaAtual.insertBefore(elemento, novoFooter);
 
-        // VERIFICAÇÃO ANTI-ÓRFÃOS
-        // Olha para a página anterior para ver se algum título ficou sozinho no final dela
         const paginaAnterior = paginaAtual.previousElementSibling;
         if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
            const footerAnterior = paginaAnterior.querySelector('.page-footer');
            const ultimoElementoAnterior = footerAnterior.previousElementSibling;
            
-           // Se o último elemento da página anterior for um H2 ou H3 (sem o seu parágrafo), ele ficou órfão
            if (ultimoElementoAnterior && (ultimoElementoAnterior.tagName === 'H2' || ultimoElementoAnterior.tagName === 'H3')) {
-               // Move o título órfão para o topo da nova página, junto do parágrafo dele
                paginaAtual.insertBefore(ultimoElementoAnterior, elemento);
            }
         }
       }
     });
 
-    // Limpa páginas vazias e garante que a última folha do capítulo termine onde o texto acabar
-    document.querySelectorAll('.page-container').forEach(page => {
-      if (page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote').length === 0) {
+    document.querySelectorAll('.chapter-text-page').forEach(page => {
+      if (page.querySelectorAll('p, h2, h3, img, ul, blockquote').length === 0) {
         page.remove();
       }
     });
-  }
-    // 2. Distribui os elementos nas páginas
-    todosElementos.forEach(elemento => {
-      // Insere o elemento antes do rodapé
-      const footer = paginaAtual.querySelector('.page-footer');
-      paginaAtual.insertBefore(elemento, footer);
+}
 
-      // Se o elemento fez a página ultrapassar a altura máxima, joga pra próxima
-      if (paginaAtual.scrollHeight > ALTURA_MAXIMA) {
-        paginaAtual = criarNovaPagina();
-        const novoFooter = paginaAtual.querySelector('.page-footer');
-        paginaAtual.insertBefore(elemento, novoFooter);
-      }
-    });
-
-    // Limpa páginas vazias (caso existam)
+function sincronizarIndice() {
     document.querySelectorAll('.page-container').forEach(page => {
-      if (page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote').length === 0) {
-        page.remove();
+      const title = page.querySelector('h2');
+      if (title && (title.innerText.toLowerCase().includes('índice') || title.innerText.toLowerCase().includes('sumário'))) {
+        const existingToc = page.querySelector('.toc-container');
+        if (!existingToc) {
+          const newToc = document.createElement('div');
+          newToc.className = 'toc-container';
+          page.insertBefore(newToc, page.querySelector('.page-footer'));
+        }
       }
     });
-  }
 
+    const allTocs = document.querySelectorAll('.toc-container');
+    if (allTocs.length === 0) return;
+    const mainToc = allTocs[0];
+    
+    for (let i = 1; i < allTocs.length; i++) { 
+      allTocs[i].closest('.page-container')?.remove(); 
+    }
+
+    const selector = 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title';
+    const titles = document.querySelectorAll(selector);
+    mainToc.innerHTML = '';
+    const titulosVistos = new Set();
+
+    titles.forEach((titleEl) => {
+      if (titleEl.tagName === 'H1' && !titleEl.id && titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+
+      let textContent = (titleEl.textContent || '').trim();
+      if (!textContent || textContent.toLowerCase() === 'índice' || textContent.toLowerCase() === 'sumário') return;
+
+      if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+        let nomeNormalizado = textContent.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
+        if (titulosVistos.has(nomeNormalizado)) return;
+        titulosVistos.add(nomeNormalizado);
+      }
+
+      if (!titleEl.id) titleEl.id = 'sec-auto-' + Math.random().toString(36).substr(2, 9);
+
+      const a = document.createElement('a');
+      a.className = 'toc-item';
+      if (titleEl.tagName === 'H2' || titleEl.tagName === 'H1') {
+        a.classList.add('toc-main-chapter');
+        a.style.fontWeight = '700';
+        a.style.color = 'var(--color-primary)';
+      } else if (titleEl.tagName === 'H3') {
+        a.classList.add('toc-subtopic');
+        a.style.paddingLeft = '20px';
+        a.style.fontSize = '0.9em';
+        a.style.opacity = '0.85';
+        a.style.fontWeight = '400';
+      }
+
+      a.href = '#' + titleEl.id;
+      const spanTitle = document.createElement('span');
+      spanTitle.innerText = textContent;
+      const spanDots = document.createElement('span');
+      spanDots.className = 'toc-dots';
+      const spanPage = document.createElement('span');
+      spanPage.className = 'toc-page-num';
+
+      a.appendChild(spanTitle);
+      a.appendChild(spanDots);
+      a.appendChild(spanPage);
+      mainToc.appendChild(a);
+    });
+}
   function sincronizarIndice() { // <-- Sua linha 52 atual da image_065525.png
     document.querySelectorAll('.page-container').forEach(page => {
     function sincronizarIndice() {
@@ -715,11 +764,6 @@ img.chapter-banner-img {
   display: block !important;
 }
 
-.page-container > h3.subtopic-title:first-of-type,
-.page-container > .page-header + h3.subtopic-title {
-  margin-top: 0 !important;
-}
-
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text,
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
   background-color: var(--color-bg);
@@ -732,17 +776,20 @@ img.chapter-banner-img {
   flex-shrink: 0 !important;
   padding: ${conf.padding};
   margin: 0 auto 20px auto;
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   position: relative;
-  overflow: hidden;
+  overflow: hidden !important;
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
   break-inside: avoid;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-  counter-increment: ebook-page;
+}
+
+.page-container * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 .chapter-text-page { padding-top: 22mm !important; }
