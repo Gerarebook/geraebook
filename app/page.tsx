@@ -1062,12 +1062,7 @@ ${ebookStyles}
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
   // ============================================================
   function ajustarParagrafos(html: string): string {
-    // Cria um parser simples para ajustar o comprimento dos parágrafos
-    // sem quebrar a estrutura HTML.
-    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
-    // se tiver mais de 600, tenta quebrar em dois parágrafos.
-    // Isso garante uma consistência visual sem depender da IA.
-    const tempDiv = document.createElement('div');
+       const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     const paragrafos = tempDiv.querySelectorAll('p');
     paragrafos.forEach(p => {
@@ -1599,8 +1594,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     const tema = opts?.tema || 'geral';
 
     // CONTROLES MANUAIS PARA VOCÊ ALTERAR QUANDO PRECISAR:
-    const minCaracteres = 400; 
-    const maxCaracteres = 450; 
+    const quantidadePalavras = 60; 
 
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
@@ -1609,10 +1603,10 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800?text=Carregando+Imagem..." data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
-     - <p>[Conteúdo longo e detalhado]</p>
+     - <p>[Conteúdo detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${minCaracteres} e ${maxCaracteres} caracteres para o formato A4. Você deve desenvolver o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Mantenha linguagem humanizada e profissional.
+     - Mantenha a REGRA DE VOLUME: CADA parágrafo (<p>) deve ter estritamente ${quantidadePalavras} palavras para o formato A4. Você deve desenvolver o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Mantenha linguagem humanizada e profissional.
   4. IMAGENS EXCLUSIVAS (VIA API UNSPLASH): 
      Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a DENTRO do atributo data-unsplash. É fundamental que seja apenas uma palavra e que o atributo exista.
      Exemplo para um capítulo sobre Musculação:
