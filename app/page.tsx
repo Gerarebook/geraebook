@@ -1120,9 +1120,13 @@ ${ebookStyles}
     return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
+  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
+    
+    // Roda a sua API do Unsplash para injetar as imagens corretas
+    novoConteudo = await processarImagensUnsplashAPI(novoConteudo);
+    
+    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento mantido
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -1594,19 +1598,25 @@ Mantenha a consistência visual com o resto do e-book.`;
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
 
+    // CONTROLES MANUAIS PARA VOCÊ ALTERAR QUANDO PRECISAR:
+    const minCaracteres = 400; 
+    const maxCaracteres = 450; 
+
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
-     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
+     - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800?text=Carregando+Imagem..." data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
-  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
-     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
+     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${minCaracteres} e ${maxCaracteres} caracteres para o formato A4. Você deve desenvolver o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Mantenha linguagem humanizada e profissional.
+  4. IMAGENS EXCLUSIVAS (VIA API UNSPLASH): 
+     Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a DENTRO do atributo data-unsplash. É fundamental que seja apenas uma palavra e que o atributo exista.
+     Exemplo para um capítulo sobre Musculação:
+     <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800" data-unsplash="bodybuilding" alt="Musculação">
   `;
 
     return { regrasCompletas, numero };
