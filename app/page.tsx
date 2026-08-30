@@ -1587,13 +1587,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
-  // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (COM IMAGENS DINÂMICAS E ORDEM CORRETA)
-  // ============================================================
-  // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (COM IMAGENS DINÂMICAS E ORDEM CORRETA)
-  // ============================================================
-  // ============================================================
+ // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (COM IMAGENS DINÂMICAS E ORDEM CORRETA)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
@@ -1601,22 +1595,16 @@ Mantenha a consistência visual com o resto do e-book.`;
     const tema = opts?.tema || 'geral';
 
     const regrasCompletas = `
-  DIRETRIZES DE FORMATAÇÃO E SEGURANÇA (OBRIGATÓRIO):
-  1. GERE APENAS CONTEÚDO HTML PURO. É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, cabeçalhos ou rodapés.
-  2. Use APENAS as seguintes tags: <img class="chapter-banner-img">, <h2 class="chapter-title-inline">, <h3 class="subtopic-title">, <p>, <blockquote>, <ul>, <li> e <div class="highlight-box">.
-  3. A ORDEM DENTRO DA PÁGINA DEVE SER:
-     - <img class="chapter-banner-img" src="URL" alt="Descrição">
+  DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
+  1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
+  2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
+     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
-     - <p>[Conteúdo]</p>
-     - (opcional) <h3 class="subtopic-title">[Segundo subtópico]</h3>
-     - <p>[Conteúdo]</p>
-     - etc.
-  4. TAMANHO DOS PARÁGRAFOS (CRÍTICO): É OBRIGATÓRIO que CADA parágrafo (<p>) tenha estritamente entre 400 e 450 caracteres. Seja aprofundado, rico em detalhes e maduro na escrita. Não crie parágrafos curtos demais nem blocos de texto gigantescos.
-  5. IMAGENS EXCLUSIVAS E CONTEXTUAIS (CRÍTICO): A imagem deve refletir o assunto do título deste capítulo. Como o banco de imagens (Unsplash) tem mais fotos em inglês, traduza o tema principal do capítulo para UMA palavra-chave em inglês e use-a na URL junto com o número do capítulo para evitar repetições. 
-     Use EXATAMENTE esta estrutura:
-     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_CHAVE_EM_INGLES],chapter${numero}" alt="[Descrição em Português]">
-     Exemplo: Se o capítulo ${numero} for sobre 'Nutrição Avançada', a tag deve ser src="https://images.unsplash.com/featured/1200x800/?nutrition,chapter${numero}".
+     - <p>[Conteúdo longo e detalhado]</p>
+  3. REGRA DOS PARÁGRAFOS (CRÍTICO): As IAs tendem a escrever parágrafos curtos. PROÍBO parágrafos de 1, 2 ou 3 linhas. TODO parágrafo (<p>) deve ser longo, denso, acadêmico/profissional, com NO MÍNIMO 6 a 8 linhas de texto. Desenvolva profundamente a ideia.
+  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto de jeito nenhum, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
+     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
 
     return { regrasCompletas, numero };
