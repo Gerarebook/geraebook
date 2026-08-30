@@ -1609,7 +1609,7 @@ Mantenha a consistência visual com o resto do e-book.`;
      - (opcional) <h3 class="subtopic-title">[Segundo subtópico]</h3>
      - <p>[Conteúdo]</p>
      - etc.
-  4. Cada parágrafo deve ter entre 4 e 5 frases (não se preocupe com contagem exata de caracteres, apenas com a fluidez).
+  4. Cada parágrafo deve ter entre 400 e 430 .
   5. ${imagemInstrucao}
   `;
 
