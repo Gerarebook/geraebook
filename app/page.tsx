@@ -343,7 +343,7 @@ function executarRefluxoCompleto() {
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        const selector = ${indexShowSubtopics} ?
+        const selector = indexShowSubtopics ?
           'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
           'h1.chapter-title-exclusive, h2.chapter-title-inline';
         const titulos = container.querySelectorAll(selector);
@@ -368,7 +368,7 @@ function executarRefluxoCompleto() {
           a.className = 'toc-item';
           if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
             a.classList.add('toc-main-chapter');
-            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
+            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
             a.classList.add('toc-subtopic');
@@ -376,7 +376,7 @@ function executarRefluxoCompleto() {
             a.style.fontSize = '0.9em';
             a.style.opacity = '0.85';
             a.style.fontWeight = '400';
-            if (!${indexShowSubtopics}) {
+            if (!indexShowSubtopics) {
               a.style.display = 'none';
             }
           }
