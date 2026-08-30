@@ -1059,75 +1059,38 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (BLINDADA CONTRA ESTOURO)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
   // ============================================================
   function ajustarParagrafos(html: string): string {
+    // Cria um parser simples para ajustar o comprimento dos parágrafos
+    // sem quebrar a estrutura HTML.
+    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
+    // se tiver mais de 600, tenta quebrar em dois parágrafos.
+    // Isso garante uma consistência visual sem depender da IA.
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-
-    // CONTROLES MANUAIS DE PALAVRAS:
-    const MIN_PALAVRAS = 60;
-    const MAX_PALAVRAS = 70;
-
-    // Processa cada página individualmente para manter a estrutura intacta
-    const paginas = tempDiv.querySelectorAll('.page-container');
-    
-    paginas.forEach(pagina => {
-      // Procura a área de texto restrita da página (se existir) ou usa a página inteira
-      const areaTexto = pagina.querySelector('.content-area') || pagina;
-      const paragrafos = Array.from(areaTexto.querySelectorAll('p'));
-
-      for (let i = 0; i < paragrafos.length; i++) {
-        let p = paragrafos[i];
-        if (!p.parentNode) continue;
-
-        let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-        if (!texto) continue;
-
-        let palavras = texto.split(' ');
-
-        // 1. FORÇAR O MÍNIMO (Mescla se estiver abaixo de 60 palavras)
-        while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
-          let proximoP = paragrafos[i + 1];
-          if (proximoP.parentNode === p.parentNode) {
-            let textoProximo = (proximoP.textContent || '').replace(/\s+/g, ' ').trim();
-            texto += ' ' + textoProximo;
-            palavras = texto.split(' ');
-            proximoP.remove();
-            paragrafos.splice(i + 1, 1);
-          } else {
-            break;
-          }
-        }
-
-        // 2. FORÇAR O MÁXIMO (Corta se passar de 70 palavras)
-        if (palavras.length > MAX_PALAVRAS) {
-          let splitIndex = MAX_PALAVRAS;
-
-          for (let j = MAX_PALAVRAS - 1; j >= MIN_PALAVRAS; j--) {
-            if (palavras[j].endsWith('.') || palavras[j].endsWith('?') || palavras[j].endsWith('!')) {
-              splitIndex = j + 1;
-              break;
-            }
-          }
-
-          const p1Texto = palavras.slice(0, splitIndex).join(' ');
-          const p2Texto = palavras.slice(splitIndex).join(' ');
-
-          p.textContent = p1Texto;
-
-          if (p2Texto.trim().length > 0) {
-            const novoP = document.createElement('p');
-            novoP.textContent = p2Texto;
-            p.parentNode.insertBefore(novoP, p.nextSibling);
-            paragrafos.splice(i + 1, 0, novoP);
-          }
-        } else {
-          p.textContent = texto;
+    const paragrafos = tempDiv.querySelectorAll('p');
+    paragrafos.forEach(p => {
+      let texto = p.textContent || '';
+      // Remove espaços extras
+      texto = texto.replace(/\s+/g, ' ').trim();
+      if (texto.length > 600) {
+        // Tenta quebrar na última frase antes de 450 caracteres
+        const mid = Math.min(450, texto.length);
+        let breakPos = texto.lastIndexOf('. ', mid);
+        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
+        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
+        if (breakPos !== -1) {
+          const p1 = texto.substring(0, breakPos + 1);
+          const p2 = texto.substring(breakPos + 2);
+          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
+          p.textContent = p1;
+          const novoP = document.createElement('p');
+          novoP.textContent = p2;
+          p.parentNode?.insertBefore(novoP, p.nextSibling);
         }
       }
     });
-
     return tempDiv.innerHTML;
   }
 
@@ -1157,13 +1120,9 @@ ${ebookStyles}
     return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
+  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    
-    // Roda a sua API do Unsplash para injetar as imagens corretas
-    novoConteudo = await processarImagensUnsplashAPI(novoConteudo);
-    
-    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento mantido
+    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -1635,24 +1594,19 @@ Mantenha a consistência visual com o resto do e-book.`;
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
 
-    // CONTROLES MANUAIS PARA VOCÊ ALTERAR QUANDO PRECISAR:
-    const quantidadePalavras = 60; 
-
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
-     - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800?text=Carregando+Imagem..." data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
+     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
-     - <p>[Conteúdo detalhado]</p>
+     - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a REGRA DE VOLUME: CADA parágrafo (<p>) deve ter estritamente ${quantidadePalavras} palavras para o formato A4. Você deve desenvolver o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Mantenha linguagem humanizada e profissional.
-  4. IMAGENS EXCLUSIVAS (VIA API UNSPLASH): 
-     Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a DENTRO do atributo data-unsplash. É fundamental que seja apenas uma palavra e que o atributo exista.
-     Exemplo para um capítulo sobre Musculação:
-     <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800" data-unsplash="bodybuilding" alt="Musculação">
+     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
+  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
+     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
 
     return { regrasCompletas, numero };
