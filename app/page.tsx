@@ -1590,12 +1590,15 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (COM IMAGENS DINÂMICAS E ORDEM CORRETA)
   // ============================================================
+  // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (COM IMAGENS DINÂMICAS E ORDEM CORRETA)
+  // ============================================================
+  // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (COM IMAGENS DINÂMICAS E ORDEM CORRETA)
+  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
-
-    // Instrução para gerar uma URL de imagem diferente para cada capítulo
-    const imagemInstrucao = `Escolha uma imagem de banner para este capítulo. A imagem deve ser contextual com o tema "${tema}" e com o número ${numero}. Use uma URL do Unsplash (ex: https://images.unsplash.com/photo-...?auto=format&fit=crop&w=1200&q=80) ou similar. **IMPORTANTE**: Cada capítulo deve ter uma imagem diferente, variando o tema visual.`;
 
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA (OBRIGATÓRIO):
@@ -1609,8 +1612,11 @@ Mantenha a consistência visual com o resto do e-book.`;
      - (opcional) <h3 class="subtopic-title">[Segundo subtópico]</h3>
      - <p>[Conteúdo]</p>
      - etc.
-  4. Cada parágrafo deve ter entre 400 e 430 .
-  5. ${imagemInstrucao}
+  4. TAMANHO DOS PARÁGRAFOS (CRÍTICO): É OBRIGATÓRIO que CADA parágrafo (<p>) tenha estritamente entre 400 e 450 caracteres. Seja aprofundado, rico em detalhes e maduro na escrita. Não crie parágrafos curtos demais nem blocos de texto gigantescos.
+  5. IMAGENS EXCLUSIVAS E CONTEXTUAIS (CRÍTICO): A imagem deve refletir o assunto do título deste capítulo. Como o banco de imagens (Unsplash) tem mais fotos em inglês, traduza o tema principal do capítulo para UMA palavra-chave em inglês e use-a na URL junto com o número do capítulo para evitar repetições. 
+     Use EXATAMENTE esta estrutura:
+     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_CHAVE_EM_INGLES],chapter${numero}" alt="[Descrição em Português]">
+     Exemplo: Se o capítulo ${numero} for sobre 'Nutrição Avançada', a tag deve ser src="https://images.unsplash.com/featured/1200x800/?nutrition,chapter${numero}".
   `;
 
     return { regrasCompletas, numero };
