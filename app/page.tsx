@@ -1587,8 +1587,8 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
- // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (COM IMAGENS DINÂMICAS E ORDEM CORRETA)
+// ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1602,8 +1602,10 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
      - <p>[Conteúdo longo e detalhado]</p>
-  3. REGRA DOS PARÁGRAFOS (CRÍTICO): As IAs tendem a escrever parágrafos curtos. PROÍBO parágrafos de 1, 2 ou 3 linhas. TODO parágrafo (<p>) deve ser longo, denso, acadêmico/profissional, com NO MÍNIMO 6 a 8 linhas de texto. Desenvolva profundamente a ideia.
-  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto de jeito nenhum, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
+  3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
+     - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
+     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos.
+  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
 
