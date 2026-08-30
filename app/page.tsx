@@ -1061,31 +1061,75 @@ ${ebookStyles}
   // ============================================================
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
   // ============================================================
+  // ============================================================
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
+  // ============================================================
   function ajustarParagrafos(html: string): string {
-       const tempDiv = document.createElement('div');
+    const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-    const paragrafos = tempDiv.querySelectorAll('p');
-    paragrafos.forEach(p => {
-      let texto = p.textContent || '';
-      // Remove espaços extras
-      texto = texto.replace(/\s+/g, ' ').trim();
-      if (texto.length > 600) {
-        // Tenta quebrar na última frase antes de 450 caracteres
-        const mid = Math.min(450, texto.length);
-        let breakPos = texto.lastIndexOf('. ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
-        if (breakPos !== -1) {
-          const p1 = texto.substring(0, breakPos + 1);
-          const p2 = texto.substring(breakPos + 2);
-          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
-          p.textContent = p1;
-          const novoP = document.createElement('p');
-          novoP.textContent = p2;
-          p.parentNode?.insertBefore(novoP, p.nextSibling);
+
+    // 🔴 SEUS CONTROLES MANUAIS AQUI:
+    const MIN_PALAVRAS = 60;
+    const MAX_PALAVRAS = 70;
+
+    const paragrafos = Array.from(tempDiv.querySelectorAll('p'));
+
+    for (let i = 0; i < paragrafos.length; i++) {
+      let p = paragrafos[i];
+      if (!p.parentNode) continue; // Ignora se já foi mesclado/removido
+
+      let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!texto) continue;
+
+      let palavras = texto.split(' ');
+
+      // 1. FORÇAR O MÍNIMO (Mescla com o parágrafo de baixo se for muito curto)
+      while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
+        let proximoP = paragrafos[i + 1];
+        // Garante que só junta textos que estão no mesmo bloco
+        if (proximoP.parentNode === p.parentNode) {
+          let textoProximo = (proximoP.textContent || '').replace(/\s+/g, ' ').trim();
+          texto += ' ' + textoProximo;
+          palavras = texto.split(' ');
+          proximoP.remove(); // Tira o parágrafo de baixo do HTML
+          paragrafos.splice(i + 1, 1); // Tira da fila de processamento
+        } else {
+          break;
         }
       }
-    });
+
+      // 2. FORÇAR O MÁXIMO (Quebra o parágrafo se passar do limite)
+      if (palavras.length > MAX_PALAVRAS) {
+        let splitIndex = MAX_PALAVRAS;
+
+        // Tenta achar um ponto final entre o min e max para o corte não ficar esquisito
+        for (let j = MAX_PALAVRAS - 1; j >= MIN_PALAVRAS; j--) {
+          if (palavras[j].endsWith('.') || palavras[j].endsWith('?') || palavras[j].endsWith('!')) {
+            splitIndex = j + 1; // Corta logo depois da pontuação
+            break;
+          }
+        }
+
+        const p1Texto = palavras.slice(0, splitIndex).join(' ');
+        const p2Texto = palavras.slice(splitIndex).join(' ');
+
+        // Atualiza o parágrafo atual com o corte primário
+        p.textContent = p1Texto;
+
+        // Cria o resto do texto como um NOVO parágrafo embaixo dele
+        if (p2Texto.trim().length > 0) {
+          const novoP = document.createElement('p');
+          novoP.textContent = p2Texto;
+          p.parentNode.insertBefore(novoP, p.nextSibling);
+          // Adiciona esse novo pedaço na fila para passar pela guilhotina no próximo loop
+          paragrafos.splice(i + 1, 0, novoP); 
+        }
+      } else {
+        // Se ficou no tamanho perfeito, só atualiza o HTML
+        p.textContent = texto;
+      }
+    }
+
     return tempDiv.innerHTML;
   }
 
