@@ -1057,40 +1057,71 @@ ${ebookStyles}
     }
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
-
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (JS PURO - 60 A 70 PALAVRAS)
   // ============================================================
   function ajustarParagrafos(html: string): string {
-    // Cria um parser simples para ajustar o comprimento dos parágrafos
-    // sem quebrar a estrutura HTML.
-    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
-    // se tiver mais de 600, tenta quebrar em dois parágrafos.
-    // Isso garante uma consistência visual sem depender da IA.
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-    const paragrafos = tempDiv.querySelectorAll('p');
-    paragrafos.forEach(p => {
-      let texto = p.textContent || '';
-      // Remove espaços extras
-      texto = texto.replace(/\s+/g, ' ').trim();
-      if (texto.length > 600) {
-        // Tenta quebrar na última frase antes de 450 caracteres
-        const mid = Math.min(450, texto.length);
-        let breakPos = texto.lastIndexOf('. ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
-        if (breakPos !== -1) {
-          const p1 = texto.substring(0, breakPos + 1);
-          const p2 = texto.substring(breakPos + 2);
-          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
-          p.textContent = p1;
+
+    // CONTROLES MANUAIS DE PALAVRAS:
+    const MIN_PALAVRAS = 60;
+    const MAX_PALAVRAS = 70;
+
+    const paragrafos = Array.from(tempDiv.querySelectorAll('p'));
+
+    for (let i = 0; i < paragrafos.length; i++) {
+      let p = paragrafos[i];
+      if (!p.parentNode) continue;
+
+      // Ignora capas, rodapés, cabeçalhos ou páginas especiais para não desformatar o layout
+      if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .page-header, .page-footer')) continue;
+
+      let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!texto) {
+        p.remove();
+        continue;
+      }
+
+      let palavras = texto.split(' ');
+
+      // 1. SE PASSAR DO MÁXIMO (70 palavras): Quebra em blocos seguros
+      if (palavras.length > MAX_PALAVRAS) {
+        let fragmentos: string[] = [];
+        for (let j = 0; j < palavras.length; j += MAX_PALAVRAS) {
+          fragmentos.push(palavras.slice(j, j + MAX_PALAVRAS).join(' '));
+        }
+
+        p.textContent = fragmentos[0];
+        let ultimoP = p;
+
+        for (let f = 1; f < fragmentos.length; f++) {
           const novoP = document.createElement('p');
-          novoP.textContent = p2;
-          p.parentNode?.insertBefore(novoP, p.nextSibling);
+          novoP.textContent = fragmentos[f];
+          ultimoP.parentNode?.insertBefore(novoP, ultimoP.nextSibling);
+          ultimoP = novoP;
+        }
+      } 
+      // 2. SE ESTIVER ABAIXO DO MÍNIMO (60 palavras): Junta com o próximo parágrafo se estiverem no mesmo container
+      else if (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
+        let proximoP = paragrafos[i + 1];
+        if (proximoP && proximoP.parentNode === p.parentNode && !proximoP.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) {
+          let textoProximo = (proximoP.textContent || '').replace(/\s+/g, ' ').trim();
+          if (textoProximo) {
+            let palavrasProximo = textoProximo.split(' ');
+            if (palavras.length + palavrasProximo.length <= MAX_PALAVRAS + 15) {
+              texto += ' ' + textoProximo;
+              p.textContent = texto;
+              proximoP.remove();
+              paragrafos.splice(i + 1, 1); // Remove da lista o parágrafo já fundido
+              i--; // Reavalia o parágrafo atual unificado
+              continue;
+            }
+          }
         }
       }
-    });
+    }
+
     return tempDiv.innerHTML;
   }
 
