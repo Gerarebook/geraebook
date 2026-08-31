@@ -1057,12 +1057,13 @@ ${ebookStyles}
     }
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
+ 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO BLINDADO)
+  // ============================================================
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO SENIOR)
   // ============================================================
   function ajustarParagrafos(html: string): string {
-    // BLINDAGEM MÁXIMA DE MARGEM: Se for um documento completo (ex: carregado da biblioteca)
-    // nós abortamos a manipulação para não criar containers duplicados e destruir as margens do A4.
+    // 🛡️ BLINDAGEM MÁXIMA DE MARGEM: Aborta a manipulação em documentos completos.
     if (html.toLowerCase().includes('<body') || html.includes('id="ebook-container"')) {
       return html;
     }
@@ -1070,7 +1071,7 @@ ${ebookStyles}
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     
-    // AS SUAS REGRAS DE OURO:
+    // 📏 REGRAS DE OURO MATEMÁTICAS:
     const MIN_PALAVRAS = 60;
     const MAX_PALAVRAS = 70;
     
@@ -1080,38 +1081,47 @@ ${ebookStyles}
       let p = paragrafos[i];
       if (!p.parentNode) continue;
 
-      // BLINDAGEM DE LAYOUT: Nunca mexer em capas, índices, avisos legais ou rodapés.
+      // 🛡️ BLINDAGEM DE LAYOUT: Não mexe em capas, avisos e estruturas-chave.
       if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .author-page, .page-header, .page-footer, .toc-container')) continue;
 
-      // Usa textContent apenas para contar as palavras, sem estragar o HTML original
       let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-      if (!texto) continue;
+      if (!texto) {
+        p.remove();
+        continue;
+      }
 
       let palavras = texto.split(' ');
 
-      // 1. FORÇA O MÍNIMO: Junta com o próximo <p>
+      // ➡️ 1. FORÇA O MÍNIMO (FUNDIR PARA FRENTE)
       while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
         let proximoP = paragrafos[i + 1];
         
-        // Só permite a fusão se for o vizinho IMEDIATO.
         if (p.nextElementSibling === proximoP && !proximoP.closest('.page-cover-img, .legal-page, .author-page')) {
-          // Mantém as tags HTML originais seguras usando innerHTML na hora de fundir
           p.innerHTML = p.innerHTML + ' ' + proximoP.innerHTML;
-          
-          let novoTextoCount = (p.textContent || '').replace(/\s+/g, ' ').trim();
-          palavras = novoTextoCount.split(' ');
+          palavras = (p.textContent || '').replace(/\s+/g, ' ').trim().split(' ');
           
           proximoP.remove();
           paragrafos.splice(i + 1, 1);
         } else {
-          break; // Há uma imagem/título no caminho. Proteção ativada!
+          break; // Trava ativada: Há um <h2> ou <img> no caminho.
         }
       }
 
-      // 2. FORÇA O MÁXIMO: Corta cirurgicamente se estourar
+      // ⬅️ 2. FUSÃO REVERSA (VÁLVULA DE ESCAPE)
+      if (palavras.length < MIN_PALAVRAS) {
+        let anteriorP = p.previousElementSibling;
+        if (anteriorP && anteriorP.tagName.toUpperCase() === 'P') {
+          anteriorP.innerHTML = anteriorP.innerHTML + ' ' + p.innerHTML;
+          p.remove();
+          paragrafos.splice(i, 1); // 🔴 Remove do array o parágrafo deletado
+          i -= 2; // 🔴 Volta o índice para trás para reavaliar o parágrafo que acabou de crescer
+          if (i < -1) i = -1;
+          continue; 
+        }
+      }
+
+      // ✂️ 3. FORÇA O MÁXIMO COM SEGURANÇA ANTI-LOOP (CORTAR EXCESSO)
       if (palavras.length > MAX_PALAVRAS) {
-        // Como o innerHTML contém tags (ex: <strong>), fatiar o HTML puro é perigoso.
-        // Neste caso específico de estouro, usamos a extração limpa de palavras para não corromper as tags do DOM.
         let fragmentos = [];
         let currentWords = palavras;
 
@@ -1131,19 +1141,32 @@ ${ebookStyles}
           fragmentos.push(currentWords.join(' '));
         }
 
-        p.textContent = fragmentos[0];
-        let lastP = p;
+        // 🧠 A MÁGICA ANTI-LOOP INFINITO: 
+        // Se o último pedaço cortado for menor que o mínimo permitido (ex: sobrou um "toco" de 25 palavras),
+        // nós o devolvemos ao parágrafo anterior para não quebrar a lógica matemática da página!
+        if (fragmentos.length > 1) {
+           let ultimoFragmentoCount = fragmentos[fragmentos.length - 1].split(' ').length;
+           if (ultimoFragmentoCount < MIN_PALAVRAS) {
+               fragmentos[fragmentos.length - 2] += ' ' + fragmentos[fragmentos.length - 1];
+               fragmentos.pop();
+           }
+        }
 
-        for (let f = 1; f < fragmentos.length; f++) {
-          const novoP = document.createElement('p');
-          novoP.textContent = fragmentos[f];
-          lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
-          lastP = novoP;
-          
-          paragrafos.splice(i + f, 0, novoP);
+        // Aplica no DOM apenas se realmente houveram fragmentações seguras
+        p.textContent = fragmentos[0];
+        if (fragmentos.length > 1) {
+          let lastP = p;
+          for (let f = 1; f < fragmentos.length; f++) {
+            const novoP = document.createElement('p');
+            novoP.textContent = fragmentos[f];
+            lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
+            lastP = novoP;
+            
+            // Joga os fragmentos gerados na fila para não serem esquecidos
+            paragrafos.splice(i + f, 0, novoP);
+          }
         }
       } 
-      // Se estiver no tamanho ideal, o HTML original (com negritos e links) é mantido 100% intacto!
     }
 
     return tempDiv.innerHTML;
@@ -1643,16 +1666,13 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
-  // ============================================================
-  // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA E TOM ADAPTÁVEL)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
 
-    // SEUS CONTROLES DEFINITIVOS:
+    // SEUS CONTROLES MATEMÁTICOS DEFINITIVOS:
     const MIN_PALAVRAS = 60;
     const MAX_PALAVRAS = 70;
 
@@ -1660,15 +1680,17 @@ Mantenha a consistência visual com o resto do e-book.`;
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
-     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
+     - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800?text=Carregando+Imagem..." data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${MIN_PALAVRAS} e ${MAX_PALAVRAS} palavras. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Faça com linguajar humanizado, profissional e com dicas relevantes.
-  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
-     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
+     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${MIN_PALAVRAS} e ${MAX_PALAVRAS} palavras. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Faça com linguajar humanizado, profissional e com dicas relevantes.
+  4. IMAGENS EXCLUSIVAS (VIA API UNSPLASH): 
+     Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a DENTRO do atributo data-unsplash. É fundamental que seja apenas uma palavra e que o atributo exista.
+     Exemplo para um capítulo sobre Musculação:
+     <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800" data-unsplash="bodybuilding" alt="Musculação">
   `;
 
     return { regrasCompletas, numero };
