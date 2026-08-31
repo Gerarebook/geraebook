@@ -1062,8 +1062,11 @@ ${ebookStyles}
   // ============================================================
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO SENIOR)
   // ============================================================
+  // ============================================================
+  // FUNÇÃO DE VALIDAÇÃO DE PARÁGRAFOS (60 a 70 PALAVRAS - BLINDADO)
+  // ============================================================
   function ajustarParagrafos(html: string): string {
-    // 🛡️ BLINDAGEM MÁXIMA DE MARGEM: Aborta a manipulação em documentos completos.
+    // 1. BLINDAGEM DE CONTAINER: Impede a duplicação do ebook-container ao recarregar
     if (html.toLowerCase().includes('<body') || html.includes('id="ebook-container"')) {
       return html;
     }
@@ -1071,9 +1074,8 @@ ${ebookStyles}
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     
-    // 📏 REGRAS DE OURO MATEMÁTICAS:
-    const MIN_PALAVRAS = 45; 
-    const MAX_PALAVRAS = 85;
+    const MIN_PALAVRAS = 60;
+    const MAX_PALAVRAS = 70;
     
     const paragrafos = Array.from(tempDiv.querySelectorAll('p'));
 
@@ -1081,52 +1083,40 @@ ${ebookStyles}
       let p = paragrafos[i];
       if (!p.parentNode) continue;
 
-      // 🛡️ BLINDAGEM DE LAYOUT: Não mexe em capas, avisos e estruturas-chave.
-      if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .author-page, .page-header, .page-footer, .toc-container')) continue;
+      // 2. PROTEÇÃO DE LAYOUT: Não altera capas, índices, blockquotes ou boxes
+      if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .author-page, .page-header, .page-footer, .toc-container, .highlight-box, blockquote')) continue;
 
       let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-      if (!texto) {
-        p.remove();
-        continue;
-      }
+      if (!texto) continue;
 
       let palavras = texto.split(' ');
 
-      // ➡️ 1. FORÇA O MÍNIMO (FUNDIR PARA FRENTE)
+      // 3. FORÇA O MÍNIMO: Une parágrafos consecutivos menores que 60 palavras
       while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
         let proximoP = paragrafos[i + 1];
         
-        if (p.nextElementSibling === proximoP && !proximoP.closest('.page-cover-img, .legal-page, .author-page')) {
+        // Garante que é o irmão direto (sem imagens ou títulos no meio)
+        if (p.nextElementSibling === proximoP) {
           p.innerHTML = p.innerHTML + ' ' + proximoP.innerHTML;
-          palavras = (p.textContent || '').replace(/\s+/g, ' ').trim().split(' ');
+          texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
+          palavras = texto.split(' ');
           
           proximoP.remove();
           paragrafos.splice(i + 1, 1);
         } else {
-          break; // Trava ativada: Há um <h2> ou <img> no caminho.
+          break; // Há um título ou imagem no caminho, aborta a fusão.
         }
       }
 
-      // ⬅️ 2. FUSÃO REVERSA (VÁLVULA DE ESCAPE)
-      if (palavras.length < MIN_PALAVRAS) {
-        let anteriorP = p.previousElementSibling;
-        if (anteriorP && anteriorP.tagName.toUpperCase() === 'P') {
-          anteriorP.innerHTML = anteriorP.innerHTML + ' ' + p.innerHTML;
-          p.remove();
-          paragrafos.splice(i, 1); // 🔴 Remove do array o parágrafo deletado
-          i -= 2; // 🔴 Volta o índice para trás para reavaliar o parágrafo que acabou de crescer
-          if (i < -1) i = -1;
-          continue; 
-        }
-      }
-
-      // ✂️ 3. FORÇA O MÁXIMO COM SEGURANÇA ANTI-LOOP (CORTAR EXCESSO)
+      // 4. FORÇA O MÁXIMO: Fatiamento inteligente para evitar "tocos"
       if (palavras.length > MAX_PALAVRAS) {
         let fragmentos = [];
         let currentWords = palavras;
 
         while (currentWords.length > MAX_PALAVRAS) {
           let splitIndex = MAX_PALAVRAS;
+          
+          // Busca um ponto final para não cortar a frase no meio
           for (let j = MAX_PALAVRAS - 1; j >= MIN_PALAVRAS; j--) {
             if (currentWords[j].endsWith('.') || currentWords[j].endsWith('?') || currentWords[j].endsWith('!')) {
               splitIndex = j + 1;
@@ -1138,40 +1128,32 @@ ${ebookStyles}
         }
         
         if (currentWords.length > 0) {
-          fragmentos.push(currentWords.join(' '));
-        }
-
-        // 🧠 A MÁGICA ANTI-LOOP INFINITO: 
-        // Se o último pedaço cortado for menor que o mínimo permitido (ex: sobrou um "toco" de 25 palavras),
-        // nós o devolvemos ao parágrafo anterior para não quebrar a lógica matemática da página!
-        if (fragmentos.length > 1) {
-           let ultimoFragmentoCount = fragmentos[fragmentos.length - 1].split(' ').length;
-           if (ultimoFragmentoCount < MIN_PALAVRAS) {
-               fragmentos[fragmentos.length - 2] += ' ' + fragmentos[fragmentos.length - 1];
-               fragmentos.pop();
-           }
-        }
-
-        // Aplica no DOM apenas se realmente houveram fragmentações seguras
-        p.textContent = fragmentos[0];
-        if (fragmentos.length > 1) {
-          let lastP = p;
-          for (let f = 1; f < fragmentos.length; f++) {
-            const novoP = document.createElement('p');
-            novoP.textContent = fragmentos[f];
-            lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
-            lastP = novoP;
-            
-            // Joga os fragmentos gerados na fila para não serem esquecidos
-            paragrafos.splice(i + f, 0, novoP);
+          // Se sobrar um "toco" muito pequeno (ex: 20 palavras), une ao fragmento anterior
+          // para garantir que nenhum parágrafo na tela fique com menos de 60 palavras.
+          if (currentWords.length < MIN_PALAVRAS && fragmentos.length > 0) {
+             fragmentos[fragmentos.length - 1] += ' ' + currentWords.join(' ');
+          } else {
+             fragmentos.push(currentWords.join(' '));
           }
         }
-      } 
+
+        // Aplica o fatiamento no DOM
+        p.textContent = fragmentos[0];
+        let lastP = p;
+
+        for (let f = 1; f < fragmentos.length; f++) {
+          const novoP = document.createElement('p');
+          novoP.textContent = fragmentos[f];
+          lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
+          lastP = novoP;
+          
+          paragrafos.splice(i + f, 0, novoP);
+        }
+      }
     }
 
     return tempDiv.innerHTML;
   }
-
   // ============================================================
   // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
   // ============================================================
@@ -1198,9 +1180,19 @@ ${ebookStyles}
     return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
+  // ============================================================
+  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
+  // ============================================================
+  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
+    
+    // 1. ATIVADOR DE FOTOS: Aciona o seu backend seguro e espera a URL da imagem voltar
+    if (typeof ativarImagensUnsplash === 'function') {
+      novoConteudo = await ativarImagensUnsplash(novoConteudo);
+    }
+    
+    // 2. PÓS-PROCESSAMENTO BLINDADO: Ajusta os parágrafos (60 a 70 palavras)
+    novoConteudo = ajustarParagrafos(novoConteudo);
 
     let htmlFinal = '';
     if (isInjetar) {
