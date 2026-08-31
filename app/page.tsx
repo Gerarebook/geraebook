@@ -515,7 +515,6 @@ export default function Home() {
   });
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
-
   // NOVO: Controle de Palavras via Interface da IA
   const [palavrasCapitulo, setPalavrasCapitulo] = useState<number>(60);
   const [palavrasSubtopico, setPalavrasSubtopico] = useState<number>(70);
@@ -1581,6 +1580,9 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (CONTROLADA PELA INTERFACE)
   // ============================================================
+  // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (CONTROLADA PELA INTERFACE)
+  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
@@ -1589,7 +1591,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
-     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
+     - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800" data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <p>[Parágrafo de abertura]</p>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
@@ -1599,14 +1601,12 @@ Mantenha a consistência visual com o resto do e-book.`;
      - CONTROLE DE PALAVRAS EXATO:
        -> Os parágrafos de ABERTURA (logo após o Capítulo) devem ter no mínimo ${palavrasCapitulo} palavras cada.
        -> Os parágrafos sob os SUBTÓPICOS (Páginas seguintes) devem ter no mínimo ${palavrasSubtopico} palavras cada.
-     - O objetivo é NÃO CRIAR PARÁGRAFOS CURTOS. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos.
-  4. IMAGENS EXCLUSIVAS: Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e use o formato exato:
-     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
+     - O objetivo é NÃO CRIAR PARÁGRAFOS CURTOS. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos. Faça com linguajar humanizado e profissional.
+  4. IMAGENS EXCLUSIVAS: Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a no atributo data-unsplash da tag img.
   `;
 
     return { regrasCompletas, numero };
   }
-
   // ============================================================
   // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
   // ============================================================
