@@ -1059,14 +1059,9 @@ ${ebookStyles}
   }
  
   // ============================================================
-  // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO SENIOR)
-  // ============================================================
-  // ============================================================
-  // FUNÇÃO DE VALIDAÇÃO DE PARÁGRAFOS (60 a 70 PALAVRAS - BLINDADO)
+  // FUNÇÃO DE VALIDAÇÃO DE PARÁGRAFOS (ESCOPADA E FUNCIONAL - 60 A 70)
   // ============================================================
   function ajustarParagrafos(html: string): string {
-    // 1. BLINDAGEM DE CONTAINER: Impede a duplicação do ebook-container ao recarregar
     if (html.toLowerCase().includes('<body') || html.includes('id="ebook-container"')) {
       return html;
     }
@@ -1077,80 +1072,82 @@ ${ebookStyles}
     const MIN_PALAVRAS = 60;
     const MAX_PALAVRAS = 70;
     
-    const paragrafos = Array.from(tempDiv.querySelectorAll('p'));
+    // Processa cada bloco de conteúdo separadamente para respeitar as fronteiras de página
+    const containers = tempDiv.querySelectorAll('.page-container, #ebook-container, div');
+    
+    containers.forEach(container => {
+      const paragrafos = Array.from(container.querySelectorAll('p'));
+      if (paragrafos.length === 0) return;
 
-    for (let i = 0; i < paragrafos.length; i++) {
-      let p = paragrafos[i];
-      if (!p.parentNode) continue;
+      for (let i = 0; i < paragrafos.length; i++) {
+        let p = paragrafos[i] as HTMLElement;
+        if (!p || !p.parentNode) continue;
 
-      // 2. PROTEÇÃO DE LAYOUT: Não altera capas, índices, blockquotes ou boxes
-      if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .author-page, .page-header, .page-footer, .toc-container, .highlight-box, blockquote')) continue;
+        // Proteções de layout
+        if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .author-page, .page-header, .page-footer, .toc-container, .highlight-box, blockquote')) continue;
 
-      let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-      if (!texto) continue;
-
-      let palavras = texto.split(' ');
-
-      // 3. FORÇA O MÍNIMO: Une parágrafos consecutivos menores que 60 palavras
-      while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
-        let proximoP = paragrafos[i + 1];
-        
-        // Garante que é o irmão direto (sem imagens ou títulos no meio)
-        if (p.nextElementSibling === proximoP) {
-          p.innerHTML = p.innerHTML + ' ' + proximoP.innerHTML;
-          texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-          palavras = texto.split(' ');
-          
-          proximoP.remove();
-          paragrafos.splice(i + 1, 1);
-        } else {
-          break; // Há um título ou imagem no caminho, aborta a fusão.
+        let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!texto) {
+          p.remove();
+          continue;
         }
-      }
 
-      // 4. FORÇA O MÁXIMO: Fatiamento inteligente para evitar "tocos"
-      if (palavras.length > MAX_PALAVRAS) {
-        let fragmentos = [];
-        let currentWords = palavras;
+        let palavras = texto.split(' ');
 
-        while (currentWords.length > MAX_PALAVRAS) {
-          let splitIndex = MAX_PALAVRAS;
+        // 1. FORÇA O MÍNIMO: Une parágrafos consecutivos abaixo de 60 palavras
+        while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
+          let proximoP = paragrafos[i + 1] as HTMLElement;
           
-          // Busca um ponto final para não cortar a frase no meio
-          for (let j = MAX_PALAVRAS - 1; j >= MIN_PALAVRAS; j--) {
-            if (currentWords[j].endsWith('.') || currentWords[j].endsWith('?') || currentWords[j].endsWith('!')) {
-              splitIndex = j + 1;
-              break;
+          if (p.nextElementSibling === proximoP) {
+            p.innerHTML = p.innerHTML + ' ' + proximoP.innerHTML;
+            texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
+            palavras = texto.split(' ');
+            
+            proximoP.remove();
+            paragrafos.splice(i + 1, 1);
+          } else {
+            break;
+          }
+        }
+
+        // 2. FORÇA O MÁXIMO: Fatiamento cirúrgico de parágrafos longos
+        if (palavras.length > MAX_PALAVRAS) {
+          let fragmentos = [];
+          let currentWords = palavras;
+
+          while (currentWords.length > MAX_PALAVRAS) {
+            let splitIndex = MAX_PALAVRAS;
+            for (let j = MAX_PALAVRAS - 1; j >= MIN_PALAVRAS; j--) {
+              if (currentWords[j].endsWith('.') || currentWords[j].endsWith('?') || currentWords[j].endsWith('!')) {
+                splitIndex = j + 1;
+                break;
+              }
+            }
+            fragmentos.push(currentWords.slice(0, splitIndex).join(' '));
+            currentWords = currentWords.slice(splitIndex);
+          }
+          
+          if (currentWords.length > 0) {
+            if (currentWords.length < MIN_PALAVRAS && fragmentos.length > 0) {
+               fragmentos[fragmentos.length - 1] += ' ' + currentWords.join(' ');
+            } else {
+               fragmentos.push(currentWords.join(' '));
             }
           }
-          fragmentos.push(currentWords.slice(0, splitIndex).join(' '));
-          currentWords = currentWords.slice(splitIndex);
-        }
-        
-        if (currentWords.length > 0) {
-          // Se sobrar um "toco" muito pequeno (ex: 20 palavras), une ao fragmento anterior
-          // para garantir que nenhum parágrafo na tela fique com menos de 60 palavras.
-          if (currentWords.length < MIN_PALAVRAS && fragmentos.length > 0) {
-             fragmentos[fragmentos.length - 1] += ' ' + currentWords.join(' ');
-          } else {
-             fragmentos.push(currentWords.join(' '));
+
+          p.textContent = fragmentos[0];
+          let lastP = p;
+
+          for (let f = 1; f < fragmentos.length; f++) {
+            const novoP = document.createElement('p');
+            novoP.textContent = fragmentos[f];
+            lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
+            lastP = novoP;
+            paragrafos.splice(i + f, 0, novoP);
           }
         }
-
-        // Aplica o fatiamento no DOM
-        p.textContent = fragmentos[0];
-        let lastP = p;
-
-        for (let f = 1; f < fragmentos.length; f++) {
-          const novoP = document.createElement('p');
-          novoP.textContent = fragmentos[f];
-          lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
-          lastP = novoP;
-          
-          paragrafos.splice(i + f, 0, novoP);
-        }
       }
-    }
+    });
 
     return tempDiv.innerHTML;
   }
@@ -1213,11 +1210,88 @@ ${ebookStyles}
       setRecarregarIframe(false);
     }
   }
+// ============================================================
+  // ATIVADOR DE IMAGENS OFICIAL (CONECTADO À SUA API /api/unsplash)
+  // ============================================================
+  async function ativarImagensUnsplash(html: string): Promise<string> {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    const imagens = Array.from(tempDiv.querySelectorAll('img[data-unsplash]'));
+    if (imagens.length === 0) return tempDiv.innerHTML;
 
+    // Pega o token da sessão ativa do Supabase para enviar à sua API segura
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || '';
+
+    // Faz as requisições em paralelo para a sua rota de backend (/api/unsplash/route.ts)
+    await Promise.all(imagens.map(async (img) => {
+      const keyword = img.getAttribute('data-unsplash');
+      if (keyword) {
+        try {
+          const response = await fetch('/api/unsplash', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ keyword })
+          });
+
+          const data = await response.json();
+          
+          if (data.success && data.imageUrl) {
+            // Sucesso! Injeta a URL oficial retornada pelo seu backend
+            img.setAttribute('src', data.imageUrl);
+            img.removeAttribute('data-unsplash');
+          } else {
+            console.error("Erro retornado pela sua API /api/unsplash:", data.error);
+          }
+        } catch (err) {
+          console.error("Falha ao comunicar com /api/unsplash:", err);
+        }
+      }
+    }));
+    
+    return tempDiv.innerHTML;
+  }
+
+  // ============================================================
+  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML (ATUALIZADA)
+  // ============================================================
+  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
+    let novoConteudo = purificarHTML(htmlCru);
+    
+    // 1. CHAMA A SUA API DE BACKEND: Aguarda o servidor buscar no Unsplash
+    novoConteudo = await ativarImagensUnsplash(novoConteudo);
+    
+    // 2. GUILHOTINA MATEMÁTICA: Aplica a regra exata de 60 a 70 palavras
+    novoConteudo = ajustarParagrafos(novoConteudo);
+
+    let htmlFinal = '';
+    if (isInjetar) {
+      htmlFinal = injetarHtmlNoFinal(htmlAtual || '', novoConteudo);
+    } else {
+      htmlFinal = moldarApresentacaoHtml(novoConteudo);
+    }
+
+    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+    setHtmlAtual(htmlFinal);
+    localStorage.setItem('ebook_draft_html', htmlFinal);
+
+    if (recarregar && previewFrameRef.current) {
+      setRecarregarIframe(true);
+      const script = (typeof getScriptPreview === 'function') ? getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade) : '';
+      previewFrameRef.current.srcdoc = htmlFinal + script;
+    } else {
+      setRecarregarIframe(false);
+    }
+  }
   // ============================================================
   // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
   // ============================================================
-  function gerarPaginaAviso() {
+ 
+    function gerarPaginaAviso() {
     const ano = new Date().getFullYear();
     return `
     <div class="page-container legal-page">
