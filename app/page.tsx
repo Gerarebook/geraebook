@@ -504,7 +504,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
 // ============================================================
 
 export default function Home() {
-  // Estados principais
+  // Estados principais  
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
@@ -2179,7 +2179,56 @@ Mantenha a consistência visual com o resto do e-book.`;
                     </div>
                   </div>
                 </div>
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                      <button onClick={iniciarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">
+                        1. Capa/Intro
+                      </button>
+                      <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">
+                        2. +3 Capítulos
+                      </button>
+                      <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">
+                        3. Fim/Autor
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
+                {/* ===== COLE ESTE BLOCO NOVO AQUI ===== */}
+                <div className="panel-section border-b border-slate-100 bg-indigo-50/50">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="input-label mb-0 text-indigo-700 font-black"><i className="fas fa-robot"></i> Inteligência Artificial (Volume)</label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Abertura)</label>
+                      <input
+                        type="number"
+                        min="20"
+                        max="150"
+                        value={palavrasCapitulo}
+                        onChange={(e) => setPalavrasCapitulo(Number(e.target.value))}
+                        className="input-standard border-indigo-200 focus:border-indigo-500"
+                        title="Mínimo de palavras nos parágrafos iniciais"
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Subtópicos)</label>
+                      <input
+                        type="number"
+                        min="20"
+                        max="150"
+                        value={palavrasSubtopico}
+                        onChange={(e) => setPalavrasSubtopico(Number(e.target.value))}
+                        className="input-standard border-indigo-200 focus:border-indigo-500"
+                        title="Mínimo de palavras nos parágrafos do miolo"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {/* ===== FIM DO BLOCO NOVO ===== */}
+
+                <div className="panel-section">
+                  <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
                 {/* NOVO PAINEL DE CONTROLE DE PALAVRAS DA IA */}
                 <div className="panel-section">
                   <div className="flex justify-between items-center mb-3">
