@@ -1072,8 +1072,8 @@ ${ebookStyles}
     tempDiv.innerHTML = html;
     
     // 📏 REGRAS DE OURO MATEMÁTICAS:
-    const MIN_PALAVRAS = 60;
-    const MAX_PALAVRAS = 70;
+    const MIN_PALAVRAS = 45; 
+    const MAX_PALAVRAS = 85;
     
     const paragrafos = Array.from(tempDiv.querySelectorAll('p'));
 
@@ -1676,6 +1676,17 @@ Mantenha a consistência visual com o resto do e-book.`;
     const MIN_PALAVRAS = 60;
     const MAX_PALAVRAS = 70;
 
+    // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
+  // ============================================================
+  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
+    const numero = opts?.numeroCapitulo || 1;
+    const tema = opts?.tema || 'geral';
+
+    // SEUS CONTROLES DEFINITIVOS:
+    const MIN_PALAVRAS = 45;
+    const MAX_PALAVRAS = 85;
+
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
@@ -1683,10 +1694,13 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800?text=Carregando+Imagem..." data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
-     - <p>[Conteúdo longo e detalhado]</p>
+     - <p>[Primeiro parágrafo longo e detalhado]</p>
+     - <p>[Segundo parágrafo longo e detalhado]</p>
+     - <p>[Terceiro parágrafo (opcional)]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${MIN_PALAVRAS} e ${MAX_PALAVRAS} palavras. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Faça com linguajar humanizado, profissional e com dicas relevantes.
+     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${MIN_PALAVRAS} e ${MAX_PALAVRAS} palavras.
+     - PROIBIDO PARÁGRAFOS ÚNICOS: Gere sempre de 2 a 3 parágrafos robustos abaixo de cada <h3 class="subtopic-title">. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Faça com linguajar humanizado, profissional e com dicas relevantes.
   4. IMAGENS EXCLUSIVAS (VIA API UNSPLASH): 
      Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a DENTRO do atributo data-unsplash. É fundamental que seja apenas uma palavra e que o atributo exista.
      Exemplo para um capítulo sobre Musculação:
