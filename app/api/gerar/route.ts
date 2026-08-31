@@ -22,7 +22,7 @@ const MODELOS_GEMINI_GRATIS = [
 
 // 2. Modelos de Texto Super Econômicos para a sua API Paga (2 Modelos)
 const MODELOS_TEXTO_PAGO = [
-  
+  "gemini-2.5-flash",
   "gemini-3.5-flash"
 ];
 
