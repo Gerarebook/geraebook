@@ -438,10 +438,10 @@ function executarRefluxoCompleto() {
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
             if (ativarBgSegundaPagina) {
-          p.style.setProperty('background-image', "linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('" + finalBgUrl + "')", "important");
-          p.style.setProperty('background-size', 'cover', 'important');
-          p.style.setProperty('background-position', 'center', 'important');
-        } else {
+              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
+              p.style.setProperty('background-size', 'cover', 'important');
+              p.style.setProperty('background-position', 'center', 'important');
+            } else {
               p.style.removeProperty('background-image');
               p.style.removeProperty('background-size');
               p.style.removeProperty('background-position');
@@ -1057,100 +1057,43 @@ ${ebookStyles}
     }
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
- 
+
   // ============================================================
-  // FUNÇÃO DE VALIDAÇÃO DE PARÁGRAFOS (ESCOPADA E FUNCIONAL - 60 A 70)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
   // ============================================================
   function ajustarParagrafos(html: string): string {
-    if (html.toLowerCase().includes('<body') || html.includes('id="ebook-container"')) {
-      return html;
-    }
-
+    // Cria um parser simples para ajustar o comprimento dos parágrafos
+    // sem quebrar a estrutura HTML.
+    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
+    // se tiver mais de 600, tenta quebrar em dois parágrafos.
+    // Isso garante uma consistência visual sem depender da IA.
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-    
-    const MIN_PALAVRAS = 60;
-    const MAX_PALAVRAS = 70;
-    
-    // Processa cada bloco de conteúdo separadamente para respeitar as fronteiras de página
-    const containers = tempDiv.querySelectorAll('.page-container, #ebook-container, div');
-    
-    containers.forEach(container => {
-      const paragrafos = Array.from(container.querySelectorAll('p'));
-      if (paragrafos.length === 0) return;
-
-      for (let i = 0; i < paragrafos.length; i++) {
-        let p = paragrafos[i] as HTMLElement;
-        if (!p || !p.parentNode) continue;
-
-        // Proteções de layout
-        if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .author-page, .page-header, .page-footer, .toc-container, .highlight-box, blockquote')) continue;
-
-        let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-        if (!texto) {
-          p.remove();
-          continue;
-        }
-
-        let palavras = texto.split(' ');
-
-        // 1. FORÇA O MÍNIMO: Une parágrafos consecutivos abaixo de 60 palavras
-        while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
-          let proximoP = paragrafos[i + 1] as HTMLElement;
-          
-          if (p.nextElementSibling === proximoP) {
-            p.innerHTML = p.innerHTML + ' ' + proximoP.innerHTML;
-            texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-            palavras = texto.split(' ');
-            
-            proximoP.remove();
-            paragrafos.splice(i + 1, 1);
-          } else {
-            break;
-          }
-        }
-
-        // 2. FORÇA O MÁXIMO: Fatiamento cirúrgico de parágrafos longos
-        if (palavras.length > MAX_PALAVRAS) {
-          let fragmentos = [];
-          let currentWords = palavras;
-
-          while (currentWords.length > MAX_PALAVRAS) {
-            let splitIndex = MAX_PALAVRAS;
-            for (let j = MAX_PALAVRAS - 1; j >= MIN_PALAVRAS; j--) {
-              if (currentWords[j].endsWith('.') || currentWords[j].endsWith('?') || currentWords[j].endsWith('!')) {
-                splitIndex = j + 1;
-                break;
-              }
-            }
-            fragmentos.push(currentWords.slice(0, splitIndex).join(' '));
-            currentWords = currentWords.slice(splitIndex);
-          }
-          
-          if (currentWords.length > 0) {
-            if (currentWords.length < MIN_PALAVRAS && fragmentos.length > 0) {
-               fragmentos[fragmentos.length - 1] += ' ' + currentWords.join(' ');
-            } else {
-               fragmentos.push(currentWords.join(' '));
-            }
-          }
-
-          p.textContent = fragmentos[0];
-          let lastP = p;
-
-          for (let f = 1; f < fragmentos.length; f++) {
-            const novoP = document.createElement('p');
-            novoP.textContent = fragmentos[f];
-            lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
-            lastP = novoP;
-            paragrafos.splice(i + f, 0, novoP);
-          }
+    const paragrafos = tempDiv.querySelectorAll('p');
+    paragrafos.forEach(p => {
+      let texto = p.textContent || '';
+      // Remove espaços extras
+      texto = texto.replace(/\s+/g, ' ').trim();
+      if (texto.length > 600) {
+        // Tenta quebrar na última frase antes de 450 caracteres
+        const mid = Math.min(450, texto.length);
+        let breakPos = texto.lastIndexOf('. ', mid);
+        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
+        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
+        if (breakPos !== -1) {
+          const p1 = texto.substring(0, breakPos + 1);
+          const p2 = texto.substring(breakPos + 2);
+          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
+          p.textContent = p1;
+          const novoP = document.createElement('p');
+          novoP.textContent = p2;
+          p.parentNode?.insertBefore(novoP, p.nextSibling);
         }
       }
     });
-
     return tempDiv.innerHTML;
   }
+
   // ============================================================
   // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
   // ============================================================
@@ -1177,19 +1120,9 @@ ${ebookStyles}
     return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  // ============================================================
-  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
-  // ============================================================
-  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
+  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    
-    // 1. ATIVADOR DE FOTOS: Aciona o seu backend seguro e espera a URL da imagem voltar
-    if (typeof ativarImagensUnsplash === 'function') {
-      novoConteudo = await ativarImagensUnsplash(novoConteudo);
-    }
-    
-    // 2. PÓS-PROCESSAMENTO BLINDADO: Ajusta os parágrafos (60 a 70 palavras)
-    novoConteudo = ajustarParagrafos(novoConteudo);
+    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -1210,88 +1143,11 @@ ${ebookStyles}
       setRecarregarIframe(false);
     }
   }
-// ============================================================
-  // ATIVADOR DE IMAGENS OFICIAL (CONECTADO À SUA API /api/unsplash)
-  // ============================================================
-  async function ativarImagensUnsplash(html: string): Promise<string> {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    
-    const imagens = Array.from(tempDiv.querySelectorAll('img[data-unsplash]'));
-    if (imagens.length === 0) return tempDiv.innerHTML;
 
-    // Pega o token da sessão ativa do Supabase para enviar à sua API segura
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || '';
-
-    // Faz as requisições em paralelo para a sua rota de backend (/api/unsplash/route.ts)
-    await Promise.all(imagens.map(async (img) => {
-      const keyword = img.getAttribute('data-unsplash');
-      if (keyword) {
-        try {
-          const response = await fetch('/api/unsplash', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ keyword })
-          });
-
-          const data = await response.json();
-          
-          if (data.success && data.imageUrl) {
-            // Sucesso! Injeta a URL oficial retornada pelo seu backend
-            img.setAttribute('src', data.imageUrl);
-            img.removeAttribute('data-unsplash');
-          } else {
-            console.error("Erro retornado pela sua API /api/unsplash:", data.error);
-          }
-        } catch (err) {
-          console.error("Falha ao comunicar com /api/unsplash:", err);
-        }
-      }
-    }));
-    
-    return tempDiv.innerHTML;
-  }
-
-  // ============================================================
-  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML (ATUALIZADA)
-  // ============================================================
-  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
-    let novoConteudo = purificarHTML(htmlCru);
-    
-    // 1. CHAMA A SUA API DE BACKEND: Aguarda o servidor buscar no Unsplash
-    novoConteudo = await ativarImagensUnsplash(novoConteudo);
-    
-    // 2. GUILHOTINA MATEMÁTICA: Aplica a regra exata de 60 a 70 palavras
-    novoConteudo = ajustarParagrafos(novoConteudo);
-
-    let htmlFinal = '';
-    if (isInjetar) {
-      htmlFinal = injetarHtmlNoFinal(htmlAtual || '', novoConteudo);
-    } else {
-      htmlFinal = moldarApresentacaoHtml(novoConteudo);
-    }
-
-    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
-    setHtmlAtual(htmlFinal);
-    localStorage.setItem('ebook_draft_html', htmlFinal);
-
-    if (recarregar && previewFrameRef.current) {
-      setRecarregarIframe(true);
-      const script = (typeof getScriptPreview === 'function') ? getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade) : '';
-      previewFrameRef.current.srcdoc = htmlFinal + script;
-    } else {
-      setRecarregarIframe(false);
-    }
-  }
   // ============================================================
   // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
   // ============================================================
- 
-    function gerarPaginaAviso() {
+  function gerarPaginaAviso() {
     const ano = new Date().getFullYear();
     return `
     <div class="page-container legal-page">
@@ -1732,45 +1588,25 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA E TOM ADAPTÁVEL)
-  // ============================================================
-  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
-    const numero = opts?.numeroCapitulo || 1;
-    const tema = opts?.tema || 'geral';
-
-    // SEUS CONTROLES MATEMÁTICOS DEFINITIVOS:
-    const MIN_PALAVRAS = 60;
-    const MAX_PALAVRAS = 70;
-
-    // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
 
-    // SEUS CONTROLES DEFINITIVOS:
-    const MIN_PALAVRAS = 45;
-    const MAX_PALAVRAS = 85;
-
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
-     - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800?text=Carregando+Imagem..." data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
+     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
-     - <p>[Primeiro parágrafo longo e detalhado]</p>
-     - <p>[Segundo parágrafo longo e detalhado]</p>
-     - <p>[Terceiro parágrafo (opcional)]</p>
+     - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${MIN_PALAVRAS} e ${MAX_PALAVRAS} palavras.
-     - PROIBIDO PARÁGRAFOS ÚNICOS: Gere sempre de 2 a 3 parágrafos robustos abaixo de cada <h3 class="subtopic-title">. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Faça com linguajar humanizado, profissional e com dicas relevantes.
-  4. IMAGENS EXCLUSIVAS (VIA API UNSPLASH): 
-     Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a DENTRO do atributo data-unsplash. É fundamental que seja apenas uma palavra e que o atributo exista.
-     Exemplo para um capítulo sobre Musculação:
-     <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800" data-unsplash="bodybuilding" alt="Musculação">
+     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
+  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
+     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
 
     return { regrasCompletas, numero };
