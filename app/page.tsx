@@ -1645,9 +1645,16 @@ Mantenha a consistência visual com o resto do e-book.`;
 // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
   // ============================================================
+  // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
+  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
+
+    // SEUS CONTROLES DEFINITIVOS:
+    const MIN_PALAVRAS = 60;
+    const MAX_PALAVRAS = 70;
 
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
@@ -1659,7 +1666,7 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
+     - Mantenha a REGRA MATEMÁTICA: CADA parágrafo (<p>) deve ter estritamente entre ${MIN_PALAVRAS} e ${MAX_PALAVRAS} palavras. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos. Faça com linguajar humanizado, profissional e com dicas relevantes.
   4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
