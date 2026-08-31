@@ -1058,68 +1058,92 @@ ${ebookStyles}
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (JS PURO - 60 A 70 PALAVRAS)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO BLINDADO)
   // ============================================================
   function ajustarParagrafos(html: string): string {
+    // BLINDAGEM MÁXIMA DE MARGEM: Se for um documento completo (ex: carregado da biblioteca)
+    // nós abortamos a manipulação para não criar containers duplicados e destruir as margens do A4.
+    if (html.toLowerCase().includes('<body') || html.includes('id="ebook-container"')) {
+      return html;
+    }
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-
-    // CONTROLES MANUAIS DE PALAVRAS:
+    
+    // AS SUAS REGRAS DE OURO:
     const MIN_PALAVRAS = 60;
     const MAX_PALAVRAS = 70;
-
+    
     const paragrafos = Array.from(tempDiv.querySelectorAll('p'));
 
     for (let i = 0; i < paragrafos.length; i++) {
       let p = paragrafos[i];
       if (!p.parentNode) continue;
 
-      // Ignora capas, rodapés, cabeçalhos ou páginas especiais para não desformatar o layout
-      if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .page-header, .page-footer')) continue;
+      // BLINDAGEM DE LAYOUT: Nunca mexer em capas, índices, avisos legais ou rodapés.
+      if (p.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page, .author-page, .page-header, .page-footer, .toc-container')) continue;
 
+      // Usa textContent apenas para contar as palavras, sem estragar o HTML original
       let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
-      if (!texto) {
-        p.remove();
-        continue;
-      }
+      if (!texto) continue;
 
       let palavras = texto.split(' ');
 
-      // 1. SE PASSAR DO MÁXIMO (70 palavras): Quebra em blocos seguros
+      // 1. FORÇA O MÍNIMO: Junta com o próximo <p>
+      while (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
+        let proximoP = paragrafos[i + 1];
+        
+        // Só permite a fusão se for o vizinho IMEDIATO.
+        if (p.nextElementSibling === proximoP && !proximoP.closest('.page-cover-img, .legal-page, .author-page')) {
+          // Mantém as tags HTML originais seguras usando innerHTML na hora de fundir
+          p.innerHTML = p.innerHTML + ' ' + proximoP.innerHTML;
+          
+          let novoTextoCount = (p.textContent || '').replace(/\s+/g, ' ').trim();
+          palavras = novoTextoCount.split(' ');
+          
+          proximoP.remove();
+          paragrafos.splice(i + 1, 1);
+        } else {
+          break; // Há uma imagem/título no caminho. Proteção ativada!
+        }
+      }
+
+      // 2. FORÇA O MÁXIMO: Corta cirurgicamente se estourar
       if (palavras.length > MAX_PALAVRAS) {
-        let fragmentos: string[] = [];
-        for (let j = 0; j < palavras.length; j += MAX_PALAVRAS) {
-          fragmentos.push(palavras.slice(j, j + MAX_PALAVRAS).join(' '));
+        // Como o innerHTML contém tags (ex: <strong>), fatiar o HTML puro é perigoso.
+        // Neste caso específico de estouro, usamos a extração limpa de palavras para não corromper as tags do DOM.
+        let fragmentos = [];
+        let currentWords = palavras;
+
+        while (currentWords.length > MAX_PALAVRAS) {
+          let splitIndex = MAX_PALAVRAS;
+          for (let j = MAX_PALAVRAS - 1; j >= MIN_PALAVRAS; j--) {
+            if (currentWords[j].endsWith('.') || currentWords[j].endsWith('?') || currentWords[j].endsWith('!')) {
+              splitIndex = j + 1;
+              break;
+            }
+          }
+          fragmentos.push(currentWords.slice(0, splitIndex).join(' '));
+          currentWords = currentWords.slice(splitIndex);
+        }
+        
+        if (currentWords.length > 0) {
+          fragmentos.push(currentWords.join(' '));
         }
 
         p.textContent = fragmentos[0];
-        let ultimoP = p;
+        let lastP = p;
 
         for (let f = 1; f < fragmentos.length; f++) {
           const novoP = document.createElement('p');
           novoP.textContent = fragmentos[f];
-          ultimoP.parentNode?.insertBefore(novoP, ultimoP.nextSibling);
-          ultimoP = novoP;
+          lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
+          lastP = novoP;
+          
+          paragrafos.splice(i + f, 0, novoP);
         }
       } 
-      // 2. SE ESTIVER ABAIXO DO MÍNIMO (60 palavras): Junta com o próximo parágrafo se estiverem no mesmo container
-      else if (palavras.length < MIN_PALAVRAS && i + 1 < paragrafos.length) {
-        let proximoP = paragrafos[i + 1];
-        if (proximoP && proximoP.parentNode === p.parentNode && !proximoP.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) {
-          let textoProximo = (proximoP.textContent || '').replace(/\s+/g, ' ').trim();
-          if (textoProximo) {
-            let palavrasProximo = textoProximo.split(' ');
-            if (palavras.length + palavrasProximo.length <= MAX_PALAVRAS + 15) {
-              texto += ' ' + textoProximo;
-              p.textContent = texto;
-              proximoP.remove();
-              paragrafos.splice(i + 1, 1); // Remove da lista o parágrafo já fundido
-              i--; // Reavalia o parágrafo atual unificado
-              continue;
-            }
-          }
-        }
-      }
+      // Se estiver no tamanho ideal, o HTML original (com negritos e links) é mantido 100% intacto!
     }
 
     return tempDiv.innerHTML;
