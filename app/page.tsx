@@ -2191,8 +2191,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                       </button>
                     </div>
                   </div>
-                </div>
-
                 {/* ===== COLE ESTE BLOCO NOVO AQUI ===== */}
                 <div className="panel-section border-b border-slate-100 bg-indigo-50/50">
                   <div className="flex justify-between items-center mb-3">
