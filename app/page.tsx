@@ -1580,13 +1580,9 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (CONTROLADA PELA INTERFACE)
   // ============================================================
-  // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (CONTROLADA PELA INTERFACE)
-  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
-    const tema = opts?.tema || 'geral';
-
+    
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
@@ -1601,10 +1597,9 @@ Mantenha a consistência visual com o resto do e-book.`;
      - CONTROLE DE PALAVRAS EXATO:
        -> Os parágrafos de ABERTURA (logo após o Capítulo) devem ter no mínimo ${palavrasCapitulo} palavras cada.
        -> Os parágrafos sob os SUBTÓPICOS (Páginas seguintes) devem ter no mínimo ${palavrasSubtopico} palavras cada.
-     - O objetivo é NÃO CRIAR PARÁGRAFOS CURTOS. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos. Faça com linguajar humanizado e profissional.
-  4. IMAGENS EXCLUSIVAS: Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira-a no atributo data-unsplash da tag img.
+     - O objetivo é NÃO CRIAR PARÁGRAFOS CURTOS. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos.
+  4. IMAGENS EXCLUSIVAS: Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira no atributo data-unsplash da tag img.
   `;
-
     return { regrasCompletas, numero };
   }
   // ============================================================
@@ -2191,8 +2186,22 @@ Mantenha a consistência visual com o resto do e-book.`;
                       </button>
                     </div>
                   </div>
-                {/* ===== COLE ESTE BLOCO NOVO AQUI ===== */}
+{/* PAINEL DA IA - VOLUME DE PALAVRAS */}
                 <div className="panel-section border-b border-slate-100 bg-indigo-50/50">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="input-label mb-0 text-indigo-700 font-black"><i className="fas fa-robot"></i> Inteligência Artificial (Volume)</label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Abertura)</label>
+                      <input type="number" min="20" max="150" value={palavrasCapitulo} onChange={(e) => setPalavrasCapitulo(Number(e.target.value))} className="input-standard border-indigo-200 focus:border-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Subtópicos)</label>
+                      <input type="number" min="20" max="150" value={palavrasSubtopico} onChange={(e) => setPalavrasSubtopico(Number(e.target.value))} className="input-standard border-indigo-200 focus:border-indigo-500" />
+                    </div>
+                  </div>
+                </div>                <div className="panel-section border-b border-slate-100 bg-indigo-50/50">
                   <div className="flex justify-between items-center mb-3">
                     <label className="input-label mb-0 text-indigo-700 font-black"><i className="fas fa-robot"></i> Inteligência Artificial (Volume)</label>
                   </div>
