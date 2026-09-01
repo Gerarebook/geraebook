@@ -227,14 +227,7 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (com a função unificada)
 // ============================================================
 
-function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: boolean, bgSegundaPaginaUrl: string, bgSegundaPaginaOpacidade: string) {
-  return `
-<script>
-  (function() {
-    const indexShowSubtopics = ${indexShowSubtopics};
-    const ativarBgSegundaPagina = ${ativarBgSegundaPagina};
-    
-    function executarRefluxoCompleto() {
+function executarRefluxoCompleto() {
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
@@ -339,7 +332,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
         }
       });
 
-      // 4. Sincronizar índice
+      // 4. Sincronizar índice (só roda AGORA que as páginas estão perfeitas)
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
@@ -422,7 +415,6 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
       sincronizarIndice();
 
       // Fundo da segunda página (Mantido do seu original)
-      // CORREÇÃO DO ERRO DE BUILD DA VERCEL (Turbopack Escape)
       let chIndex = 0;
       let currentChapterImg = '';
       container.querySelectorAll('.page-container').forEach((p) => {
@@ -446,8 +438,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
             if (ativarBgSegundaPagina) {
-              // RESOLUÇÃO DE CÓDIGO AQUI: Remoção das crases que causam erro no Next.js
-              p.style.setProperty('background-image', "linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('" + finalBgUrl + "')", "important");
+              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
               p.style.setProperty('background-size', 'cover', 'important');
               p.style.setProperty('background-position', 'center', 'important');
             } else {
@@ -475,20 +466,30 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
     } else {
       window.addEventListener('load', () => {
         executarRefluxoCompleto();
+        // Reexecuta após imagens carregarem
         setTimeout(executarRefluxoCompleto, 500);
       });
     }
 
+    // Escuta mensagens do parent para atualizações
     window.addEventListener('message', (e) => {
+      if (e.data.type === 'TOGGLE_EDIT_MODE') {
+        // Apenas notifica que o modo mudou (já tratado no componente pai)
+      }
       if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
         setTimeout(executarRefluxoCompleto, 100);
       }
-      if (e.data.type === 'UPDATE_ELEMENT' || e.data.type === 'REPLACE_ELEMENT_HTML') {
+      if (e.data.type === 'UPDATE_ELEMENT') {
+        setTimeout(executarRefluxoCompleto, 200);
+      }
+      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
         setTimeout(executarRefluxoCompleto, 200);
       }
     });
 
+    // Também reage a mudanças no DOM
     const observer = new MutationObserver(() => {
+      // Debounce simples
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
@@ -504,7 +505,7 @@ function getScriptPreview(indexShowSubtopics: boolean, ativarBgSegundaPagina: bo
 // ============================================================
 
 export default function Home() {
-  // Estados principais  
+  // Estados principais
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
@@ -515,9 +516,6 @@ export default function Home() {
   });
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
-  // NOVO: Controle de Palavras via Interface da IA
-  const [palavrasCapitulo, setPalavrasCapitulo] = useState<number>(60);
-  const [palavrasSubtopico, setPalavrasSubtopico] = useState<number>(70);
 
   // Configurações de estilo
   const [fontFamily, setFontFamily] = useState('Lato');
@@ -568,8 +566,7 @@ export default function Home() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  
-  async function gerarEbookPDF(textoBruto: string) {
+async function gerarEbookPDF(textoBruto: string) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -584,7 +581,7 @@ export default function Home() {
     const lines = textoBruto.split('\n');
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim(); 
+      let line = lines[i].trim(); // <--- É esta linha que define a variável 'line'
       if (line === '') {
           yPos += lineHeight;
           if (yPos > pageBottom) { doc.addPage(); yPos = margin; }
@@ -641,7 +638,6 @@ export default function Home() {
       iframe.src = pdfBlobUrl; 
     }
   }
-
   // ============================================================
   // FUNÇÕES AUXILIARES
   // ============================================================
@@ -687,7 +683,9 @@ export default function Home() {
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
+    // Limpa estilos invasivos
     clean = clean.replace(/<p\s+[^>]*>/gi, '<p>');
+
     return clean.trim();
   }
 
@@ -728,7 +726,7 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
-
+/* BLINDAGEM CONTRA VAZAMENTO LATERAL E OVERFLOW */
 #ebook-container * {
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -772,7 +770,7 @@ img.chapter-banner-img {
   margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden !important; 
+  overflow: hidden !important; /* <-- BLINDAGEM CRÍTICA */
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
@@ -895,10 +893,11 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
+/* ORDEM DO CAPÍTULO: IMAGEM PRIMEIRO, DEPOIS TÍTULO */
 .chapter-title-inline {
   text-align: center;
   font-size: 2.1rem;
-  margin-top: 0.5rem;   
+  margin-top: 0.5rem;   /* reduzido porque agora vem depois da imagem */
   margin-bottom: 1.2rem;
   color: var(--color-primary);
   font-weight: 800;
@@ -1060,16 +1059,23 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (MANTIDA ORIGINAL E SEGURA)
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
   // ============================================================
   function ajustarParagrafos(html: string): string {
+    // Cria um parser simples para ajustar o comprimento dos parágrafos
+    // sem quebrar a estrutura HTML.
+    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
+    // se tiver mais de 600, tenta quebrar em dois parágrafos.
+    // Isso garante uma consistência visual sem depender da IA.
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     const paragrafos = tempDiv.querySelectorAll('p');
     paragrafos.forEach(p => {
       let texto = p.textContent || '';
+      // Remove espaços extras
       texto = texto.replace(/\s+/g, ' ').trim();
       if (texto.length > 600) {
+        // Tenta quebrar na última frase antes de 450 caracteres
         const mid = Math.min(450, texto.length);
         let breakPos = texto.lastIndexOf('. ', mid);
         if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
@@ -1077,6 +1083,7 @@ ${ebookStyles}
         if (breakPos !== -1) {
           const p1 = texto.substring(0, breakPos + 1);
           const p2 = texto.substring(breakPos + 2);
+          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
           p.textContent = p1;
           const novoP = document.createElement('p');
           novoP.textContent = p2;
@@ -1115,7 +1122,7 @@ ${ebookStyles}
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = ajustarParagrafos(novoConteudo);
+    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -1565,6 +1572,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
+  // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
     const regex = /Capítulo\s*(\d+)/gi;
@@ -1577,35 +1587,36 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
-  // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (CONTROLADA PELA INTERFACE)
+// ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
-    
+    const tema = opts?.tema || 'geral';
+
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
-     - <img class="chapter-banner-img" src="https://via.placeholder.com/1200x800" data-unsplash="PALAVRA_EM_INGLES" alt="Descrição">
+     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
-     - <p>[Parágrafo de abertura]</p>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
-     - <p>[Conteúdo detalhado]</p>
+     - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
-     - Adapte 100% o seu tom de escrita ao tema solicitado.
-     - CONTROLE DE PALAVRAS EXATO:
-       -> Os parágrafos de ABERTURA (logo após o Capítulo) devem ter no mínimo ${palavrasCapitulo} palavras cada.
-       -> Os parágrafos sob os SUBTÓPICOS (Páginas seguintes) devem ter no mínimo ${palavrasSubtopico} palavras cada.
-     - O objetivo é NÃO CRIAR PARÁGRAFOS CURTOS. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos.
-  4. IMAGENS EXCLUSIVAS: Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês e insira no atributo data-unsplash da tag img.
+     - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
+     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
+  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
+     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
+
     return { regrasCompletas, numero };
   }
+
   // ============================================================
   // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
   // ============================================================
 
+  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
   async function iniciarEbookEtapas() {
     const content = productContent.trim();
     if (!content) {
@@ -1633,11 +1644,11 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">[Primeiro tópico da introdução]</h3>
-        <p>[Parágrafo 1 de Introdução]</p>
-        <p>[Parágrafo 2 de Introdução]</p>
+        <p>[Parágrafo 1]</p>
+        <p>[Parágrafo 2]</p>
         <h3 class="subtopic-title">[Segundo tópico da introdução]</h3>
-        <p>[Parágrafo 3 de Introdução]</p>
-        <p>[Parágrafo 4 de Introdução]</p>
+        <p>[Parágrafo 3]</p>
+        <p>[Parágrafo 4]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
@@ -1657,6 +1668,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1673,7 +1685,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
     const instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
-    Cada capítulo deve seguir o molde fornecido abaixo.
+    Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
     Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
     ATENÇÃO: Não pule números. Respeite rigorosamente a ordem (imagem primeiro, depois título).
 
@@ -1698,6 +1710,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
@@ -1729,6 +1742,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // CHAMADA À API
+  // ============================================================
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
@@ -1781,6 +1797,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // EFEITOS (CARREGAR DADOS, SINCRONIZAR, ATUALIZAR)
+  // ============================================================
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
@@ -1826,6 +1845,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, []);
 
+  // Atualiza a capa quando título/autor mudam
   useEffect(() => {
     if (htmlAtual && (livroTitulo || livroAutores)) {
       const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
@@ -1840,6 +1860,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, [livroTitulo, livroAutores]);
 
+  // Sincroniza mensagens do iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
@@ -1868,12 +1889,14 @@ Mantenha a consistência visual com o resto do e-book.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
+  // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
+  // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
@@ -1889,6 +1912,9 @@ Mantenha a consistência visual com o resto do e-book.`;
       )
     : false;
 
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
     <>
       <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
@@ -2173,101 +2199,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                       </button>
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                      <button onClick={iniciarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">
-                        1. Capa/Intro
-                      </button>
-                      <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">
-                        2. +3 Capítulos
-                      </button>
-                      <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">
-                        3. Fim/Autor
-                      </button>
-                    </div>
-                  </div>
-{/* PAINEL DA IA - VOLUME DE PALAVRAS */}
-                <div className="panel-section border-b border-slate-100 bg-indigo-50/50">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="input-label mb-0 text-indigo-700 font-black"><i className="fas fa-robot"></i> Inteligência Artificial (Volume)</label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Abertura)</label>
-                      <input type="number" min="20" max="150" value={palavrasCapitulo} onChange={(e) => setPalavrasCapitulo(Number(e.target.value))} className="input-standard border-indigo-200 focus:border-indigo-500" />
-                    </div>
-                    <div>
-                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Subtópicos)</label>
-                      <input type="number" min="20" max="150" value={palavrasSubtopico} onChange={(e) => setPalavrasSubtopico(Number(e.target.value))} className="input-standard border-indigo-200 focus:border-indigo-500" />
-                    </div>
-                  </div>
-                </div>                <div className="panel-section border-b border-slate-100 bg-indigo-50/50">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="input-label mb-0 text-indigo-700 font-black"><i className="fas fa-robot"></i> Inteligência Artificial (Volume)</label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Abertura)</label>
-                      <input
-                        type="number"
-                        min="20"
-                        max="150"
-                        value={palavrasCapitulo}
-                        onChange={(e) => setPalavrasCapitulo(Number(e.target.value))}
-                        className="input-standard border-indigo-200 focus:border-indigo-500"
-                        title="Mínimo de palavras nos parágrafos iniciais"
-                      />
-                    </div>
-                    <div>
-                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Subtópicos)</label>
-                      <input
-                        type="number"
-                        min="20"
-                        max="150"
-                        value={palavrasSubtopico}
-                        onChange={(e) => setPalavrasSubtopico(Number(e.target.value))}
-                        className="input-standard border-indigo-200 focus:border-indigo-500"
-                        title="Mínimo de palavras nos parágrafos do miolo"
-                      />
-                    </div>
-                  </div>
-                </div>
-                {/* ===== FIM DO BLOCO NOVO ===== */}
-
-                <div className="panel-section">
-                  <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
-                {/* NOVO PAINEL DE CONTROLE DE PALAVRAS DA IA */}
-                <div className="panel-section">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="input-label mb-0 text-indigo-600"><i className="fas fa-robot"></i> Inteligência Artificial (Volume)</label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="input-label text-[9px]">Pág. Capítulos (Abertura)</label>
-                      <input
-                        type="number"
-                        min="20"
-                        max="150"
-                        value={palavrasCapitulo}
-                        onChange={(e) => setPalavrasCapitulo(Number(e.target.value))}
-                        className="input-standard"
-                        title="Mínimo de palavras nos parágrafos iniciais (com imagem)"
-                      />
-                    </div>
-                    <div>
-                      <label className="input-label text-[9px]">Páginas Comuns (Miolo)</label>
-                      <input
-                        type="number"
-                        min="20"
-                        max="150"
-                        value={palavrasSubtopico}
-                        onChange={(e) => setPalavrasSubtopico(Number(e.target.value))}
-                        className="input-standard"
-                        title="Mínimo de palavras nos parágrafos do miolo"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[9px] text-slate-400 mt-2 leading-tight">Garante blocos exatos sem quebrar as margens do A4.</p>
                 </div>
 
                 <div className="panel-section">
