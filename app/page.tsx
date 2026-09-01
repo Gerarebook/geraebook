@@ -1,258 +1,482 @@
 // @ts-nocheck
-'use client';
+// 'use client';
 
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
-import { jsPDF } from 'jspdf'; // RESTAURADO
-
+import { jsPDF } from 'jspdf';
 // ============================================================
-// SCRIPT INJETADO NO IFRAME
+// FUNÇÕES AUXILIARES DE PAGINAÇÃO E ÍNDICE (UNIFICADAS)
 // ============================================================
 
-function getScriptPreview(
+function executarRefluxoCompleto(
+  containerId: string,
+  alturaMaxima: number,
   indexShowSubtopics: boolean,
-  ativarBgSegundaPagina: boolean,
   bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string
+  bgSegundaPaginaOpacidade: string,
+  bgEnabled: boolean
 ) {
-  return `
-<script>
-  (function() {
-    let isReflowing = false;
-    function executarRefluxoCompleto() {
-      if (isReflowing) return;
-      isReflowing = true;
-      try {
-        const container = document.getElementById('ebook-container');
-        if (!container) return;
-        const c = container;
+  const container = document.getElementById(containerId);
+  if (!container) return;
 
-        const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
-        paginasExistentes.forEach(p => p.remove());
+  // --- 1. Limpar páginas existentes (exceto capas e páginas especiais) ---
+  const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
+  paginasExistentes.forEach(p => p.remove());
 
-        const elementosIA = Array.from(c.children).filter(el =>
-          !el.classList.contains('page-container') &&
-          el.tagName !== 'STYLE' &&
-          el.tagName !== 'SCRIPT'
-        );
+  // --- 2. Recolher todos os elementos filhos diretos que não são containers de página ---
+  const todosElementos = Array.from(container.children).filter(el =>
+    !el.classList.contains('page-container') &&
+    el.tagName !== 'STYLE' &&
+    el.tagName !== 'SCRIPT'
+  );
 
-        const ALTURA_MAXIMA = 980;
+  // --- 3. Função para criar uma nova página ---
+  function criarNovaPagina() {
+    const novaPagina = document.createElement('div');
+    novaPagina.className = 'page-container chapter-text-page';
+    novaPagina.style.overflow = 'hidden';
+    novaPagina.style.breakAfter = 'page';
 
-        function criarNovaPagina() {
-          const novaPagina = document.createElement('div');
-          novaPagina.className = 'page-container chapter-text-page';
-          novaPagina.style.overflow = 'hidden';
-          novaPagina.style.breakAfter = 'page';
+    const header = document.createElement('div');
+    header.className = 'page-header';
+    header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
+    novaPagina.appendChild(header);
 
-          const header = document.createElement('div');
-          header.className = 'page-header';
-          header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
-          novaPagina.appendChild(header);
+    const footer = document.createElement('div');
+    footer.className = 'page-footer';
+    footer.innerHTML = '<span class="page-number"></span>';
+    novaPagina.appendChild(footer);
 
-          const contentArea = document.createElement('div');
-          contentArea.className = 'content-area';
-          contentArea.style.display = 'flex';
-          contentArea.style.flexDirection = 'column';
-          novaPagina.appendChild(contentArea);
+    container.appendChild(novaPagina);
+    return novaPagina;
+  }
 
-          const footer = document.createElement('div');
-          footer.className = 'page-footer';
-          footer.innerHTML = '<span class="page-number"></span>';
-          novaPagina.appendChild(footer);
+  let paginaAtual = criarNovaPagina();
 
-          c.appendChild(novaPagina);
-          return { pagina: novaPagina, areaTexto: contentArea };
+  // --- 4. Distribuir elementos pelas páginas ---
+  todosElementos.forEach(elemento => {
+    const footer = paginaAtual.querySelector('.page-footer');
+    paginaAtual.insertBefore(elemento, footer);
+
+    // Verifica se estourou a altura
+    if (paginaAtual.scrollHeight > alturaMaxima) {
+      // Move o elemento para a nova página
+      const novaPagina = criarNovaPagina();
+      const novoFooter = novaPagina.querySelector('.page-footer');
+      novaPagina.insertBefore(elemento, novoFooter);
+
+      // Anti-órfão: se o último elemento da página anterior era um título, move-o junto
+      const paginaAnterior = paginaAtual.previousElementSibling;
+      if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
+        const footerAnterior = paginaAnterior.querySelector('.page-footer');
+        const ultimoElemento = footerAnterior.previousElementSibling;
+        if (ultimoElemento && (ultimoElemento.tagName === 'H2' || ultimoElemento.tagName === 'H3')) {
+          novaPagina.insertBefore(ultimoElemento, elemento);
         }
+      }
 
-        if (elementosIA.length === 0) return;
+      paginaAtual = novaPagina;
+    }
+  });
 
-        let atual = criarNovaPagina();
+  // --- 5. Remover páginas vazias ---
+  container.querySelectorAll('.page-container').forEach(page => {
+    const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
+    if (conteudo.length === 0) {
+      page.remove();
+    }
+  });
 
-        for (let i = 0; i < elementosIA.length; i++) {
-          let el = elementosIA[i];
-          atual.areaTexto.appendChild(el);
-
-          if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-            if (el.tagName === 'P') {
-              let textoOriginal = el.innerHTML;
-              let palavras = textoOriginal.split(' ');
-              el.innerHTML = '';
-              let pIndex = 0;
-              while (pIndex < palavras.length) {
-                el.innerHTML += palavras[pIndex] + ' ';
-                if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-                  let htmlAtual = el.innerHTML;
-                  el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
-                  break;
-                }
-                pIndex++;
-              }
-              let textoRestante = palavras.slice(pIndex).join(' ');
-              atual = criarNovaPagina();
-              if (textoRestante.trim() !== '') {
-                let novoParagrafo = document.createElement('p');
-                novoParagrafo.innerHTML = textoRestante;
-                elementosIA.splice(i + 1, 0, novoParagrafo);
-              }
-            } else {
-              atual = criarNovaPagina();
-              atual.areaTexto.appendChild(el);
-            }
-          }
-        }
-
-        c.querySelectorAll('.page-container').forEach(page => {
-          const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
-          if (conteudo.length === 0) {
-            page.remove();
-          }
-        });
-
-        function sincronizarIndice() {
-          const tocs = c.querySelectorAll('.toc-container');
-          if (tocs.length > 1) {
-            for (let i = 1; i < tocs.length; i++) {
-              const page = tocs[i].closest('.page-container');
-              if (page) page.remove();
-            }
-          }
-          const mainToc = tocs[0];
-          if (!mainToc) return;
-
-          const selector = ${indexShowSubtopics} ?
-            'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
-            'h1.chapter-title-exclusive, h2.chapter-title-inline';
-          const titulos = c.querySelectorAll(selector);
-          const titulosVistos = new Set();
-
-          mainToc.innerHTML = '';
-
-          titulos.forEach((titleEl) => {
-            if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
-            let texto = titleEl.textContent?.trim() || '';
-            if (/índice|sumário/i.test(texto)) return;
-
-            let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
-            if (titulosVistos.has(chave)) return;
-            titulosVistos.add(chave);
-
-            if (!titleEl.id) {
-              titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
-            }
-
-            const a = document.createElement('a');
-            a.className = 'toc-item';
-            if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
-              a.classList.add('toc-main-chapter');
-              a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
-              a.style.color = 'var(--color-primary)';
-            } else if (titleEl.tagName === 'H3') {
-              a.classList.add('toc-subtopic');
-              a.style.paddingLeft = '20px';
-              a.style.fontSize = '0.9em';
-              a.style.opacity = '0.85';
-              a.style.fontWeight = '400';
-              if (!${indexShowSubtopics}) {
-                a.style.display = 'none';
-              }
-            }
-
-            a.href = '#' + titleEl.id;
-            const spanTitle = document.createElement('span');
-            spanTitle.innerText = texto;
-            const spanDots = document.createElement('span');
-            spanDots.className = 'toc-dots';
-            const spanPage = document.createElement('span');
-            spanPage.className = 'toc-page-num';
-
-            a.appendChild(spanTitle);
-            a.appendChild(spanDots);
-            a.appendChild(spanPage);
-            mainToc.appendChild(a);
-          });
-
-          const allPages = c.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-          const pageArray = Array.from(allPages);
-          document.querySelectorAll('.toc-item').forEach(item => {
-            const href = item.getAttribute('href');
-            if (!href || !href.startsWith('#')) return;
-            const target = document.getElementById(href.substring(1));
-            if (target) {
-              const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-              if (page) {
-                const idx = pageArray.indexOf(page) + 1;
-                const numSpan = item.querySelector('.toc-page-num');
-                if (numSpan) numSpan.innerText = String(idx);
-              }
-            }
-          });
-        }
-
-        sincronizarIndice();
-
-        let chIndex = 0;
-        let currentChapterImg = '';
-        c.querySelectorAll('.page-container').forEach((p) => {
-          const imgEl = p.querySelector('.chapter-banner-img');
-
-          if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
-            chIndex = 1;
-            if (imgEl) {
-              currentChapterImg = imgEl.src;
-            } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-              const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
-              if (match) currentChapterImg = match[1];
-            }
-          } else {
-            chIndex++;
-          }
-
-          if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
-            p.classList.add('chapter-page-2');
-            let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
-            if (finalBgUrl && finalBgUrl.trim() !== '') {
-              p.dataset.bgUrl = finalBgUrl;
-              if (${ativarBgSegundaPagina}) {
-                const opacidadeStr = "${bgSegundaPaginaOpacidade}";
-                const bgImageString = "linear-gradient(rgba(255,255,255, " + opacidadeStr + "), rgba(255,255,255, " + opacidadeStr + ")), url('" + finalBgUrl + "')";
-                p.style.setProperty('background-image', bgImageString, 'important');
-                p.style.setProperty('background-size', 'cover', 'important');
-                p.style.setProperty('background-position', 'center', 'important');
-              } else {
-                p.style.removeProperty('background-image');
-                p.style.removeProperty('background-size');
-                p.style.removeProperty('background-position');
-              }
-            }
-          } else {
-            p.classList.remove('chapter-page-2');
-            if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
-              if (!p.hasAttribute('data-custom-bg')) {
-                p.style.removeProperty('background-image');
-                p.style.removeProperty('background-size');
-                p.style.removeProperty('background-position');
-              }
-            }
-          }
-        });
-      } catch (err) {
-        console.error('Erro no executarRefluxoCompleto:', err);
-      } finally {
-        setTimeout(() => { isReflowing = false; }, 200);
+  // --- 6. Sincronizar Índice ---
+  function sincronizarIndice() {
+    // Remover índices duplicados e deixar apenas o primeiro
+    const tocs = container.querySelectorAll('.toc-container');
+    if (tocs.length > 1) {
+      for (let i = 1; i < tocs.length; i++) {
+        tocs[i].closest('.page-container')?.remove();
       }
     }
+    const mainToc = tocs[0];
+    if (!mainToc) return;
 
+    // Coletar títulos
+    const selector = indexShowSubtopics
+      ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'
+      : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
+    const titulos = container.querySelectorAll(selector);
+    const titulosVistos = new Set();
+
+    mainToc.innerHTML = '';
+
+    titulos.forEach((titleEl) => {
+      // Ignorar títulos de capa, índice, etc.
+      if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+      let texto = titleEl.textContent?.trim() || '';
+      if (/índice|sumário/i.test(texto)) return;
+
+      // Normalizar para evitar duplicatas
+      let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
+      if (titulosVistos.has(chave)) return;
+      titulosVistos.add(chave);
+
+      if (!titleEl.id) {
+        titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+      }
+
+      const a = document.createElement('a');
+      a.className = 'toc-item';
+      if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+        a.classList.add('toc-main-chapter');
+        a.style.fontWeight = indexShowSubtopics ? '700' : '400';
+        a.style.color = 'var(--color-primary)';
+      } else if (titleEl.tagName === 'H3') {
+        a.classList.add('toc-subtopic');
+        a.style.paddingLeft = '20px';
+        a.style.fontSize = '0.9em';
+        a.style.opacity = '0.85';
+        a.style.fontWeight = '400';
+        if (!indexShowSubtopics) {
+          a.style.display = 'none';
+        }
+      }
+
+      a.href = '#' + titleEl.id;
+      const spanTitle = document.createElement('span');
+      spanTitle.innerText = texto;
+      const spanDots = document.createElement('span');
+      spanDots.className = 'toc-dots';
+      const spanPage = document.createElement('span');
+      spanPage.className = 'toc-page-num';
+
+      a.appendChild(spanTitle);
+      a.appendChild(spanDots);
+      a.appendChild(spanPage);
+      mainToc.appendChild(a);
+    });
+
+    // Atualizar números das páginas
+    const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+    const pageArray = Array.from(allPages);
+    document.querySelectorAll('.toc-item').forEach(item => {
+      const href = item.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      const target = document.getElementById(href.substring(1));
+      if (target) {
+        const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+        if (page) {
+          const idx = pageArray.indexOf(page) + 1;
+          const numSpan = item.querySelector('.toc-page-num');
+          if (numSpan) numSpan.innerText = String(idx);
+        }
+      }
+    });
+  }
+
+  sincronizarIndice();
+
+  // --- 7. Aplicar fundo da segunda página (opcional) ---
+  let chIndex = 0;
+  let currentChapterImg = '';
+  container.querySelectorAll('.page-container').forEach((p) => {
+    const imgEl = p.querySelector('.chapter-banner-img');
+
+    // Detectar início de capítulo
+    if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
+      chIndex = 1;
+      if (imgEl) {
+        currentChapterImg = imgEl.src;
+      } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+        const match = p.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
+        if (match) currentChapterImg = match[1];
+      }
+    } else {
+      chIndex++;
+    }
+
+    if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
+      p.classList.add('chapter-page-2');
+      let finalBgUrl = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : currentChapterImg;
+      if (finalBgUrl && finalBgUrl.trim() !== '') {
+        p.dataset.bgUrl = finalBgUrl;
+        if (bgEnabled) {
+          p.style.setProperty('background-image', `linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${finalBgUrl}')`, 'important');
+          p.style.setProperty('background-size', 'cover', 'important');
+          p.style.setProperty('background-position', 'center', 'important');
+        } else {
+          p.style.removeProperty('background-image');
+          p.style.removeProperty('background-size');
+          p.style.removeProperty('background-position');
+        }
+      }
+    } else {
+      p.classList.remove('chapter-page-2');
+      if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
+        if (!p.hasAttribute('data-custom-bg')) {
+          p.style.removeProperty('background-image');
+          p.style.removeProperty('background-size');
+          p.style.removeProperty('background-position');
+        }
+      }
+    }
+  });
+
+  // --- 8. Forçar reflow para ajustar numeração ---
+  setTimeout(() => sincronizarIndice(), 50);
+}
+
+// ============================================================
+// SCRIPT INJETADO NO IFRAME (com a função unificada)
+// ============================================================
+
+function executarRefluxoCompleto() {
+      const container = document.getElementById('ebook-container');
+      if (!container) return;
+
+      // 1. Limpa páginas antigas (exceto capas)
+      const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
+      paginasExistentes.forEach(p => p.remove());
+
+      // Pega todos os elementos brutos
+      const elementosIA = Array.from(container.children).filter(el =>
+        !el.classList.contains('page-container') &&
+        el.tagName !== 'STYLE' &&
+        el.tagName !== 'SCRIPT'
+      );
+
+      // Altura máxima super restrita (A4)
+      const ALTURA_MAXIMA = 980;
+
+      function criarNovaPagina() {
+        const novaPagina = document.createElement('div');
+        novaPagina.className = 'page-container chapter-text-page';
+        novaPagina.style.overflow = 'hidden';
+        novaPagina.style.breakAfter = 'page';
+
+        const header = document.createElement('div');
+        header.className = 'page-header';
+        header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
+        novaPagina.appendChild(header);
+
+        // Área restrita apenas para o texto, para podermos medir com precisão
+        const contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        contentArea.style.display = 'flex';
+        contentArea.style.flexDirection = 'column';
+        novaPagina.appendChild(contentArea);
+
+        const footer = document.createElement('div');
+        footer.className = 'page-footer';
+        footer.innerHTML = '<span class="page-number"></span>';
+        novaPagina.appendChild(footer);
+
+        container.appendChild(novaPagina);
+        return { pagina: novaPagina, areaTexto: contentArea };
+      }
+
+      if (elementosIA.length === 0) return;
+
+      let atual = criarNovaPagina();
+
+      // 2. Loop de Paginação Rigoroso
+      for (let i = 0; i < elementosIA.length; i++) {
+        let el = elementosIA[i];
+        atual.areaTexto.appendChild(el);
+
+        // O elemento fez a página estourar?
+        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+          
+          // Se for um parágrafo longo, fatiamos palavra por palavra
+          if (el.tagName === 'P') {
+            let textoOriginal = el.innerHTML;
+            let palavras = textoOriginal.split(' ');
+            
+            el.innerHTML = ''; 
+            let pIndex = 0;
+
+            // Preenche até o limite exato
+            while (pIndex < palavras.length) {
+              el.innerHTML += palavras[pIndex] + ' ';
+              
+              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+                // Remove a última palavra que causou o estouro
+                let htmlAtual = el.innerHTML;
+                el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+                break;
+              }
+              pIndex++;
+            }
+
+            // O texto que sobrou vira um novo elemento
+            let textoRestante = palavras.slice(pIndex).join(' ');
+            atual = criarNovaPagina();
+            
+            if (textoRestante.trim() !== '') {
+               let novoParagrafo = document.createElement('p');
+               novoParagrafo.innerHTML = textoRestante;
+               // Insere o restante de volta no loop para ser processado na nova folha
+               elementosIA.splice(i + 1, 0, novoParagrafo);
+            }
+          } 
+          // Se for uma imagem ou título, joga o bloco inteiro pra próxima página
+          else {
+            atual = criarNovaPagina();
+            atual.areaTexto.appendChild(el);
+          }
+        }
+      }
+
+      // 3. Limpeza Final
+      container.querySelectorAll('.page-container').forEach(page => {
+        const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
+        if (conteudo.length === 0) {
+          page.remove();
+        }
+      });
+
+      // 4. Sincronizar índice (só roda AGORA que as páginas estão perfeitas)
+      function sincronizarIndice() {
+        const tocs = container.querySelectorAll('.toc-container');
+        if (tocs.length > 1) {
+          for (let i = 1; i < tocs.length; i++) {
+            tocs[i].closest('.page-container')?.remove();
+          }
+        }
+        const mainToc = tocs[0];
+        if (!mainToc) return;
+
+        const selector = indexShowSubtopics ?
+          'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
+          'h1.chapter-title-exclusive, h2.chapter-title-inline';
+        const titulos = container.querySelectorAll(selector);
+        const titulosVistos = new Set();
+
+        mainToc.innerHTML = '';
+
+        titulos.forEach((titleEl) => {
+          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+          let texto = titleEl.textContent?.trim() || '';
+          if (/índice|sumário/i.test(texto)) return;
+
+          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
+          if (titulosVistos.has(chave)) return;
+          titulosVistos.add(chave);
+
+          if (!titleEl.id) {
+            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+          }
+
+          const a = document.createElement('a');
+          a.className = 'toc-item';
+          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+            a.classList.add('toc-main-chapter');
+            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
+            a.style.color = 'var(--color-primary)';
+          } else if (titleEl.tagName === 'H3') {
+            a.classList.add('toc-subtopic');
+            a.style.paddingLeft = '20px';
+            a.style.fontSize = '0.9em';
+            a.style.opacity = '0.85';
+            a.style.fontWeight = '400';
+            if (!indexShowSubtopics) {
+              a.style.display = 'none';
+            }
+          }
+
+          a.href = '#' + titleEl.id;
+          const spanTitle = document.createElement('span');
+          spanTitle.innerText = texto;
+          const spanDots = document.createElement('span');
+          spanDots.className = 'toc-dots';
+          const spanPage = document.createElement('span');
+          spanPage.className = 'toc-page-num';
+
+          a.appendChild(spanTitle);
+          a.appendChild(spanDots);
+          a.appendChild(spanPage);
+          mainToc.appendChild(a);
+        });
+
+        const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+        const pageArray = Array.from(allPages);
+        document.querySelectorAll('.toc-item').forEach(item => {
+          const href = item.getAttribute('href');
+          if (!href || !href.startsWith('#')) return;
+          const target = document.getElementById(href.substring(1));
+          if (target) {
+            const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+            if (page) {
+              const idx = pageArray.indexOf(page) + 1;
+              const numSpan = item.querySelector('.toc-page-num');
+              if (numSpan) numSpan.innerText = String(idx);
+            }
+          }
+        });
+      }
+
+      sincronizarIndice();
+
+      // Fundo da segunda página (Mantido do seu original)
+      let chIndex = 0;
+      let currentChapterImg = '';
+      container.querySelectorAll('.page-container').forEach((p) => {
+        const imgEl = p.querySelector('.chapter-banner-img');
+
+        if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
+          chIndex = 1;
+          if (imgEl) {
+            currentChapterImg = imgEl.src;
+          } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+            const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
+            if (match) currentChapterImg = match[1];
+          }
+        } else {
+          chIndex++;
+        }
+
+        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
+          p.classList.add('chapter-page-2');
+          let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
+          if (finalBgUrl && finalBgUrl.trim() !== '') {
+            p.dataset.bgUrl = finalBgUrl;
+            if (ativarBgSegundaPagina) {
+              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
+              p.style.setProperty('background-size', 'cover', 'important');
+              p.style.setProperty('background-position', 'center', 'important');
+            } else {
+              p.style.removeProperty('background-image');
+              p.style.removeProperty('background-size');
+              p.style.removeProperty('background-position');
+            }
+          }
+        } else {
+          p.classList.remove('chapter-page-2');
+          if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
+            if (!p.hasAttribute('data-custom-bg')) {
+              p.style.removeProperty('background-image');
+              p.style.removeProperty('background-size');
+              p.style.removeProperty('background-position');
+            }
+          }
+        }
+      });
+    }
+
+    // Executa após carregamento
     if (document.readyState === 'complete') {
       executarRefluxoCompleto();
     } else {
       window.addEventListener('load', () => {
         executarRefluxoCompleto();
+        // Reexecuta após imagens carregarem
         setTimeout(executarRefluxoCompleto, 500);
       });
     }
 
+    // Escuta mensagens do parent para atualizações
     window.addEventListener('message', (e) => {
-      if (e.data.type === 'TOGGLE_EDIT_MODE') { /* no-op */ }
+      if (e.data.type === 'TOGGLE_EDIT_MODE') {
+        // Apenas notifica que o modo mudou (já tratado no componente pai)
+      }
       if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
         setTimeout(executarRefluxoCompleto, 100);
       }
@@ -264,25 +488,25 @@ function getScriptPreview(
       }
     });
 
+    // Também reage a mudanças no DOM
     const observer = new MutationObserver(() => {
-      if (isReflowing) return;
+      // Debounce simples
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
-    const container = document.getElementById('ebook-container');
-    if (container) {
-      observer.observe(container, { childList: true, subtree: true });
-    }
+    observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
+
   })();
 </script>
   `;
 }
 
 // ============================================================
-// COMPONENTE PRINCIPAL
+// COMPONENTE PRINCIPAL (Home)
 // ============================================================
 
 export default function Home() {
+  // Estados principais
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
@@ -312,12 +536,12 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
-  // Fundo da segunda página
+  // Fundo da 2ª página
   const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
   const [bgSegundaPaginaUrl, setBgSegundaPaginaUrl] = useState('');
   const [bgSegundaPaginaOpacidade, setBgSegundaPaginaOpacidade] = useState('0.85');
 
-  // Dados do livro
+  // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
@@ -327,6 +551,7 @@ export default function Home() {
     'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="30%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="70%25" style="stop-color:%230a2342;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E'
   );
 
+  // Etapas
   const [etapaAtual, setEtapaAtual] = useState<0 | 1 | 2 | 3>(0);
 
   // Biblioteca e modais
@@ -338,22 +563,11 @@ export default function Home() {
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
 
-  // Estado para o prompt da IA no modo inspetor
-  const [aiPromptLocal, setAiPromptLocal] = useState('');
-
   // Refs para uploads
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-
-  // ============================================================
-  // FUNÇÃO GERAR PDF COM jsPDF (RESTAURADA)
-  // ============================================================
-  async function gerarEbookPDF(textoBruto: string) {
-    if (!textoBruto) {
-      (window as any).showNotification('Nenhum conteúdo para gerar PDF.', 'error');
-      return;
-    }
+async function gerarEbookPDF(textoBruto: string) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -368,7 +582,7 @@ export default function Home() {
     const lines = textoBruto.split('\n');
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim();
+      let line = lines[i].trim(); // <--- É esta linha que define a variável 'line'
       if (line === '') {
           yPos += lineHeight;
           if (yPos > pageBottom) { doc.addPage(); yPos = margin; }
@@ -418,13 +632,13 @@ export default function Home() {
       yPos += 3;
     }
 
-    // Gera o PDF e abre em nova janela (ou baixa)
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    const pdfBlobUrl = String(doc.output('bloburl'));
+    const iframe = previewFrameRef.current;
+    if (iframe) {
+      iframe.removeAttribute('srcdoc'); 
+      iframe.src = pdfBlobUrl; 
+    }
   }
-
   // ============================================================
   // FUNÇÕES AUXILIARES
   // ============================================================
@@ -470,6 +684,7 @@ export default function Home() {
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
+    // Limpa estilos invasivos
     clean = clean.replace(/<p\s+[^>]*>/gi, '<p>');
 
     return clean.trim();
@@ -512,6 +727,7 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
+/* BLINDAGEM CONTRA VAZAMENTO LATERAL E OVERFLOW */
 #ebook-container * {
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -555,7 +771,7 @@ img.chapter-banner-img {
   margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden !important;
+  overflow: hidden !important; /* <-- BLINDAGEM CRÍTICA */
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
@@ -678,10 +894,11 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
+/* ORDEM DO CAPÍTULO: IMAGEM PRIMEIRO, DEPOIS TÍTULO */
 .chapter-title-inline {
   text-align: center;
   font-size: 2.1rem;
-  margin-top: 0.5rem;
+  margin-top: 0.5rem;   /* reduzido porque agora vem depois da imagem */
   margin-bottom: 1.2rem;
   color: var(--color-primary);
   font-weight: 800;
@@ -823,6 +1040,9 @@ ${ebookStyles}
 </html>`;
   }
 
+  // ============================================================
+  // FUNÇÕES DE ATUALIZAÇÃO DA CAPA
+  // ============================================================
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
     const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
@@ -839,14 +1059,24 @@ ${ebookStyles}
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
 
+  // ============================================================
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
+  // ============================================================
   function ajustarParagrafos(html: string): string {
+    // Cria um parser simples para ajustar o comprimento dos parágrafos
+    // sem quebrar a estrutura HTML.
+    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
+    // se tiver mais de 600, tenta quebrar em dois parágrafos.
+    // Isso garante uma consistência visual sem depender da IA.
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     const paragrafos = tempDiv.querySelectorAll('p');
     paragrafos.forEach(p => {
       let texto = p.textContent || '';
+      // Remove espaços extras
       texto = texto.replace(/\s+/g, ' ').trim();
       if (texto.length > 600) {
+        // Tenta quebrar na última frase antes de 450 caracteres
         const mid = Math.min(450, texto.length);
         let breakPos = texto.lastIndexOf('. ', mid);
         if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
@@ -854,6 +1084,7 @@ ${ebookStyles}
         if (breakPos !== -1) {
           const p1 = texto.substring(0, breakPos + 1);
           const p2 = texto.substring(breakPos + 2);
+          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
           p.textContent = p1;
           const novoP = document.createElement('p');
           novoP.textContent = p2;
@@ -864,6 +1095,9 @@ ${ebookStyles}
     return tempDiv.innerHTML;
   }
 
+  // ============================================================
+  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
+  // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
     if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
 
@@ -889,7 +1123,7 @@ ${ebookStyles}
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = ajustarParagrafos(novoConteudo);
+    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -898,11 +1132,7 @@ ${ebookStyles}
       htmlFinal = moldarApresentacaoHtml(novoConteudo);
     }
 
-    setHistoricoCodigo((prev) => {
-      const novo = [...prev, htmlAtual];
-      if (novo.length > 30) novo.shift();
-      return novo;
-    });
+    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
 
@@ -915,6 +1145,9 @@ ${ebookStyles}
     }
   }
 
+  // ============================================================
+  // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
+  // ============================================================
   function gerarPaginaAviso() {
     const ano = new Date().getFullYear();
     return `
@@ -1037,11 +1270,7 @@ ${ebookStyles}
       novoHtml = htmlAtualStr + '\n' + paginaHtml;
     }
 
-    setHistoricoCodigo((prev) => {
-      const novo = [...prev, htmlAtual];
-      if (novo.length > 30) novo.shift();
-      return novo;
-    });
+    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
     const htmlFinal = moldarApresentacaoHtml(novoHtml);
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
@@ -1055,6 +1284,9 @@ ${ebookStyles}
     (window as any).showNotification('Página extra inserida com sucesso!', 'success');
   }
 
+  // ============================================================
+  // FUNÇÕES DE EDIÇÃO E INSPETOR
+  // ============================================================
   function toggleInspetor() {
     const newMode = !modoInspetor;
     setModoInspetor(newMode);
@@ -1113,6 +1345,9 @@ ${ebookStyles}
     (window as any).showNotification('Ação desfeita com sucesso.', 'success');
   }
 
+  // ============================================================
+  // BUSCA DE IMAGEM UNSPLASH
+  // ============================================================
   async function buscarImagemUnsplash() {
     if (!elementoSelecionado) {
       (window as any).showNotification('Selecione um elemento (imagem ou fundo) primeiro.', 'error');
@@ -1122,7 +1357,7 @@ ${ebookStyles}
 
     let keyword = 'abstract';
     try {
-      const instrucao = 'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais, tecnologia, sci-fi, desenhos, ilustrações ou gráficos animados. USE APENAS FOTOS REAIS**.';
+      const instrucao = 'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais (cat, dog, pet, animal), tecnologia, sci-fi, desenhos, ilustrações ou gráficos animados. USE APENAS FOTOS REAIS**.';
       const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
       if (data && data.html) {
         keyword = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[^a-zA-Z0-9]/g, '');
@@ -1176,19 +1411,19 @@ ${ebookStyles}
     }
   }
 
+  // ============================================================
+  // EDIÇÃO LOCAL COM IA
+  // ============================================================
   async function aplicarModificacaoLocal() {
-    const comando = aiPromptLocal.trim();
+    const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
+    const comando = input?.value.trim();
     if (!comando) {
       (window as any).showNotification('Digite o que alterar neste elemento.', 'error');
       return;
     }
     if (!elementoSelecionado) return;
 
-    setHistoricoCodigo((prev) => {
-      const novo = [...prev, htmlAtual];
-      if (novo.length > 30) novo.shift();
-      return novo;
-    });
+    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
     const paleta = getPaletaObj();
 
     const instrucao = `Você é um Assistente Editorial. O usuário selecionou um trecho específico de HTML de um e-book.
@@ -1219,11 +1454,14 @@ Mantenha a consistência visual com o resto do e-book.`;
       }
 
       setElementoSelecionado(null);
-      setAiPromptLocal('');
+      input.value = '';
       (window as any).showNotification('Trecho modificado com sucesso!', 'success');
     }
   }
 
+  // ============================================================
+  // FUNÇÕES DE GERENCIAMENTO DE BIBLIOTECA E ARQUIVOS
+  // ============================================================
   function salvarNaBiblioteca() {
     if (!livroTitulo || livroTitulo.trim() === '') {
       (window as any).showNotification('Dê um título ao E-book antes de salvar.', 'error');
@@ -1335,6 +1573,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
+  // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
     const regex = /Capítulo\s*(\d+)/gi;
@@ -1347,6 +1588,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
+// ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
+  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
@@ -1360,15 +1604,20 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
-     - Adapte 100% o seu tom de escrita ao tema solicitado.
-     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato A4. Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos.
-  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
+     - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
+     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
+  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
 
     return { regrasCompletas, numero };
   }
 
+  // ============================================================
+  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
+  // ============================================================
+
+  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
   async function iniciarEbookEtapas() {
     const content = productContent.trim();
     if (!content) {
@@ -1420,6 +1669,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1461,6 +1711,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
@@ -1492,11 +1743,14 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // CHAMADA À API
+  // ============================================================
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token || '';
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000);
@@ -1519,14 +1773,14 @@ Mantenha a consistência visual com o resto do e-book.`;
       clearTimeout(timeoutId);
 
       const responseText = await response.text();
-      let dataJson;
+      let data;
       try {
-        dataJson = JSON.parse(responseText);
+        data = JSON.parse(responseText);
       } catch (err) {
         throw new Error(`Erro no Servidor (${response.status}): ${responseText.substring(0, 80)}`);
       }
-      if (!dataJson.success) throw new Error(dataJson.error || 'Erro retornado pela API.');
-      return dataJson;
+      if (!data.success) throw new Error(data.error || 'Erro retornado pela API.');
+      return data;
     } catch (err: any) {
       let errorMsg = err.message;
       if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) {
@@ -1545,9 +1799,8 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ============================================================
-  // EFEITOS
+  // EFEITOS (CARREGAR DADOS, SINCRONIZAR, ATUALIZAR)
   // ============================================================
-
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
@@ -1570,14 +1823,9 @@ Mantenha a consistência visual com o resto do e-book.`;
       }, 4000);
     };
 
-    // Função de PDF: se tiver conteúdo bruto (productContent), gera via jsPDF, senão imprime
     (window as any).baixarPdf = () => {
-      if (productContent && productContent.trim()) {
-        gerarEbookPDF(productContent);
-      } else if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
         previewFrameRef.current.contentWindow.print();
-      } else {
-        (window as any).showNotification('Nenhum conteúdo para gerar PDF.', 'error');
       }
     };
 
@@ -1598,6 +1846,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, []);
 
+  // Atualiza a capa quando título/autor mudam
   useEffect(() => {
     if (htmlAtual && (livroTitulo || livroAutores)) {
       const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
@@ -1612,6 +1861,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, [livroTitulo, livroAutores]);
 
+  // Sincroniza mensagens do iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
@@ -1620,19 +1870,13 @@ Mantenha a consistência visual com o resto do e-book.`;
         if (modoInspetor) {
           setHistoricoCodigo((prev) => {
             if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
-            const novo = [...prev, htmlAtual];
-            if (novo.length > 30) novo.shift();
-            return novo;
+            return [...prev, htmlAtual];
           });
           setHtmlAtual(htmlLimpo);
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(false);
         } else {
-          setHistoricoCodigo((prev) => {
-            const novo = [...prev, htmlAtual];
-            if (novo.length > 30) novo.shift();
-            return novo;
-          });
+          setHistoricoCodigo((prev) => [...prev, htmlAtual]);
           setHtmlAtual(htmlLimpo);
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(true);
@@ -1646,12 +1890,14 @@ Mantenha a consistência visual com o resto do e-book.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
+  // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
+  // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
@@ -1670,7 +1916,6 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // RENDER
   // ============================================================
-
   return (
     <>
       <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
@@ -2206,11 +2451,10 @@ Mantenha a consistência visual com o resto do e-book.`;
                           <i className="fas fa-magic text-yellow-500"></i> Editar este trecho com IA
                         </label>
                         <textarea
+                          id="ai_prompt_local"
                           rows={2}
                           className="input-standard text-xs mb-2 border-indigo-200 shadow-inner"
                           placeholder="Ex: Reescreva este parágrafo em um tom mais persuasivo..."
-                          value={aiPromptLocal}
-                          onChange={(e) => setAiPromptLocal(e.target.value)}
                         ></textarea>
                         <button
                           onClick={aplicarModificacaoLocal}
@@ -2433,7 +2677,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                 onClick={() => (window as any).baixarPdf()}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md shadow-indigo-200 transition flex items-center gap-2"
               >
-                <i className="fas fa-print"></i> Gerar PDF
+                <i className="fas fa-print"></i> Imprimir / PDF
               </button>
             </div>
           </header>
