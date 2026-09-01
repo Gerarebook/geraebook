@@ -2135,8 +2135,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     className="input-standard bg-white"
   />
 </div>
-                    </div>
-
+                    
                     <div className="grid grid-cols-3 gap-2 pt-1">
                       <button
                         onClick={iniciarEbookEtapas}
