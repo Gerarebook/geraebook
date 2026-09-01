@@ -3,7 +3,6 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 import { jsPDF } from 'jspdf';
-
 // ============================================================
 // FUNÇÕES AUXILIARES DE PAGINAÇÃO E ÍNDICE (UNIFICADAS)
 // ============================================================
@@ -18,18 +17,20 @@ function executarRefluxoCompleto(
 ) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  const c = container;
 
-  const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
+  // --- 1. Limpar páginas existentes (exceto capas e páginas especiais) ---
+  const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
   paginasExistentes.forEach(p => p.remove());
 
-  const todosElementos = Array.from(c.children).filter(el =>
+  // --- 2. Recolher todos os elementos filhos diretos que não são containers de página ---
+  const todosElementos = Array.from(container.children).filter(el =>
     !el.classList.contains('page-container') &&
     el.tagName !== 'STYLE' &&
     el.tagName !== 'SCRIPT'
   );
 
-  function criarNovaPagina(): HTMLElement {
+  // --- 3. Função para criar uma nova página ---
+  function criarNovaPagina() {
     const novaPagina = document.createElement('div');
     novaPagina.className = 'page-container chapter-text-page';
     novaPagina.style.overflow = 'hidden';
@@ -45,62 +46,74 @@ function executarRefluxoCompleto(
     footer.innerHTML = '<span class="page-number"></span>';
     novaPagina.appendChild(footer);
 
-    c.appendChild(novaPagina);
+    container.appendChild(novaPagina);
     return novaPagina;
   }
 
   let paginaAtual = criarNovaPagina();
 
+  // --- 4. Distribuir elementos pelas páginas ---
   todosElementos.forEach(elemento => {
-    const footer = paginaAtual.querySelector('.page-footer') as HTMLElement | null;
+    const footer = paginaAtual.querySelector('.page-footer');
     paginaAtual.insertBefore(elemento, footer);
 
+    // Verifica se estourou a altura
     if (paginaAtual.scrollHeight > alturaMaxima) {
+      // Move o elemento para a nova página
       const novaPagina = criarNovaPagina();
-      const novoFooter = novaPagina.querySelector('.page-footer') as HTMLElement | null;
+      const novoFooter = novaPagina.querySelector('.page-footer');
       novaPagina.insertBefore(elemento, novoFooter);
 
-      const paginaAnterior = paginaAtual.previousElementSibling as HTMLElement | null;
+      // Anti-órfão: se o último elemento da página anterior era um título, move-o junto
+      const paginaAnterior = paginaAtual.previousElementSibling;
       if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
-        const footerAnterior = paginaAnterior.querySelector('.page-footer') as HTMLElement | null;
-        const ultimoElemento = footerAnterior?.previousElementSibling as HTMLElement | null;
+        const footerAnterior = paginaAnterior.querySelector('.page-footer');
+        const ultimoElemento = footerAnterior.previousElementSibling;
         if (ultimoElemento && (ultimoElemento.tagName === 'H2' || ultimoElemento.tagName === 'H3')) {
           novaPagina.insertBefore(ultimoElemento, elemento);
         }
       }
+
       paginaAtual = novaPagina;
     }
   });
 
-  c.querySelectorAll('.page-container').forEach(page => {
+  // --- 5. Remover páginas vazias ---
+  container.querySelectorAll('.page-container').forEach(page => {
     const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
-    if (conteudo.length === 0) page.remove();
+    if (conteudo.length === 0) {
+      page.remove();
+    }
   });
 
+  // --- 6. Sincronizar Índice ---
   function sincronizarIndice() {
-    const tocs = c.querySelectorAll('.toc-container');
+    // Remover índices duplicados e deixar apenas o primeiro
+    const tocs = container.querySelectorAll('.toc-container');
     if (tocs.length > 1) {
       for (let i = 1; i < tocs.length; i++) {
-        const page = tocs[i].closest('.page-container') as HTMLElement | null;
-        if (page) page.remove();
+        tocs[i].closest('.page-container')?.remove();
       }
     }
-    const mainToc = tocs[0] as HTMLElement | null;
+    const mainToc = tocs[0];
     if (!mainToc) return;
 
+    // Coletar títulos
     const selector = indexShowSubtopics
       ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'
       : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
-    const titulos = c.querySelectorAll(selector);
-    const titulosVistos = new Set<string>();
+    const titulos = container.querySelectorAll(selector);
+    const titulosVistos = new Set();
 
     mainToc.innerHTML = '';
 
     titulos.forEach((titleEl) => {
+      // Ignorar títulos de capa, índice, etc.
       if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
       let texto = titleEl.textContent?.trim() || '';
       if (/índice|sumário/i.test(texto)) return;
 
+      // Normalizar para evitar duplicatas
       let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
       if (titulosVistos.has(chave)) return;
       titulosVistos.add(chave);
@@ -121,7 +134,9 @@ function executarRefluxoCompleto(
         a.style.fontSize = '0.9em';
         a.style.opacity = '0.85';
         a.style.fontWeight = '400';
-        if (!indexShowSubtopics) a.style.display = 'none';
+        if (!indexShowSubtopics) {
+          a.style.display = 'none';
+        }
       }
 
       a.href = '#' + titleEl.id;
@@ -138,17 +153,18 @@ function executarRefluxoCompleto(
       mainToc.appendChild(a);
     });
 
-    const allPages = c.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+    // Atualizar números das páginas
+    const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
     const pageArray = Array.from(allPages);
     document.querySelectorAll('.toc-item').forEach(item => {
       const href = item.getAttribute('href');
       if (!href || !href.startsWith('#')) return;
       const target = document.getElementById(href.substring(1));
       if (target) {
-        const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura') as HTMLElement | null;
+        const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
         if (page) {
           const idx = pageArray.indexOf(page) + 1;
-          const numSpan = item.querySelector('.toc-page-num') as HTMLElement | null;
+          const numSpan = item.querySelector('.toc-page-num');
           if (numSpan) numSpan.innerText = String(idx);
         }
       }
@@ -157,17 +173,19 @@ function executarRefluxoCompleto(
 
   sincronizarIndice();
 
+  // --- 7. Aplicar fundo da segunda página (opcional) ---
   let chIndex = 0;
   let currentChapterImg = '';
-  c.querySelectorAll('.page-container').forEach((p) => {
-    const imgEl = p.querySelector('.chapter-banner-img') as HTMLImageElement | null;
+  container.querySelectorAll('.page-container').forEach((p) => {
+    const imgEl = p.querySelector('.chapter-banner-img');
 
+    // Detectar início de capítulo
     if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
       chIndex = 1;
       if (imgEl) {
         currentChapterImg = imgEl.src;
-      } else if ((p as HTMLElement).style.backgroundImage && (p as HTMLElement).style.backgroundImage !== 'none') {
-        const match = (p as HTMLElement).style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
+      } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+        const match = p.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
         if (match) currentChapterImg = match[1];
       }
     } else {
@@ -178,403 +196,305 @@ function executarRefluxoCompleto(
       p.classList.add('chapter-page-2');
       let finalBgUrl = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : currentChapterImg;
       if (finalBgUrl && finalBgUrl.trim() !== '') {
-        (p as HTMLElement).dataset.bgUrl = finalBgUrl;
+        p.dataset.bgUrl = finalBgUrl;
         if (bgEnabled) {
-          (p as HTMLElement).style.setProperty('background-image', `linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${finalBgUrl}')`, 'important');
-          (p as HTMLElement).style.setProperty('background-size', 'cover', 'important');
-          (p as HTMLElement).style.setProperty('background-position', 'center', 'important');
+          p.style.setProperty('background-image', `linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${finalBgUrl}')`, 'important');
+          p.style.setProperty('background-size', 'cover', 'important');
+          p.style.setProperty('background-position', 'center', 'important');
         } else {
-          (p as HTMLElement).style.removeProperty('background-image');
-          (p as HTMLElement).style.removeProperty('background-size');
-          (p as HTMLElement).style.removeProperty('background-position');
+          p.style.removeProperty('background-image');
+          p.style.removeProperty('background-size');
+          p.style.removeProperty('background-position');
         }
       }
     } else {
       p.classList.remove('chapter-page-2');
       if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
         if (!p.hasAttribute('data-custom-bg')) {
-          (p as HTMLElement).style.removeProperty('background-image');
-          (p as HTMLElement).style.removeProperty('background-size');
-          (p as HTMLElement).style.removeProperty('background-position');
+          p.style.removeProperty('background-image');
+          p.style.removeProperty('background-size');
+          p.style.removeProperty('background-position');
         }
       }
     }
   });
 
+  // --- 8. Forçar reflow para ajustar numeração ---
   setTimeout(() => sincronizarIndice(), 50);
 }
 
 // ============================================================
-// FUNÇÕES AUXILIARES: IMAGENS, SUBTÓPICOS E PARÁGRAFOS
+// SCRIPT INJETADO NO IFRAME (com a função unificada)
 // ============================================================
 
-async function buscarImagemUnsplashPorTema(tema: string, sig: string | number): Promise<string> {
-  const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
-  if (!accessKey) {
-    return `https://images.unsplash.com/featured/1200x800/?${encodeURIComponent(tema)}&sig=${sig}`;
-  }
-  try {
-    const response = await fetch(
-      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(tema)}&orientation=landscape`,
-      { headers: { Authorization: `Client-ID ${accessKey}` } }
-    );
-    if (!response.ok) throw new Error('Erro na API Unsplash');
-    const data = await response.json();
-    return data.urls.regular || data.urls.raw;
-  } catch (e) {
-    console.warn('Falha ao buscar imagem no Unsplash, usando fallback:', e);
-    return `https://images.unsplash.com/featured/1200x800/?${encodeURIComponent(tema)}&sig=${sig}`;
-  }
-}
+function executarRefluxoCompleto() {
+      const container = document.getElementById('ebook-container');
+      if (!container) return;
 
-async function substituirImagensPorUnsplash(html: string): Promise<string> {
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  const imgs = tempDiv.querySelectorAll('img.chapter-banner-img');
-  for (const img of imgs) {
-    const src = img.getAttribute('src') || '';
-    let tema = 'abstract';
-    let sig = Date.now().toString();
-    const matchQuery = src.match(/[?&]q=([^&]+)/);
-    if (matchQuery) tema = decodeURIComponent(matchQuery[1]);
-    else {
-      const matchFeatured = src.match(/featured\/[^?]*\/([^?]+)/);
-      if (matchFeatured) tema = decodeURIComponent(matchFeatured[1]);
-    }
-    const matchSig = src.match(/sig=([^&]+)/);
-    if (matchSig) sig = matchSig[1];
+      // 1. Limpa páginas antigas (exceto capas)
+      const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
+      paginasExistentes.forEach(p => p.remove());
 
-    const novaUrl = await buscarImagemUnsplashPorTema(tema, sig);
-    img.setAttribute('src', novaUrl);
-  }
-  return tempDiv.innerHTML;
-}
+      // Pega todos os elementos brutos
+      const elementosIA = Array.from(container.children).filter(el =>
+        !el.classList.contains('page-container') &&
+        el.tagName !== 'STYLE' &&
+        el.tagName !== 'SCRIPT'
+      );
 
-function garantirSubtopico(html: string): string {
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  const chapters = tempDiv.querySelectorAll('h2.chapter-title-inline');
-  chapters.forEach(h2 => {
-    let next = h2.nextElementSibling;
-    while (next && (next.nodeType === 3 || (next.tagName !== 'H3' && next.tagName !== 'P' && next.tagName !== 'IMG'))) {
-      next = next.nextElementSibling;
-    }
-    if (!next || next.tagName !== 'H3') {
-      const h3 = document.createElement('h3');
-      h3.className = 'subtopic-title';
-      const titulo = h2.textContent?.trim() || 'Introdução';
-      h3.textContent = titulo.includes(':') ? titulo.split(':')[1]?.trim() || 'Introdução' : 'Introdução';
-      let insertAfter = h2;
-      while (insertAfter.nextElementSibling && insertAfter.nextElementSibling.tagName === 'IMG') {
-        insertAfter = insertAfter.nextElementSibling as HTMLElement;
+      // Altura máxima super restrita (A4)
+      const ALTURA_MAXIMA = 980;
+
+      function criarNovaPagina() {
+        const novaPagina = document.createElement('div');
+        novaPagina.className = 'page-container chapter-text-page';
+        novaPagina.style.overflow = 'hidden';
+        novaPagina.style.breakAfter = 'page';
+
+        const header = document.createElement('div');
+        header.className = 'page-header';
+        header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
+        novaPagina.appendChild(header);
+
+        // Área restrita apenas para o texto, para podermos medir com precisão
+        const contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        contentArea.style.display = 'flex';
+        contentArea.style.flexDirection = 'column';
+        novaPagina.appendChild(contentArea);
+
+        const footer = document.createElement('div');
+        footer.className = 'page-footer';
+        footer.innerHTML = '<span class="page-number"></span>';
+        novaPagina.appendChild(footer);
+
+        container.appendChild(novaPagina);
+        return { pagina: novaPagina, areaTexto: contentArea };
       }
-      insertAfter.parentNode?.insertBefore(h3, insertAfter.nextSibling);
-    }
-  });
-  return tempDiv.innerHTML;
-}
 
-function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  const paragrafos = tempDiv.querySelectorAll('p');
-  paragrafos.forEach(p => {
-    const texto = p.textContent?.trim() || '';
-    const palavras = texto.split(/\s+/).filter(w => w.length > 0);
-    if (palavras.length >= palavrasAlvo - 5 && palavras.length <= palavrasAlvo + 5) {
-      return;
-    }
-    if (palavras.length > palavrasAlvo + 10) {
-      const ponto = Math.min(palavrasAlvo, palavras.length);
-      let breakIndex = -1;
-      for (let i = ponto; i < Math.min(ponto + 20, palavras.length); i++) {
-        const word = palavras[i];
-        if (word.match(/[.!?]$/)) {
-          breakIndex = i;
-          break;
+      if (elementosIA.length === 0) return;
+
+      let atual = criarNovaPagina();
+
+      // 2. Loop de Paginação Rigoroso
+      for (let i = 0; i < elementosIA.length; i++) {
+        let el = elementosIA[i];
+        atual.areaTexto.appendChild(el);
+
+        // O elemento fez a página estourar?
+        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+          
+          // Se for um parágrafo longo, fatiamos palavra por palavra
+          if (el.tagName === 'P') {
+            let textoOriginal = el.innerHTML;
+            let palavras = textoOriginal.split(' ');
+            
+            el.innerHTML = ''; 
+            let pIndex = 0;
+
+            // Preenche até o limite exato
+            while (pIndex < palavras.length) {
+              el.innerHTML += palavras[pIndex] + ' ';
+              
+              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+                // Remove a última palavra que causou o estouro
+                let htmlAtual = el.innerHTML;
+                el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+                break;
+              }
+              pIndex++;
+            }
+
+            // O texto que sobrou vira um novo elemento
+            let textoRestante = palavras.slice(pIndex).join(' ');
+            atual = criarNovaPagina();
+            
+            if (textoRestante.trim() !== '') {
+               let novoParagrafo = document.createElement('p');
+               novoParagrafo.innerHTML = textoRestante;
+               // Insere o restante de volta no loop para ser processado na nova folha
+               elementosIA.splice(i + 1, 0, novoParagrafo);
+            }
+          } 
+          // Se for uma imagem ou título, joga o bloco inteiro pra próxima página
+          else {
+            atual = criarNovaPagina();
+            atual.areaTexto.appendChild(el);
+          }
         }
       }
-      if (breakIndex === -1) breakIndex = ponto;
-      const p1 = palavras.slice(0, breakIndex + 1).join(' ');
-      const p2 = palavras.slice(breakIndex + 1).join(' ');
-      p.textContent = p1;
-      const novoP = document.createElement('p');
-      novoP.textContent = p2;
-      p.parentNode?.insertBefore(novoP, p.nextSibling);
-    }
-  });
-  return tempDiv.innerHTML;
-}
 
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (CORRIGIDO SEM LOOP)
-// ============================================================
-
-function getScriptPreview(
-  indexShowSubtopics: boolean,
-  ativarBgSegundaPagina: boolean,
-  bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string
-) {
-  return `
-<script>
-  (function() {
-    let _reflowing = false;
-    let _lastHtml = '';
-
-    function executarRefluxoCompleto() {
-      if (_reflowing) return;
-      _reflowing = true;
-      try {
-        const container = document.getElementById('ebook-container');
-        if (!container) return;
-        const c = container;
-
-        const currentHtml = c.innerHTML;
-        if (currentHtml === _lastHtml) {
-          return;
+      // 3. Limpeza Final
+      container.querySelectorAll('.page-container').forEach(page => {
+        const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
+        if (conteudo.length === 0) {
+          page.remove();
         }
-        _lastHtml = currentHtml;
+      });
 
-        const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
-        paginasExistentes.forEach(p => p.remove());
+      // 4. Sincronizar índice (só roda AGORA que as páginas estão perfeitas)
+      function sincronizarIndice() {
+        const tocs = container.querySelectorAll('.toc-container');
+        if (tocs.length > 1) {
+          for (let i = 1; i < tocs.length; i++) {
+            tocs[i].closest('.page-container')?.remove();
+          }
+        }
+        const mainToc = tocs[0];
+        if (!mainToc) return;
 
-        const elementosIA = Array.from(c.children).filter(el =>
-          !el.classList.contains('page-container') &&
-          el.tagName !== 'STYLE' &&
-          el.tagName !== 'SCRIPT'
-        );
+        const selector = indexShowSubtopics ?
+          'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
+          'h1.chapter-title-exclusive, h2.chapter-title-inline';
+        const titulos = container.querySelectorAll(selector);
+        const titulosVistos = new Set();
 
-        const ALTURA_MAXIMA = 980;
+        mainToc.innerHTML = '';
 
-        function criarNovaPagina() {
-          const novaPagina = document.createElement('div');
-          novaPagina.className = 'page-container chapter-text-page';
-          novaPagina.style.overflow = 'hidden';
-          novaPagina.style.breakAfter = 'page';
+        titulos.forEach((titleEl) => {
+          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+          let texto = titleEl.textContent?.trim() || '';
+          if (/índice|sumário/i.test(texto)) return;
 
-          const header = document.createElement('div');
-          header.className = 'page-header';
-          header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
-          novaPagina.appendChild(header);
+          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
+          if (titulosVistos.has(chave)) return;
+          titulosVistos.add(chave);
 
-          const contentArea = document.createElement('div');
-          contentArea.className = 'content-area';
-          contentArea.style.display = 'flex';
-          contentArea.style.flexDirection = 'column';
-          novaPagina.appendChild(contentArea);
+          if (!titleEl.id) {
+            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+          }
 
-          const footer = document.createElement('div');
-          footer.className = 'page-footer';
-          footer.innerHTML = '<span class="page-number"></span>';
-          novaPagina.appendChild(footer);
+          const a = document.createElement('a');
+          a.className = 'toc-item';
+          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+            a.classList.add('toc-main-chapter');
+            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
+            a.style.color = 'var(--color-primary)';
+          } else if (titleEl.tagName === 'H3') {
+            a.classList.add('toc-subtopic');
+            a.style.paddingLeft = '20px';
+            a.style.fontSize = '0.9em';
+            a.style.opacity = '0.85';
+            a.style.fontWeight = '400';
+            if (!indexShowSubtopics) {
+              a.style.display = 'none';
+            }
+          }
 
-          c.appendChild(novaPagina);
-          return { pagina: novaPagina, areaTexto: contentArea };
+          a.href = '#' + titleEl.id;
+          const spanTitle = document.createElement('span');
+          spanTitle.innerText = texto;
+          const spanDots = document.createElement('span');
+          spanDots.className = 'toc-dots';
+          const spanPage = document.createElement('span');
+          spanPage.className = 'toc-page-num';
+
+          a.appendChild(spanTitle);
+          a.appendChild(spanDots);
+          a.appendChild(spanPage);
+          mainToc.appendChild(a);
+        });
+
+        const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+        const pageArray = Array.from(allPages);
+        document.querySelectorAll('.toc-item').forEach(item => {
+          const href = item.getAttribute('href');
+          if (!href || !href.startsWith('#')) return;
+          const target = document.getElementById(href.substring(1));
+          if (target) {
+            const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+            if (page) {
+              const idx = pageArray.indexOf(page) + 1;
+              const numSpan = item.querySelector('.toc-page-num');
+              if (numSpan) numSpan.innerText = String(idx);
+            }
+          }
+        });
+      }
+
+      sincronizarIndice();
+
+      // Fundo da segunda página (Mantido do seu original)
+      let chIndex = 0;
+      let currentChapterImg = '';
+      container.querySelectorAll('.page-container').forEach((p) => {
+        const imgEl = p.querySelector('.chapter-banner-img');
+
+        if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
+          chIndex = 1;
+          if (imgEl) {
+            currentChapterImg = imgEl.src;
+          } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+            const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
+            if (match) currentChapterImg = match[1];
+          }
+        } else {
+          chIndex++;
         }
 
-        if (elementosIA.length === 0) return;
-
-        let atual = criarNovaPagina();
-
-        for (let i = 0; i < elementosIA.length; i++) {
-          let el = elementosIA[i];
-          atual.areaTexto.appendChild(el);
-
-          if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-            if (el.tagName === 'P') {
-              let textoOriginal = el.innerHTML;
-              let palavras = textoOriginal.split(' ');
-              el.innerHTML = '';
-              let pIndex = 0;
-              while (pIndex < palavras.length) {
-                el.innerHTML += palavras[pIndex] + ' ';
-                if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-                  let htmlAtual = el.innerHTML;
-                  el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
-                  break;
-                }
-                pIndex++;
-              }
-              let textoRestante = palavras.slice(pIndex).join(' ');
-              atual = criarNovaPagina();
-              if (textoRestante.trim() !== '') {
-                let novoParagrafo = document.createElement('p');
-                novoParagrafo.innerHTML = textoRestante;
-                elementosIA.splice(i + 1, 0, novoParagrafo);
-              }
+        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
+          p.classList.add('chapter-page-2');
+          let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
+          if (finalBgUrl && finalBgUrl.trim() !== '') {
+            p.dataset.bgUrl = finalBgUrl;
+            if (ativarBgSegundaPagina) {
+              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
+              p.style.setProperty('background-size', 'cover', 'important');
+              p.style.setProperty('background-position', 'center', 'important');
             } else {
-              atual = criarNovaPagina();
-              atual.areaTexto.appendChild(el);
+              p.style.removeProperty('background-image');
+              p.style.removeProperty('background-size');
+              p.style.removeProperty('background-position');
+            }
+          }
+        } else {
+          p.classList.remove('chapter-page-2');
+          if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
+            if (!p.hasAttribute('data-custom-bg')) {
+              p.style.removeProperty('background-image');
+              p.style.removeProperty('background-size');
+              p.style.removeProperty('background-position');
             }
           }
         }
-
-        c.querySelectorAll('.page-container').forEach(page => {
-          const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
-          if (conteudo.length === 0) {
-            page.remove();
-          }
-        });
-
-        function sincronizarIndice() {
-          const tocs = c.querySelectorAll('.toc-container');
-          if (tocs.length > 1) {
-            for (let i = 1; i < tocs.length; i++) {
-              const page = tocs[i].closest('.page-container');
-              if (page) page.remove();
-            }
-          }
-          const mainToc = tocs[0];
-          if (!mainToc) return;
-
-          const selector = ${indexShowSubtopics} ?
-            'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
-            'h1.chapter-title-exclusive, h2.chapter-title-inline';
-          const titulos = c.querySelectorAll(selector);
-          const titulosVistos = new Set();
-
-          mainToc.innerHTML = '';
-
-          titulos.forEach((titleEl) => {
-            if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
-            let texto = titleEl.textContent?.trim() || '';
-            if (/índice|sumário/i.test(texto)) return;
-
-            let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
-            if (titulosVistos.has(chave)) return;
-            titulosVistos.add(chave);
-
-            if (!titleEl.id) {
-              titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
-            }
-
-            const a = document.createElement('a');
-            a.className = 'toc-item';
-            if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
-              a.classList.add('toc-main-chapter');
-              a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
-              a.style.color = 'var(--color-primary)';
-            } else if (titleEl.tagName === 'H3') {
-              a.classList.add('toc-subtopic');
-              a.style.paddingLeft = '20px';
-              a.style.fontSize = '0.9em';
-              a.style.opacity = '0.85';
-              a.style.fontWeight = '400';
-              if (!${indexShowSubtopics}) {
-                a.style.display = 'none';
-              }
-            }
-
-            a.href = '#' + titleEl.id;
-            const spanTitle = document.createElement('span');
-            spanTitle.innerText = texto;
-            const spanDots = document.createElement('span');
-            spanDots.className = 'toc-dots';
-            const spanPage = document.createElement('span');
-            spanPage.className = 'toc-page-num';
-
-            a.appendChild(spanTitle);
-            a.appendChild(spanDots);
-            a.appendChild(spanPage);
-            mainToc.appendChild(a);
-          });
-
-          const allPages = c.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-          const pageArray = Array.from(allPages);
-          document.querySelectorAll('.toc-item').forEach(item => {
-            const href = item.getAttribute('href');
-            if (!href || !href.startsWith('#')) return;
-            const target = document.getElementById(href.substring(1));
-            if (target) {
-              const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-              if (page) {
-                const idx = pageArray.indexOf(page) + 1;
-                const numSpan = item.querySelector('.toc-page-num');
-                if (numSpan) numSpan.innerText = String(idx);
-              }
-            }
-          });
-        }
-
-        sincronizarIndice();
-
-        let chIndex = 0;
-        let currentChapterImg = '';
-        c.querySelectorAll('.page-container').forEach((p) => {
-          const imgEl = p.querySelector('.chapter-banner-img');
-
-          if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
-            chIndex = 1;
-            if (imgEl) {
-              currentChapterImg = imgEl.src;
-            } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-              const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
-              if (match) currentChapterImg = match[1];
-            }
-          } else {
-            chIndex++;
-          }
-
-          if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
-            p.classList.add('chapter-page-2');
-            let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
-            if (finalBgUrl && finalBgUrl.trim() !== '') {
-              p.dataset.bgUrl = finalBgUrl;
-              if (${ativarBgSegundaPagina}) {
-                p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
-                p.style.setProperty('background-size', 'cover', 'important');
-                p.style.setProperty('background-position', 'center', 'important');
-              } else {
-                p.style.removeProperty('background-image');
-                p.style.removeProperty('background-size');
-                p.style.removeProperty('background-position');
-              }
-            }
-          } else {
-            p.classList.remove('chapter-page-2');
-            if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
-              if (!p.hasAttribute('data-custom-bg')) {
-                p.style.removeProperty('background-image');
-                p.style.removeProperty('background-size');
-                p.style.removeProperty('background-position');
-              }
-            }
-          }
-        });
-      } catch (err) {
-        console.error('Erro no executarRefluxoCompleto:', err);
-      } finally {
-        _reflowing = false;
-      }
-    }
-
-    let timeoutId;
-
-    if (document.readyState === 'complete') {
-      setTimeout(executarRefluxoCompleto, 100);
-    } else {
-      window.addEventListener('load', () => {
-        setTimeout(executarRefluxoCompleto, 100);
       });
     }
 
+    // Executa após carregamento
+    if (document.readyState === 'complete') {
+      executarRefluxoCompleto();
+    } else {
+      window.addEventListener('load', () => {
+        executarRefluxoCompleto();
+        // Reexecuta após imagens carregarem
+        setTimeout(executarRefluxoCompleto, 500);
+      });
+    }
+
+    // Escuta mensagens do parent para atualizações
     window.addEventListener('message', (e) => {
-      if (e.data.type === 'TOGGLE_EDIT_MODE') { /* no-op */ }
-      if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE' || e.data.type === 'UPDATE_ELEMENT' || e.data.type === 'REPLACE_ELEMENT_HTML') {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(executarRefluxoCompleto, 300);
+      if (e.data.type === 'TOGGLE_EDIT_MODE') {
+        // Apenas notifica que o modo mudou (já tratado no componente pai)
+      }
+      if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
+        setTimeout(executarRefluxoCompleto, 100);
+      }
+      if (e.data.type === 'UPDATE_ELEMENT') {
+        setTimeout(executarRefluxoCompleto, 200);
+      }
+      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
+        setTimeout(executarRefluxoCompleto, 200);
       }
     });
 
+    // Também reage a mudanças no DOM
     const observer = new MutationObserver(() => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(executarRefluxoCompleto, 500);
+      // Debounce simples
+      clearTimeout(window._reflowTimeout);
+      window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
-    const container = document.getElementById('ebook-container');
-    if (container) {
-      observer.observe(container, { childList: true, subtree: true });
-    }
+    observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
+
   })();
 </script>
   `;
@@ -585,6 +505,7 @@ function getScriptPreview(
 // ============================================================
 
 export default function Home() {
+  // Estados principais
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
@@ -596,6 +517,7 @@ export default function Home() {
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
 
+  // Configurações de estilo
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -613,10 +535,12 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
+  // Fundo da 2ª página
   const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
   const [bgSegundaPaginaUrl, setBgSegundaPaginaUrl] = useState('');
   const [bgSegundaPaginaOpacidade, setBgSegundaPaginaOpacidade] = useState('0.85');
 
+  // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
@@ -626,7 +550,10 @@ export default function Home() {
     'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="30%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="70%25" style="stop-color:%230a2342;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E'
   );
 
+  // Etapas
   const [etapaAtual, setEtapaAtual] = useState<0 | 1 | 2 | 3>(0);
+
+  // Biblioteca e modais
   const [livrosSalvos, setLivrosSalvos] = useState<{ id: string; titulo: string; data: string; html: string; prompt: string }[]>([]);
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
   const [showModalPagina, setShowModalPagina] = useState(false);
@@ -634,12 +561,83 @@ export default function Home() {
   const [paginaImagem, setPaginaImagem] = useState('');
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
-  const [palavrasPorParagrafo, setPalavrasPorParagrafo] = useState(65);
 
+  // Refs para uploads
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+async function gerarEbookPDF(textoBruto: string) {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const pageBottom = pageHeight - margin;
+    
+    let yPos = margin;
+    doc.setFont("helvetica", "normal");
+    const fontSize = 12;
+    const lineHeight = fontSize * 0.352778 * 1.5;
+    
+    const lines = textoBruto.split('\n');
 
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim(); // <--- É esta linha que define a variável 'line'
+      if (line === '') {
+          yPos += lineHeight;
+          if (yPos > pageBottom) { doc.addPage(); yPos = margin; }
+          continue;
+      }
+
+      if (line.toUpperCase().includes('[CAP]')) {
+        let tituloCapitulo = line.replace(/\[\/?CAP\]/gi, '').replace(/\*\*/g, '').trim();
+        if (yPos > margin) { doc.addPage(); yPos = margin; }
+        doc.setFont("helvetica", "bold").setFontSize(18).setTextColor(37, 99, 235);
+        const titleLines = doc.splitTextToSize(tituloCapitulo, pageWidth - margin * 2);
+        doc.text(titleLines, pageWidth / 2, yPos, { align: 'center' });
+        yPos += (titleLines.length * lineHeight) + 15;
+        continue;
+      }
+
+      if (line.includes('[IMG]')) {
+        const imgH = 60; 
+        if (yPos + imgH > pageBottom) { doc.addPage(); yPos = margin; }
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin, yPos, pageWidth - (margin * 2), imgH, 'F');
+        doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(150, 150, 150);
+        doc.text("Imagem do Capítulo (Banner)", pageWidth / 2, yPos + (imgH / 2), { align: 'center' });
+        yPos += imgH + 15;
+        continue;
+      }
+
+      let isBold = false;
+      if (line.startsWith('**') && line.endsWith('**')) {
+          isBold = true;
+          line = line.replace(/\*\*/g, '');
+          doc.setFont("helvetica", "bold").setFontSize(14).setTextColor(37, 99, 235);
+      } else {
+          doc.setFont("helvetica", "normal").setFontSize(fontSize).setTextColor(0, 0, 0);
+      }
+
+      const textLines = doc.splitTextToSize(line, pageWidth - margin * 2);
+      for (let j = 0; j < textLines.length; j++) {
+        if (yPos + lineHeight > pageBottom) { doc.addPage(); yPos = margin; }
+        if (!isBold && j < textLines.length - 1) {
+             doc.text(textLines[j], margin, yPos, { align: 'justify', maxWidth: pageWidth - margin * 2 });
+        } else {
+             doc.text(textLines[j], margin, yPos);
+        }
+        yPos += lineHeight;
+      }
+      yPos += 3;
+    }
+
+    const pdfBlobUrl = String(doc.output('bloburl'));
+    const iframe = previewFrameRef.current;
+    if (iframe) {
+      iframe.removeAttribute('srcdoc'); 
+      iframe.src = pdfBlobUrl; 
+    }
+  }
   // ============================================================
   // FUNÇÕES AUXILIARES
   // ============================================================
@@ -685,6 +683,7 @@ export default function Home() {
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
+    // Limpa estilos invasivos
     clean = clean.replace(/<p\s+[^>]*>/gi, '<p>');
 
     return clean.trim();
@@ -727,6 +726,7 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
+/* BLINDAGEM CONTRA VAZAMENTO LATERAL E OVERFLOW */
 #ebook-container * {
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -770,7 +770,7 @@ img.chapter-banner-img {
   margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden !important;
+  overflow: hidden !important; /* <-- BLINDAGEM CRÍTICA */
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
@@ -893,10 +893,11 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
+/* ORDEM DO CAPÍTULO: IMAGEM PRIMEIRO, DEPOIS TÍTULO */
 .chapter-title-inline {
   text-align: center;
   font-size: 2.1rem;
-  margin-top: 0.5rem;
+  margin-top: 0.5rem;   /* reduzido porque agora vem depois da imagem */
   margin-bottom: 1.2rem;
   color: var(--color-primary);
   font-weight: 800;
@@ -1038,6 +1039,9 @@ ${ebookStyles}
 </html>`;
   }
 
+  // ============================================================
+  // FUNÇÕES DE ATUALIZAÇÃO DA CAPA
+  // ============================================================
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
     const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
@@ -1054,6 +1058,45 @@ ${ebookStyles}
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
 
+  // ============================================================
+  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
+  // ============================================================
+  function ajustarParagrafos(html: string): string {
+    // Cria um parser simples para ajustar o comprimento dos parágrafos
+    // sem quebrar a estrutura HTML.
+    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
+    // se tiver mais de 600, tenta quebrar em dois parágrafos.
+    // Isso garante uma consistência visual sem depender da IA.
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    const paragrafos = tempDiv.querySelectorAll('p');
+    paragrafos.forEach(p => {
+      let texto = p.textContent || '';
+      // Remove espaços extras
+      texto = texto.replace(/\s+/g, ' ').trim();
+      if (texto.length > 600) {
+        // Tenta quebrar na última frase antes de 450 caracteres
+        const mid = Math.min(450, texto.length);
+        let breakPos = texto.lastIndexOf('. ', mid);
+        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
+        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
+        if (breakPos !== -1) {
+          const p1 = texto.substring(0, breakPos + 1);
+          const p2 = texto.substring(breakPos + 2);
+          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
+          p.textContent = p1;
+          const novoP = document.createElement('p');
+          novoP.textContent = p2;
+          p.parentNode?.insertBefore(novoP, p.nextSibling);
+        }
+      }
+    });
+    return tempDiv.innerHTML;
+  }
+
+  // ============================================================
+  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
+  // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
     if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
 
@@ -1077,22 +1120,15 @@ ${ebookStyles}
     return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true, palavrasAlvo: number = palavrasPorParagrafo) {
+  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = garantirSubtopico(novoConteudo);
-    novoConteudo = await substituirImagensPorUnsplash(novoConteudo);
-    novoConteudo = ajustarParagrafos(novoConteudo, palavrasAlvo);
+    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
 
     let htmlFinal = '';
     if (isInjetar) {
       htmlFinal = injetarHtmlNoFinal(htmlAtual || '', novoConteudo);
     } else {
       htmlFinal = moldarApresentacaoHtml(novoConteudo);
-    }
-
-    // Evita atualização se o HTML final for igual ao atual
-    if (htmlFinal === htmlAtual) {
-      return;
     }
 
     setHistoricoCodigo((prev) => [...prev, htmlAtual]);
@@ -1108,6 +1144,9 @@ ${ebookStyles}
     }
   }
 
+  // ============================================================
+  // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
+  // ============================================================
   function gerarPaginaAviso() {
     const ano = new Date().getFullYear();
     return `
@@ -1231,7 +1270,12 @@ ${ebookStyles}
     }
 
     setHistoricoCodigo((prev) => [...prev, htmlAtual]);
-    aplicarHtmlNovo(novoHtml, false, true, palavrasPorParagrafo);
+    const htmlFinal = moldarApresentacaoHtml(novoHtml);
+    setHtmlAtual(htmlFinal);
+    localStorage.setItem('ebook_draft_html', htmlFinal);
+    if (previewFrameRef.current) {
+      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+    }
 
     setShowModalPagina(false);
     setPaginaTitulo('');
@@ -1239,6 +1283,9 @@ ${ebookStyles}
     (window as any).showNotification('Página extra inserida com sucesso!', 'success');
   }
 
+  // ============================================================
+  // FUNÇÕES DE EDIÇÃO E INSPETOR
+  // ============================================================
   function toggleInspetor() {
     const newMode = !modoInspetor;
     setModoInspetor(newMode);
@@ -1297,7 +1344,10 @@ ${ebookStyles}
     (window as any).showNotification('Ação desfeita com sucesso.', 'success');
   }
 
-  async function buscarImagemUnsplashManual() {
+  // ============================================================
+  // BUSCA DE IMAGEM UNSPLASH
+  // ============================================================
+  async function buscarImagemUnsplash() {
     if (!elementoSelecionado) {
       (window as any).showNotification('Selecione um elemento (imagem ou fundo) primeiro.', 'error');
       return;
@@ -1317,7 +1367,26 @@ ${ebookStyles}
     }
 
     try {
-      const url = await buscarImagemUnsplashPorTema(keyword, Date.now());
+      const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '';
+      let url = '';
+
+      if (accessKey) {
+        const unsplashRes = await fetch(`https://api.unsplash.com/photos/random?query=${encodeURIComponent(keyword)}&orientation=landscape`, {
+          headers: {
+            Authorization: `Client-ID ${accessKey}`
+          }
+        });
+
+        if (!unsplashRes.ok) throw new Error('Erro ao autenticar na API do Unsplash. Verifique sua chave.');
+
+        const unsplashData = await unsplashRes.json();
+        url = unsplashData.urls.regular;
+      } else {
+        const termoDinamico = encodeURIComponent((elementoSelecionado?.innerText || "chapter portrait") + " real human photography");
+        url = `https://images.unsplash.com/featured/?${termoDinamico}`;
+        (window as any).showNotification('Imagem dinâmica aplicada por tema.', 'warning');
+      }
+
       const isImg = elementoSelecionado.tagName === 'img';
       const field = isImg ? 'src' : 'bgImage';
 
@@ -1341,9 +1410,12 @@ ${ebookStyles}
     }
   }
 
+  // ============================================================
+  // EDIÇÃO LOCAL COM IA
+  // ============================================================
   async function aplicarModificacaoLocal() {
-    const input = document.getElementById('ai_prompt_local') as HTMLInputElement | null;
-    const comando = input?.value.trim() || '';
+    const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
+    const comando = input?.value.trim();
     if (!comando) {
       (window as any).showNotification('Digite o que alterar neste elemento.', 'error');
       return;
@@ -1381,11 +1453,14 @@ Mantenha a consistência visual com o resto do e-book.`;
       }
 
       setElementoSelecionado(null);
-      if (input) input.value = '';
+      input.value = '';
       (window as any).showNotification('Trecho modificado com sucesso!', 'success');
     }
   }
 
+  // ============================================================
+  // FUNÇÕES DE GERENCIAMENTO DE BIBLIOTECA E ARQUIVOS
+  // ============================================================
   function salvarNaBiblioteca() {
     if (!livroTitulo || livroTitulo.trim() === '') {
       (window as any).showNotification('Dê um título ao E-book antes de salvar.', 'error');
@@ -1408,7 +1483,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     setLivroTitulo(livro.titulo);
     setProductContent(livro.prompt || '');
     setEtapaAtual(0);
-    aplicarHtmlNovo(livro.html, false, true, palavrasPorParagrafo);
+    aplicarHtmlNovo(livro.html, false, true);
     setModalBiblioteca(false);
     (window as any).showNotification(`Livro "${livro.titulo}" carregado.`, 'success');
   }
@@ -1440,7 +1515,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     reader.onload = (ev) => {
       const content = ev.target?.result as string;
       if (content) {
-        aplicarHtmlNovo(content, false, true, palavrasPorParagrafo);
+        aplicarHtmlNovo(content, false, true);
         (window as any).showNotification('Arquivo importado com sucesso!', 'success');
       }
     };
@@ -1497,6 +1572,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
+  // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
     const regex = /Capítulo\s*(\d+)/gi;
@@ -1509,10 +1587,12 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
-  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string, palavrasAlvo?: number }) {
+// ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
+  // ============================================================
+  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
-    const palavrasAlvo = opts?.palavrasAlvo || palavrasPorParagrafo;
 
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
@@ -1524,8 +1604,7 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre ${palavrasAlvo-5} e ${palavrasAlvo+5} palavras.
-     - Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos.
+     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
   4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
@@ -1533,6 +1612,11 @@ Mantenha a consistência visual com o resto do e-book.`;
     return { regrasCompletas, numero };
   }
 
+  // ============================================================
+  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
+  // ============================================================
+
+  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
   async function iniciarEbookEtapas() {
     const content = productContent.trim();
     if (!content) {
@@ -1540,7 +1624,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasCompletas } = obterInstrucoesBase({ numeroCapitulo: 1, tema: livroTitulo || 'geral', palavrasAlvo: palavrasPorParagrafo });
+    const { regrasCompletas } = obterInstrucoesBase({ numeroCapitulo: 1, tema: livroTitulo || 'geral' });
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
@@ -1572,12 +1656,11 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. PARE AQUI! NÃO gere Capítulos! Apenas devolva a Capa, o Aviso, o Índice e a Introdução.
     2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto, linha ou lista dentro.
     3. Não use imagens na introdução.
-    4. Use exatamente os placeholders [Parágrafo 1] etc. – serão preenchidos pela IA.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
     if (data && data.html) {
-      await aplicarHtmlNovo(data.html, false, true, palavrasPorParagrafo);
+      aplicarHtmlNovo(data.html, false, true);
       setEtapaAtual(1);
       (window as any).showNotification('Passo 1 Concluído! Capa, Aviso, Índice e Introdução gerados.', 'success');
     } else {
@@ -1585,6 +1668,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1596,9 +1680,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     const proximoNumero = getNextChapterNumber(currentHtml);
     const temaBase = livroTitulo || 'geral';
 
-    const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, tema: temaBase, palavrasAlvo: palavrasPorParagrafo });
-    const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase, palavrasAlvo: palavrasPorParagrafo });
-    const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase, palavrasAlvo: palavrasPorParagrafo });
+    const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, tema: temaBase });
+    const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
+    const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
     const instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
@@ -1618,7 +1702,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     ], false);
 
     if (data && data.html) {
-      await aplicarHtmlNovo(data.html, true, true, palavrasPorParagrafo);
+      aplicarHtmlNovo(data.html, true, true);
       setEtapaAtual(2);
       (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
     } else {
@@ -1626,6 +1710,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
@@ -1635,7 +1720,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
     DIRETRIZES:
     1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
-    2. MOLDE DE CONCLUSÃO (cada parágrafo deve ter entre ${palavrasPorParagrafo-5} e ${palavrasPorParagrafo+5} palavras):
+    2. MOLDE DE CONCLUSÃO:
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
         <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
@@ -1649,7 +1734,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
     if (data && data.html) {
       let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
-      await aplicarHtmlNovo(htmlFinal, true, true, palavrasPorParagrafo);
+      aplicarHtmlNovo(htmlFinal, true, true);
       setEtapaAtual(3);
       (window as any).showNotification('Passo 3 Concluído! Conclusão e Autor gerados.', 'success');
     } else {
@@ -1657,6 +1742,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // CHAMADA À API
+  // ============================================================
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
@@ -1709,6 +1797,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
+  // ============================================================
+  // EFEITOS (CARREGAR DADOS, SINCRONIZAR, ATUALIZAR)
+  // ============================================================
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
@@ -1754,6 +1845,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, []);
 
+  // Atualiza a capa quando título/autor mudam
   useEffect(() => {
     if (htmlAtual && (livroTitulo || livroAutores)) {
       const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
@@ -1768,15 +1860,12 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, [livroTitulo, livroAutores]);
 
+  // Sincroniza mensagens do iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
       if (e.data.type === 'HTML_SYNC') {
         const htmlLimpo = moldarApresentacaoHtml(e.data.html);
-        // Evita loop se o HTML recebido for igual ao atual
-        if (htmlLimpo === htmlAtual) {
-          return;
-        }
         if (modoInspetor) {
           setHistoricoCodigo((prev) => {
             if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
@@ -1800,26 +1889,20 @@ Mantenha a consistência visual com o resto do e-book.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
+  // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
-      // Evita recarregar se o srcdoc já for o mesmo
-      const newSrc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-      if (previewFrameRef.current.srcdoc !== newSrc) {
-        previewFrameRef.current.srcdoc = newSrc;
-      }
-      setRecarregarIframe(false); // Reseta a flag após aplicar
+      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
+  // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
-      // Só atualiza se o processado for diferente do atual
-      if (htmlFinal !== htmlAtual) {
-        setHtmlAtual(htmlFinal);
-        localStorage.setItem('ebook_draft_html', htmlFinal);
-        setRecarregarIframe(true);
-      }
+      setHtmlAtual(htmlFinal);
+      localStorage.setItem('ebook_draft_html', htmlFinal);
+      setRecarregarIframe(true);
     }
   }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
 
@@ -1829,6 +1912,9 @@ Mantenha a consistência visual com o resto do e-book.`;
       )
     : false;
 
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
     <>
       <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
@@ -2090,18 +2176,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                         />
                         Mostrar Subtópicos no Índice
                       </label>
-                      {/* NOVO: controle de palavras por parágrafo */}
-                      <div className="mt-3 p-3 border-4 border-red-500 bg-yellow-100 rounded-lg">
-                        <label className="input-label text-black font-bold">🔴 Palavras por parágrafo</label>
-                        <input
-                          type="number"
-                          min="40"
-                          max="100"
-                          value={palavrasPorParagrafo}
-                          onChange={(e) => setPalavrasPorParagrafo(Number(e.target.value))}
-                          className="input-standard bg-white"
-                        />
-                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-1">
@@ -2396,7 +2470,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                           <div>
                             <label className="input-label mb-2 text-indigo-800">🖼️ Controle Fotográfico (Unsplash)</label>
                             <button
-                              onClick={buscarImagemUnsplashManual}
+                              onClick={buscarImagemUnsplash}
                               className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[9px] uppercase py-2 rounded shadow-sm transition mb-3"
                             >
                               <i className="fas fa-search mr-1"></i> Buscar Unsplash
