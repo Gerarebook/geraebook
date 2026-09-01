@@ -438,7 +438,7 @@ function executarRefluxoCompleto() {
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
             if (ativarBgSegundaPagina) {
-              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
+              p.style.setProperty('background-image', "linear-gradient(rgba(255,255,255, " + ${bgSegundaPaginaOpacidade} + "), rgba(255,255,255, " + ${bgSegundaPaginaOpacidade} + ")), url('" + finalBgUrl + "')", "important");
               p.style.setProperty('background-size', 'cover', 'important');
               p.style.setProperty('background-position', 'center', 'important');
             } else {
