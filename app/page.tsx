@@ -229,6 +229,9 @@ function executarRefluxoCompleto(
 // ============================================================
 
 function executarRefluxoCompleto() {
+      // Trava de segurança no topo da função
+      window._isReflowing = true;
+      
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
@@ -282,10 +285,9 @@ function executarRefluxoCompleto() {
         let el = elementosIA[i];
         atual.areaTexto.appendChild(el);
 
-        // O elemento fez a página estourar?
-        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+        // CORREÇÃO: Medir a 'areaTexto' que é dinâmica, não a 'pagina' que tem 297mm fixos
+        if (atual.areaTexto.scrollHeight > ALTURA_MAXIMA) {
           
-          // Se for um parágrafo longo, fatiamos palavra por palavra
           if (el.tagName === 'P') {
             let textoOriginal = el.innerHTML;
             let palavras = textoOriginal.split(' ');
@@ -293,31 +295,33 @@ function executarRefluxoCompleto() {
             el.innerHTML = ''; 
             let pIndex = 0;
 
-            // Preenche até o limite exato
             while (pIndex < palavras.length) {
               el.innerHTML += palavras[pIndex] + ' ';
               
-              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-                // Remove a última palavra que causou o estouro
-                let htmlAtual = el.innerHTML;
-                el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+              // CORREÇÃO: Medir a areaTexto aqui também
+              if (atual.areaTexto.scrollHeight > ALTURA_MAXIMA) {
+                
+                // CORREÇÃO: Prevenção de loop infinito caso a primeira palavra seja enorme
+                if (pIndex === 0) {
+                  pIndex = 1; 
+                } else {
+                  let htmlAtual = el.innerHTML;
+                  el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+                }
                 break;
               }
               pIndex++;
             }
 
-            // O texto que sobrou vira um novo elemento
             let textoRestante = palavras.slice(pIndex).join(' ');
             atual = criarNovaPagina();
             
             if (textoRestante.trim() !== '') {
                let novoParagrafo = document.createElement('p');
                novoParagrafo.innerHTML = textoRestante;
-               // Insere o restante de volta no loop para ser processado na nova folha
                elementosIA.splice(i + 1, 0, novoParagrafo);
             }
           } 
-          // Se for uma imagem ou título, joga o bloco inteiro pra próxima página
           else {
             atual = criarNovaPagina();
             atual.areaTexto.appendChild(el);
@@ -433,7 +437,8 @@ function executarRefluxoCompleto() {
           chIndex++;
         }
 
-        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
+        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container')) {
+  p.classList.add('chapter-page-2');
           p.classList.add('chapter-page-2');
           let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
           if (finalBgUrl && finalBgUrl.trim() !== '') {
@@ -488,14 +493,23 @@ function executarRefluxoCompleto() {
       }
     });
 
-    // Também reage a mudanças no DOM
+   // Flag de controle para evitar o loop do MutationObserver
+    window._isReflowing = false;
+
     const observer = new MutationObserver(() => {
-      // Debounce simples
+      // Se já estiver processando um refluxo, ignora a mutação
+      if (window._isReflowing) return;
+      
       clearTimeout(window._reflowTimeout);
-      window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
+      window._reflowTimeout = setTimeout(() => {
+        window._isReflowing = true; // Trava o observer
+        executarRefluxoCompleto();
+        
+        // Libera o observer após dar tempo das renderizações terminarem
+        setTimeout(() => { window._isReflowing = false; }, 500);
+      }, 300);
     });
     observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
-
   })();
 </script>
   `;
