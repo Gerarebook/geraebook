@@ -441,6 +441,7 @@ function getScriptPreview(
         console.error('Erro no executarRefluxoCompleto:', err);
       } finally {
         setTimeout(() => { isReflowing = false; }, 200);
+
       }
     }
 
@@ -468,6 +469,7 @@ function getScriptPreview(
 
     const observer = new MutationObserver(() => {
       if (isReflowing) return;
+
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
@@ -1803,6 +1805,7 @@ ${ebookStyles}
         <h2 className="text-2xl font-black mb-3">Acesso Restrito ao Computador</h2>
         <p className="text-base text-slate-300">Acesse por uma tela maior.</p>
         </div>
+      </div>
 
       <div className="hidden md:flex h-screen overflow-hidden relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -2077,23 +2080,26 @@ ${ebookStyles}
             )}
           </div>
         </aside>
+<main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
+  <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
+    <div className="flex items-center gap-3">
+      <button onClick={() => uploadInputRef.current?.click()} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition"><i className="fas fa-file-upload"></i> Importar HTML</button>
+    </div>
+    <div className="flex items-center gap-3">
+      <button onClick={desfazerCodigo} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition"><i className="fas fa-undo"></i> Desfazer</button>
+      <button onClick={() => (window as any).baixarPdf()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md transition"><i className="fas fa-print"></i> PDF</button>
+    </div>
+  </header>
 
-        <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
-          <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <button onClick={() => uploadInputRef.current?.click()} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition"><i className="fas fa-file-upload"></i> Importar HTML</button>
-            </div>
-<div className="flex items-center gap-3">
-  <button onClick={desfazerCodigo} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition"><i className="fas fa-undo"></i> Desfazer</button>
-  <button onClick={() => (window as any).baixarPdf()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md transition"><i className="fas fa-print"></i> PDF</button>
-</div>
-          </header>
-
-          <div className="flex-1 overflow-y-auto p-8 flex justify-center relative">
-            <iframe ref={previewFrameRef} id="previewFrame" className="w-full h-full border-none shadow-2xl bg-transparent rounded-lg" title="Preview E-book"></iframe>
+ <div className="flex-1 overflow-y-auto p-8 flex justify-center relative">
+            <iframe
+              ref={previewFrameRef}
+              id="previewFrame"
+              className="w-full h-full border-none shadow-2xl bg-transparent rounded-lg"
+              title="Preview E-book"
+            />
           </div>
-        </main>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
