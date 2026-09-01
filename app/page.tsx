@@ -18,11 +18,12 @@ function executarRefluxoCompleto(
 ) {
   const container = document.getElementById(containerId);
   if (!container) return;
+  const c = container; // variável não nula
 
-  const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
+  const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
   paginasExistentes.forEach(p => p.remove());
 
-  const todosElementos = Array.from(container.children).filter(el =>
+  const todosElementos = Array.from(c.children).filter(el =>
     !el.classList.contains('page-container') &&
     el.tagName !== 'STYLE' &&
     el.tagName !== 'SCRIPT'
@@ -44,7 +45,7 @@ function executarRefluxoCompleto(
     footer.innerHTML = '<span class="page-number"></span>';
     novaPagina.appendChild(footer);
 
-    container.appendChild(novaPagina);
+    c.appendChild(novaPagina);
     return novaPagina;
   }
 
@@ -71,13 +72,13 @@ function executarRefluxoCompleto(
     }
   });
 
-  container.querySelectorAll('.page-container').forEach(page => {
+  c.querySelectorAll('.page-container').forEach(page => {
     const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
     if (conteudo.length === 0) page.remove();
   });
 
   function sincronizarIndice() {
-    const tocs = container.querySelectorAll('.toc-container');
+    const tocs = c.querySelectorAll('.toc-container');
     if (tocs.length > 1) {
       for (let i = 1; i < tocs.length; i++) {
         const page = tocs[i].closest('.page-container') as HTMLElement | null;
@@ -90,7 +91,7 @@ function executarRefluxoCompleto(
     const selector = indexShowSubtopics
       ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'
       : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
-    const titulos = container.querySelectorAll(selector);
+    const titulos = c.querySelectorAll(selector);
     const titulosVistos = new Set<string>();
 
     mainToc.innerHTML = '';
@@ -137,7 +138,7 @@ function executarRefluxoCompleto(
       mainToc.appendChild(a);
     });
 
-    const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+    const allPages = c.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
     const pageArray = Array.from(allPages);
     document.querySelectorAll('.toc-item').forEach(item => {
       const href = item.getAttribute('href');
@@ -158,7 +159,7 @@ function executarRefluxoCompleto(
 
   let chIndex = 0;
   let currentChapterImg = '';
-  container.querySelectorAll('.page-container').forEach((p) => {
+  c.querySelectorAll('.page-container').forEach((p) => {
     const imgEl = p.querySelector('.chapter-banner-img') as HTMLImageElement | null;
 
     if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
