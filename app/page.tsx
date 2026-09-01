@@ -31,7 +31,7 @@ function executarRefluxoCompleto(
   );
 
   // --- 3. Função para criar uma nova página ---
-  function criarNovaPagina() {
+  function criarNovaPagina(): HTMLElement {
     const novaPagina = document.createElement('div');
     novaPagina.className = 'page-container chapter-text-page';
     novaPagina.style.overflow = 'hidden';
@@ -55,21 +55,21 @@ function executarRefluxoCompleto(
 
   // --- 4. Distribuir elementos pelas páginas ---
   todosElementos.forEach(elemento => {
-    const footer = paginaAtual.querySelector('.page-footer');
+    const footer = paginaAtual.querySelector('.page-footer') as HTMLElement | null;
     paginaAtual.insertBefore(elemento, footer);
 
     // Verifica se estourou a altura
     if (paginaAtual.scrollHeight > alturaMaxima) {
       // Move o elemento para a nova página
       const novaPagina = criarNovaPagina();
-      const novoFooter = novaPagina.querySelector('.page-footer');
+      const novoFooter = novaPagina.querySelector('.page-footer') as HTMLElement | null;
       novaPagina.insertBefore(elemento, novoFooter);
 
       // Anti-órfão: se o último elemento da página anterior era um título, move-o junto
-      const paginaAnterior = paginaAtual.previousElementSibling;
+      const paginaAnterior = paginaAtual.previousElementSibling as HTMLElement | null;
       if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
-        const footerAnterior = paginaAnterior.querySelector('.page-footer');
-        const ultimoElemento = footerAnterior.previousElementSibling;
+        const footerAnterior = paginaAnterior.querySelector('.page-footer') as HTMLElement | null;
+        const ultimoElemento = footerAnterior?.previousElementSibling as HTMLElement | null;
         if (ultimoElemento && (ultimoElemento.tagName === 'H2' || ultimoElemento.tagName === 'H3')) {
           novaPagina.insertBefore(ultimoElemento, elemento);
         }
@@ -93,10 +93,11 @@ function executarRefluxoCompleto(
     const tocs = container.querySelectorAll('.toc-container');
     if (tocs.length > 1) {
       for (let i = 1; i < tocs.length; i++) {
-        tocs[i].closest('.page-container')?.remove();
+        const page = tocs[i].closest('.page-container');
+        if (page) page.remove();
       }
     }
-    const mainToc = tocs[0];
+    const mainToc = tocs[0] as HTMLElement | null;
     if (!mainToc) return;
 
     // Coletar títulos
@@ -104,7 +105,7 @@ function executarRefluxoCompleto(
       ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'
       : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
     const titulos = container.querySelectorAll(selector);
-    const titulosVistos = new Set();
+    const titulosVistos = new Set<string>();
 
     mainToc.innerHTML = '';
 
@@ -165,7 +166,7 @@ function executarRefluxoCompleto(
         const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
         if (page) {
           const idx = pageArray.indexOf(page) + 1;
-          const numSpan = item.querySelector('.toc-page-num');
+          const numSpan = item.querySelector('.toc-page-num') as HTMLElement | null;
           if (numSpan) numSpan.innerText = String(idx);
         }
       }
@@ -178,15 +179,15 @@ function executarRefluxoCompleto(
   let chIndex = 0;
   let currentChapterImg = '';
   container.querySelectorAll('.page-container').forEach((p) => {
-    const imgEl = p.querySelector('.chapter-banner-img');
+    const imgEl = p.querySelector('.chapter-banner-img') as HTMLImageElement | null;
 
     // Detectar início de capítulo
     if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
       chIndex = 1;
       if (imgEl) {
         currentChapterImg = imgEl.src;
-      } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-        const match = p.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
+      } else if ((p as HTMLElement).style.backgroundImage && (p as HTMLElement).style.backgroundImage !== 'none') {
+        const match = (p as HTMLElement).style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
         if (match) currentChapterImg = match[1];
       }
     } else {
@@ -197,24 +198,24 @@ function executarRefluxoCompleto(
       p.classList.add('chapter-page-2');
       let finalBgUrl = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : currentChapterImg;
       if (finalBgUrl && finalBgUrl.trim() !== '') {
-        p.dataset.bgUrl = finalBgUrl;
+        (p as HTMLElement).dataset.bgUrl = finalBgUrl;
         if (bgEnabled) {
-          p.style.setProperty('background-image', `linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${finalBgUrl}')`, 'important');
-          p.style.setProperty('background-size', 'cover', 'important');
-          p.style.setProperty('background-position', 'center', 'important');
+          (p as HTMLElement).style.setProperty('background-image', `linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${finalBgUrl}')`, 'important');
+          (p as HTMLElement).style.setProperty('background-size', 'cover', 'important');
+          (p as HTMLElement).style.setProperty('background-position', 'center', 'important');
         } else {
-          p.style.removeProperty('background-image');
-          p.style.removeProperty('background-size');
-          p.style.removeProperty('background-position');
+          (p as HTMLElement).style.removeProperty('background-image');
+          (p as HTMLElement).style.removeProperty('background-size');
+          (p as HTMLElement).style.removeProperty('background-position');
         }
       }
     } else {
       p.classList.remove('chapter-page-2');
       if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
         if (!p.hasAttribute('data-custom-bg')) {
-          p.style.removeProperty('background-image');
-          p.style.removeProperty('background-size');
-          p.style.removeProperty('background-position');
+          (p as HTMLElement).style.removeProperty('background-image');
+          (p as HTMLElement).style.removeProperty('background-size');
+          (p as HTMLElement).style.removeProperty('background-position');
         }
       }
     }
@@ -232,7 +233,6 @@ function executarRefluxoCompleto(
 async function buscarImagemUnsplashPorTema(tema: string, sig: string | number): Promise<string> {
   const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
   if (!accessKey) {
-    // Fallback para URL antiga (sem autenticação)
     return `https://images.unsplash.com/featured/1200x800/?${encodeURIComponent(tema)}&sig=${sig}`;
   }
   try {
@@ -256,10 +256,8 @@ async function substituirImagensPorUnsplash(html: string): Promise<string> {
   const imgs = tempDiv.querySelectorAll('img.chapter-banner-img');
   for (const img of imgs) {
     const src = img.getAttribute('src') || '';
-    // Extrai a palavra-chave e sig da URL gerada pela IA
     let tema = 'abstract';
     let sig = Date.now().toString();
-    // Tenta extrair do padrão: ?q=palavra ou featured/.../palavra
     const matchQuery = src.match(/[?&]q=([^&]+)/);
     if (matchQuery) tema = decodeURIComponent(matchQuery[1]);
     else {
@@ -281,19 +279,15 @@ function garantirSubtopico(html: string): string {
   tempDiv.innerHTML = html;
   const chapters = tempDiv.querySelectorAll('h2.chapter-title-inline');
   chapters.forEach(h2 => {
-    // Procura o próximo elemento que não seja texto ou espaço
     let next = h2.nextElementSibling;
     while (next && (next.nodeType === 3 || (next.tagName !== 'H3' && next.tagName !== 'P' && next.tagName !== 'IMG'))) {
       next = next.nextElementSibling;
     }
-    // Se não houver h3 imediatamente após (ou após a imagem), insere um
     if (!next || next.tagName !== 'H3') {
       const h3 = document.createElement('h3');
       h3.className = 'subtopic-title';
-      // Tenta extrair um título do capítulo
       const titulo = h2.textContent?.trim() || 'Introdução';
       h3.textContent = titulo.includes(':') ? titulo.split(':')[1]?.trim() || 'Introdução' : 'Introdução';
-      // Insere após o h2 (ou após a imagem se houver)
       let insertAfter = h2;
       while (insertAfter.nextElementSibling && insertAfter.nextElementSibling.tagName === 'IMG') {
         insertAfter = insertAfter.nextElementSibling;
@@ -304,7 +298,7 @@ function garantirSubtopico(html: string): string {
   return tempDiv.innerHTML;
 }
 
-// Ajusta parágrafos para ter um número alvo de palavras (60-70 ou customizado)
+// Ajusta parágrafos para ter um número alvo de palavras
 function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
@@ -313,10 +307,9 @@ function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
     const texto = p.textContent?.trim() || '';
     const palavras = texto.split(/\s+/).filter(w => w.length > 0);
     if (palavras.length >= palavrasAlvo - 5 && palavras.length <= palavrasAlvo + 5) {
-      return; // dentro do esperado
+      return;
     }
     if (palavras.length > palavrasAlvo + 10) {
-      // Dividir em dois parágrafos
       const ponto = Math.min(palavrasAlvo, palavras.length);
       let breakIndex = -1;
       for (let i = ponto; i < Math.min(ponto + 20, palavras.length); i++) {
@@ -333,9 +326,6 @@ function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
       const novoP = document.createElement('p');
       novoP.textContent = p2;
       p.parentNode?.insertBefore(novoP, p.nextSibling);
-    } else if (palavras.length < palavrasAlvo - 15) {
-      // Se muito curto, pode-se mesclar com o próximo? Mas isso pode quebrar estrutura.
-      // Vamos apenas ignorar, a IA deve melhorar.
     }
   });
   return tempDiv.innerHTML;
@@ -354,23 +344,19 @@ function getScriptPreview(
   return `
 <script>
   (function() {
-    // Script de reflow e sincronização (já existente)
     function executarRefluxoCompleto() {
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // 1. Limpa páginas antigas (exceto capas)
       const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
       paginasExistentes.forEach(p => p.remove());
 
-      // Pega todos os elementos brutos
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         el.tagName !== 'STYLE' &&
         el.tagName !== 'SCRIPT'
       );
 
-      // Altura máxima super restrita (A4)
       const ALTURA_MAXIMA = 980;
 
       function criarNovaPagina() {
@@ -403,7 +389,6 @@ function getScriptPreview(
 
       let atual = criarNovaPagina();
 
-      // 2. Loop de Paginação Rigoroso
       for (let i = 0; i < elementosIA.length; i++) {
         let el = elementosIA[i];
         atual.areaTexto.appendChild(el);
@@ -437,7 +422,6 @@ function getScriptPreview(
         }
       }
 
-      // 3. Limpeza Final
       container.querySelectorAll('.page-container').forEach(page => {
         const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
         if (conteudo.length === 0) {
@@ -445,12 +429,12 @@ function getScriptPreview(
         }
       });
 
-      // 4. Sincronizar índice
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
           for (let i = 1; i < tocs.length; i++) {
-            tocs[i].closest('.page-container')?.remove();
+            const page = tocs[i].closest('.page-container');
+            if (page) page.remove();
           }
         }
         const mainToc = tocs[0];
@@ -527,7 +511,6 @@ function getScriptPreview(
 
       sincronizarIndice();
 
-      // Fundo da segunda página
       let chIndex = 0;
       let currentChapterImg = '';
       container.querySelectorAll('.page-container').forEach((p) => {
@@ -573,7 +556,6 @@ function getScriptPreview(
       });
     }
 
-    // Executa após carregamento
     if (document.readyState === 'complete') {
       executarRefluxoCompleto();
     } else {
@@ -583,11 +565,8 @@ function getScriptPreview(
       });
     }
 
-    // Escuta mensagens do parent
     window.addEventListener('message', (e) => {
-      if (e.data.type === 'TOGGLE_EDIT_MODE') {
-        // Apenas notifica
-      }
+      if (e.data.type === 'TOGGLE_EDIT_MODE') { /* no-op */ }
       if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
         setTimeout(executarRefluxoCompleto, 100);
       }
@@ -599,7 +578,6 @@ function getScriptPreview(
       }
     });
 
-    // Observer de mutação
     const observer = new MutationObserver(() => {
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
@@ -675,7 +653,7 @@ export default function Home() {
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
 
-  // NOVO: Controle de palavras por parágrafo
+  // Controle de palavras por parágrafo
   const [palavrasPorParagrafo, setPalavrasPorParagrafo] = useState(65);
 
   // Refs para uploads
@@ -684,7 +662,7 @@ export default function Home() {
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // ============================================================
-  // FUNÇÕES AUXILIARES (já existentes)
+  // FUNÇÕES AUXILIARES
   // ============================================================
 
   function getPaletaObj() {
@@ -738,7 +716,7 @@ export default function Home() {
   }
 
   // ============================================================
-  // FUNÇÃO DE MOLDAGEM DE APRESENTAÇÃO (com estilos)
+  // FUNÇÃO DE MOLDAGEM DE APRESENTAÇÃO
   // ============================================================
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
@@ -1106,11 +1084,6 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÃO DE AJUSTE DE PARÁGRAFOS (já atualizada)
-  // ============================================================
-  // (a função ajustarParagrafos já foi definida acima, fora do componente)
-
-  // ============================================================
   // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML (com pós-processamento)
   // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
@@ -1136,7 +1109,6 @@ ${ebookStyles}
     return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  // Função que aplica pós-processamento completo (subtópico, imagens, parágrafos)
   async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true, palavrasAlvo: number = palavrasPorParagrafo) {
     let novoConteudo = purificarHTML(htmlCru);
 
@@ -1295,7 +1267,6 @@ ${ebookStyles}
     }
 
     setHistoricoCodigo((prev) => [...prev, htmlAtual]);
-    // Aplica com pós-processamento (mas não substitui imagens da página extra)
     aplicarHtmlNovo(novoHtml, false, true, palavrasPorParagrafo);
 
     setShowModalPagina(false);
@@ -1416,8 +1387,8 @@ ${ebookStyles}
   // EDIÇÃO LOCAL COM IA
   // ============================================================
   async function aplicarModificacaoLocal() {
-    const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
-    const comando = input?.value.trim();
+    const input = document.getElementById('ai_prompt_local') as HTMLInputElement | null;
+    const comando = input?.value.trim() || '';
     if (!comando) {
       (window as any).showNotification('Digite o que alterar neste elemento.', 'error');
       return;
@@ -1455,7 +1426,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       }
 
       setElementoSelecionado(null);
-      input.value = '';
+      if (input) input.value = '';
       (window as any).showNotification('Trecho modificado com sucesso!', 'success');
     }
   }
@@ -1672,7 +1643,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
+  // ---- ETAPA 2: Adicionar 3 capítulos ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1834,7 +1805,6 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const savedHtml = localStorage.getItem('ebook_draft_html');
     if (savedHtml) {
-      // Não aplicar pós-processamento imediatamente, apenas carregar
       const htmlFinal = moldarApresentacaoHtml(savedHtml);
       setHtmlAtual(htmlFinal);
       if (previewFrameRef.current) {
