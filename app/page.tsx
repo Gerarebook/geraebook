@@ -3,6 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 import { jsPDF } from 'jspdf';
+
 // ============================================================
 // FUNÇÕES AUXILIARES DE PAGINAÇÃO E ÍNDICE (UNIFICADAS)
 // ============================================================
@@ -224,10 +225,137 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
+// NOVAS FUNÇÕES AUXILIARES: IMAGENS, SUBTÓPICOS E PARÁGRAFOS
+// ============================================================
+
+// Busca imagem no Unsplash usando a chave de API
+async function buscarImagemUnsplashPorTema(tema: string, sig: string | number): Promise<string> {
+  const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
+  if (!accessKey) {
+    // Fallback para URL antiga (sem autenticação)
+    return `https://images.unsplash.com/featured/1200x800/?${encodeURIComponent(tema)}&sig=${sig}`;
+  }
+  try {
+    const response = await fetch(
+      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(tema)}&orientation=landscape`,
+      { headers: { Authorization: `Client-ID ${accessKey}` } }
+    );
+    if (!response.ok) throw new Error('Erro na API Unsplash');
+    const data = await response.json();
+    return data.urls.regular || data.urls.raw;
+  } catch (e) {
+    console.warn('Falha ao buscar imagem no Unsplash, usando fallback:', e);
+    return `https://images.unsplash.com/featured/1200x800/?${encodeURIComponent(tema)}&sig=${sig}`;
+  }
+}
+
+// Substitui todas as imagens .chapter-banner-img por URLs reais do Unsplash
+async function substituirImagensPorUnsplash(html: string): Promise<string> {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  const imgs = tempDiv.querySelectorAll('img.chapter-banner-img');
+  for (const img of imgs) {
+    const src = img.getAttribute('src') || '';
+    // Extrai a palavra-chave e sig da URL gerada pela IA
+    let tema = 'abstract';
+    let sig = Date.now().toString();
+    // Tenta extrair do padrão: ?q=palavra ou featured/.../palavra
+    const matchQuery = src.match(/[?&]q=([^&]+)/);
+    if (matchQuery) tema = decodeURIComponent(matchQuery[1]);
+    else {
+      const matchFeatured = src.match(/featured\/[^?]*\/([^?]+)/);
+      if (matchFeatured) tema = decodeURIComponent(matchFeatured[1]);
+    }
+    const matchSig = src.match(/sig=([^&]+)/);
+    if (matchSig) sig = matchSig[1];
+
+    const novaUrl = await buscarImagemUnsplashPorTema(tema, sig);
+    img.setAttribute('src', novaUrl);
+  }
+  return tempDiv.innerHTML;
+}
+
+// Garante que cada capítulo tenha um subtópico (h3) após a imagem e título
+function garantirSubtopico(html: string): string {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  const chapters = tempDiv.querySelectorAll('h2.chapter-title-inline');
+  chapters.forEach(h2 => {
+    // Procura o próximo elemento que não seja texto ou espaço
+    let next = h2.nextElementSibling;
+    while (next && (next.nodeType === 3 || (next.tagName !== 'H3' && next.tagName !== 'P' && next.tagName !== 'IMG'))) {
+      next = next.nextElementSibling;
+    }
+    // Se não houver h3 imediatamente após (ou após a imagem), insere um
+    if (!next || next.tagName !== 'H3') {
+      const h3 = document.createElement('h3');
+      h3.className = 'subtopic-title';
+      // Tenta extrair um título do capítulo
+      const titulo = h2.textContent?.trim() || 'Introdução';
+      h3.textContent = titulo.includes(':') ? titulo.split(':')[1]?.trim() || 'Introdução' : 'Introdução';
+      // Insere após o h2 (ou após a imagem se houver)
+      let insertAfter = h2;
+      while (insertAfter.nextElementSibling && insertAfter.nextElementSibling.tagName === 'IMG') {
+        insertAfter = insertAfter.nextElementSibling;
+      }
+      insertAfter.parentNode?.insertBefore(h3, insertAfter.nextSibling);
+    }
+  });
+  return tempDiv.innerHTML;
+}
+
+// Ajusta parágrafos para ter um número alvo de palavras (60-70 ou customizado)
+function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  const paragrafos = tempDiv.querySelectorAll('p');
+  paragrafos.forEach(p => {
+    const texto = p.textContent?.trim() || '';
+    const palavras = texto.split(/\s+/).filter(w => w.length > 0);
+    if (palavras.length >= palavrasAlvo - 5 && palavras.length <= palavrasAlvo + 5) {
+      return; // dentro do esperado
+    }
+    if (palavras.length > palavrasAlvo + 10) {
+      // Dividir em dois parágrafos
+      const ponto = Math.min(palavrasAlvo, palavras.length);
+      let breakIndex = -1;
+      for (let i = ponto; i < Math.min(ponto + 20, palavras.length); i++) {
+        const word = palavras[i];
+        if (word.match(/[.!?]$/)) {
+          breakIndex = i;
+          break;
+        }
+      }
+      if (breakIndex === -1) breakIndex = ponto;
+      const p1 = palavras.slice(0, breakIndex + 1).join(' ');
+      const p2 = palavras.slice(breakIndex + 1).join(' ');
+      p.textContent = p1;
+      const novoP = document.createElement('p');
+      novoP.textContent = p2;
+      p.parentNode?.insertBefore(novoP, p.nextSibling);
+    } else if (palavras.length < palavrasAlvo - 15) {
+      // Se muito curto, pode-se mesclar com o próximo? Mas isso pode quebrar estrutura.
+      // Vamos apenas ignorar, a IA deve melhorar.
+    }
+  });
+  return tempDiv.innerHTML;
+}
+
+// ============================================================
 // SCRIPT INJETADO NO IFRAME (com a função unificada)
 // ============================================================
 
-function executarRefluxoCompleto() {
+function getScriptPreview(
+  indexShowSubtopics: boolean,
+  ativarBgSegundaPagina: boolean,
+  bgSegundaPaginaUrl: string,
+  bgSegundaPaginaOpacidade: string
+) {
+  return `
+<script>
+  (function() {
+    // Script de reflow e sincronização (já existente)
+    function executarRefluxoCompleto() {
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
@@ -256,7 +384,6 @@ function executarRefluxoCompleto() {
         header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
         novaPagina.appendChild(header);
 
-        // Área restrita apenas para o texto, para podermos medir com precisão
         const contentArea = document.createElement('div');
         contentArea.className = 'content-area';
         contentArea.style.display = 'flex';
@@ -281,43 +408,29 @@ function executarRefluxoCompleto() {
         let el = elementosIA[i];
         atual.areaTexto.appendChild(el);
 
-        // O elemento fez a página estourar?
         if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-          
-          // Se for um parágrafo longo, fatiamos palavra por palavra
           if (el.tagName === 'P') {
             let textoOriginal = el.innerHTML;
             let palavras = textoOriginal.split(' ');
-            
-            el.innerHTML = ''; 
+            el.innerHTML = '';
             let pIndex = 0;
-
-            // Preenche até o limite exato
             while (pIndex < palavras.length) {
               el.innerHTML += palavras[pIndex] + ' ';
-              
               if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-                // Remove a última palavra que causou o estouro
                 let htmlAtual = el.innerHTML;
                 el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
                 break;
               }
               pIndex++;
             }
-
-            // O texto que sobrou vira um novo elemento
             let textoRestante = palavras.slice(pIndex).join(' ');
             atual = criarNovaPagina();
-            
             if (textoRestante.trim() !== '') {
-               let novoParagrafo = document.createElement('p');
-               novoParagrafo.innerHTML = textoRestante;
-               // Insere o restante de volta no loop para ser processado na nova folha
-               elementosIA.splice(i + 1, 0, novoParagrafo);
+              let novoParagrafo = document.createElement('p');
+              novoParagrafo.innerHTML = textoRestante;
+              elementosIA.splice(i + 1, 0, novoParagrafo);
             }
-          } 
-          // Se for uma imagem ou título, joga o bloco inteiro pra próxima página
-          else {
+          } else {
             atual = criarNovaPagina();
             atual.areaTexto.appendChild(el);
           }
@@ -332,7 +445,7 @@ function executarRefluxoCompleto() {
         }
       });
 
-      // 4. Sincronizar índice (só roda AGORA que as páginas estão perfeitas)
+      // 4. Sincronizar índice
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
@@ -343,7 +456,7 @@ function executarRefluxoCompleto() {
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        const selector = indexShowSubtopics ?
+        const selector = ${indexShowSubtopics} ?
           'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
           'h1.chapter-title-exclusive, h2.chapter-title-inline';
         const titulos = container.querySelectorAll(selector);
@@ -368,7 +481,7 @@ function executarRefluxoCompleto() {
           a.className = 'toc-item';
           if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
             a.classList.add('toc-main-chapter');
-            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
+            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
             a.classList.add('toc-subtopic');
@@ -376,7 +489,7 @@ function executarRefluxoCompleto() {
             a.style.fontSize = '0.9em';
             a.style.opacity = '0.85';
             a.style.fontWeight = '400';
-            if (!indexShowSubtopics) {
+            if (!${indexShowSubtopics}) {
               a.style.display = 'none';
             }
           }
@@ -414,7 +527,7 @@ function executarRefluxoCompleto() {
 
       sincronizarIndice();
 
-      // Fundo da segunda página (Mantido do seu original)
+      // Fundo da segunda página
       let chIndex = 0;
       let currentChapterImg = '';
       container.querySelectorAll('.page-container').forEach((p) => {
@@ -437,7 +550,7 @@ function executarRefluxoCompleto() {
           let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
-            if (ativarBgSegundaPagina) {
+            if (${ativarBgSegundaPagina}) {
               p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
               p.style.setProperty('background-size', 'cover', 'important');
               p.style.setProperty('background-position', 'center', 'important');
@@ -466,15 +579,14 @@ function executarRefluxoCompleto() {
     } else {
       window.addEventListener('load', () => {
         executarRefluxoCompleto();
-        // Reexecuta após imagens carregarem
         setTimeout(executarRefluxoCompleto, 500);
       });
     }
 
-    // Escuta mensagens do parent para atualizações
+    // Escuta mensagens do parent
     window.addEventListener('message', (e) => {
       if (e.data.type === 'TOGGLE_EDIT_MODE') {
-        // Apenas notifica que o modo mudou (já tratado no componente pai)
+        // Apenas notifica
       }
       if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
         setTimeout(executarRefluxoCompleto, 100);
@@ -487,14 +599,15 @@ function executarRefluxoCompleto() {
       }
     });
 
-    // Também reage a mudanças no DOM
+    // Observer de mutação
     const observer = new MutationObserver(() => {
-      // Debounce simples
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
-    observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
-
+    const container = document.getElementById('ebook-container');
+    if (container) {
+      observer.observe(container, { childList: true, subtree: true });
+    }
   })();
 </script>
   `;
@@ -562,84 +675,16 @@ export default function Home() {
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
 
+  // NOVO: Controle de palavras por parágrafo
+  const [palavrasPorParagrafo, setPalavrasPorParagrafo] = useState(65);
+
   // Refs para uploads
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-async function gerarEbookPDF(textoBruto: string) {
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    const pageBottom = pageHeight - margin;
-    
-    let yPos = margin;
-    doc.setFont("helvetica", "normal");
-    const fontSize = 12;
-    const lineHeight = fontSize * 0.352778 * 1.5;
-    
-    const lines = textoBruto.split('\n');
 
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim(); // <--- É esta linha que define a variável 'line'
-      if (line === '') {
-          yPos += lineHeight;
-          if (yPos > pageBottom) { doc.addPage(); yPos = margin; }
-          continue;
-      }
-
-      if (line.toUpperCase().includes('[CAP]')) {
-        let tituloCapitulo = line.replace(/\[\/?CAP\]/gi, '').replace(/\*\*/g, '').trim();
-        if (yPos > margin) { doc.addPage(); yPos = margin; }
-        doc.setFont("helvetica", "bold").setFontSize(18).setTextColor(37, 99, 235);
-        const titleLines = doc.splitTextToSize(tituloCapitulo, pageWidth - margin * 2);
-        doc.text(titleLines, pageWidth / 2, yPos, { align: 'center' });
-        yPos += (titleLines.length * lineHeight) + 15;
-        continue;
-      }
-
-      if (line.includes('[IMG]')) {
-        const imgH = 60; 
-        if (yPos + imgH > pageBottom) { doc.addPage(); yPos = margin; }
-        doc.setFillColor(240, 240, 240);
-        doc.rect(margin, yPos, pageWidth - (margin * 2), imgH, 'F');
-        doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(150, 150, 150);
-        doc.text("Imagem do Capítulo (Banner)", pageWidth / 2, yPos + (imgH / 2), { align: 'center' });
-        yPos += imgH + 15;
-        continue;
-      }
-
-      let isBold = false;
-      if (line.startsWith('**') && line.endsWith('**')) {
-          isBold = true;
-          line = line.replace(/\*\*/g, '');
-          doc.setFont("helvetica", "bold").setFontSize(14).setTextColor(37, 99, 235);
-      } else {
-          doc.setFont("helvetica", "normal").setFontSize(fontSize).setTextColor(0, 0, 0);
-      }
-
-      const textLines = doc.splitTextToSize(line, pageWidth - margin * 2);
-      for (let j = 0; j < textLines.length; j++) {
-        if (yPos + lineHeight > pageBottom) { doc.addPage(); yPos = margin; }
-        if (!isBold && j < textLines.length - 1) {
-             doc.text(textLines[j], margin, yPos, { align: 'justify', maxWidth: pageWidth - margin * 2 });
-        } else {
-             doc.text(textLines[j], margin, yPos);
-        }
-        yPos += lineHeight;
-      }
-      yPos += 3;
-    }
-
-    const pdfBlobUrl = String(doc.output('bloburl'));
-    const iframe = previewFrameRef.current;
-    if (iframe) {
-      iframe.removeAttribute('srcdoc'); 
-      iframe.src = pdfBlobUrl; 
-    }
-  }
   // ============================================================
-  // FUNÇÕES AUXILIARES
+  // FUNÇÕES AUXILIARES (já existentes)
   // ============================================================
 
   function getPaletaObj() {
@@ -683,7 +728,6 @@ async function gerarEbookPDF(textoBruto: string) {
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
-    // Limpa estilos invasivos
     clean = clean.replace(/<p\s+[^>]*>/gi, '<p>');
 
     return clean.trim();
@@ -693,6 +737,9 @@ async function gerarEbookPDF(textoBruto: string) {
     return { width: '210mm', height: '297mm', padding: '22mm 20mm 25mm 20mm' };
   }
 
+  // ============================================================
+  // FUNÇÃO DE MOLDAGEM DE APRESENTAÇÃO (com estilos)
+  // ============================================================
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
     const conf = getEstilosFormato();
@@ -770,7 +817,7 @@ img.chapter-banner-img {
   margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden !important; /* <-- BLINDAGEM CRÍTICA */
+  overflow: hidden !important;
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
@@ -897,7 +944,7 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .chapter-title-inline {
   text-align: center;
   font-size: 2.1rem;
-  margin-top: 0.5rem;   /* reduzido porque agora vem depois da imagem */
+  margin-top: 0.5rem;
   margin-bottom: 1.2rem;
   color: var(--color-primary);
   font-weight: 800;
@@ -1059,43 +1106,12 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
+  // FUNÇÃO DE AJUSTE DE PARÁGRAFOS (já atualizada)
   // ============================================================
-  function ajustarParagrafos(html: string): string {
-    // Cria um parser simples para ajustar o comprimento dos parágrafos
-    // sem quebrar a estrutura HTML.
-    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
-    // se tiver mais de 600, tenta quebrar em dois parágrafos.
-    // Isso garante uma consistência visual sem depender da IA.
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const paragrafos = tempDiv.querySelectorAll('p');
-    paragrafos.forEach(p => {
-      let texto = p.textContent || '';
-      // Remove espaços extras
-      texto = texto.replace(/\s+/g, ' ').trim();
-      if (texto.length > 600) {
-        // Tenta quebrar na última frase antes de 450 caracteres
-        const mid = Math.min(450, texto.length);
-        let breakPos = texto.lastIndexOf('. ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
-        if (breakPos !== -1) {
-          const p1 = texto.substring(0, breakPos + 1);
-          const p2 = texto.substring(breakPos + 2);
-          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
-          p.textContent = p1;
-          const novoP = document.createElement('p');
-          novoP.textContent = p2;
-          p.parentNode?.insertBefore(novoP, p.nextSibling);
-        }
-      }
-    });
-    return tempDiv.innerHTML;
-  }
+  // (a função ajustarParagrafos já foi definida acima, fora do componente)
 
   // ============================================================
-  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
+  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML (com pós-processamento)
   // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
     if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
@@ -1120,9 +1136,18 @@ ${ebookStyles}
     return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
   }
 
-  function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
+  // Função que aplica pós-processamento completo (subtópico, imagens, parágrafos)
+  async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true, palavrasAlvo: number = palavrasPorParagrafo) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
+
+    // 1. Garantir subtópicos
+    novoConteudo = garantirSubtopico(novoConteudo);
+
+    // 2. Substituir imagens (assíncrono)
+    novoConteudo = await substituirImagensPorUnsplash(novoConteudo);
+
+    // 3. Ajustar parágrafos pela contagem de palavras
+    novoConteudo = ajustarParagrafos(novoConteudo, palavrasAlvo);
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -1270,12 +1295,8 @@ ${ebookStyles}
     }
 
     setHistoricoCodigo((prev) => [...prev, htmlAtual]);
-    const htmlFinal = moldarApresentacaoHtml(novoHtml);
-    setHtmlAtual(htmlFinal);
-    localStorage.setItem('ebook_draft_html', htmlFinal);
-    if (previewFrameRef.current) {
-      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-    }
+    // Aplica com pós-processamento (mas não substitui imagens da página extra)
+    aplicarHtmlNovo(novoHtml, false, true, palavrasPorParagrafo);
 
     setShowModalPagina(false);
     setPaginaTitulo('');
@@ -1345,9 +1366,9 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // BUSCA DE IMAGEM UNSPLASH
+  // BUSCA DE IMAGEM UNSPLASH (manual no inspetor)
   // ============================================================
-  async function buscarImagemUnsplash() {
+  async function buscarImagemUnsplashManual() {
     if (!elementoSelecionado) {
       (window as any).showNotification('Selecione um elemento (imagem ou fundo) primeiro.', 'error');
       return;
@@ -1367,26 +1388,7 @@ ${ebookStyles}
     }
 
     try {
-      const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '';
-      let url = '';
-
-      if (accessKey) {
-        const unsplashRes = await fetch(`https://api.unsplash.com/photos/random?query=${encodeURIComponent(keyword)}&orientation=landscape`, {
-          headers: {
-            Authorization: `Client-ID ${accessKey}`
-          }
-        });
-
-        if (!unsplashRes.ok) throw new Error('Erro ao autenticar na API do Unsplash. Verifique sua chave.');
-
-        const unsplashData = await unsplashRes.json();
-        url = unsplashData.urls.regular;
-      } else {
-        const termoDinamico = encodeURIComponent((elementoSelecionado?.innerText || "chapter portrait") + " real human photography");
-        url = `https://images.unsplash.com/featured/?${termoDinamico}`;
-        (window as any).showNotification('Imagem dinâmica aplicada por tema.', 'warning');
-      }
-
+      const url = await buscarImagemUnsplashPorTema(keyword, Date.now());
       const isImg = elementoSelecionado.tagName === 'img';
       const field = isImg ? 'src' : 'bgImage';
 
@@ -1483,7 +1485,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     setLivroTitulo(livro.titulo);
     setProductContent(livro.prompt || '');
     setEtapaAtual(0);
-    aplicarHtmlNovo(livro.html, false, true);
+    aplicarHtmlNovo(livro.html, false, true, palavrasPorParagrafo);
     setModalBiblioteca(false);
     (window as any).showNotification(`Livro "${livro.titulo}" carregado.`, 'success');
   }
@@ -1515,7 +1517,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     reader.onload = (ev) => {
       const content = ev.target?.result as string;
       if (content) {
-        aplicarHtmlNovo(content, false, true);
+        aplicarHtmlNovo(content, false, true, palavrasPorParagrafo);
         (window as any).showNotification('Arquivo importado com sucesso!', 'success');
       }
     };
@@ -1587,12 +1589,13 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
-// ============================================================
+  // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
   // ============================================================
-  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
+  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string, palavrasAlvo?: number }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
+    const palavrasAlvo = opts?.palavrasAlvo || palavrasPorParagrafo;
 
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
@@ -1604,7 +1607,8 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
      - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
+     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre ${palavrasAlvo-5} e ${palavrasAlvo+5} palavras.
+     - Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos.
   4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
@@ -1624,7 +1628,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       return;
     }
 
-    const { regrasCompletas } = obterInstrucoesBase({ numeroCapitulo: 1, tema: livroTitulo || 'geral' });
+    const { regrasCompletas } = obterInstrucoesBase({ numeroCapitulo: 1, tema: livroTitulo || 'geral', palavrasAlvo: palavrasPorParagrafo });
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso();
 
@@ -1660,7 +1664,7 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
     if (data && data.html) {
-      aplicarHtmlNovo(data.html, false, true);
+      await aplicarHtmlNovo(data.html, false, true, palavrasPorParagrafo);
       setEtapaAtual(1);
       (window as any).showNotification('Passo 1 Concluído! Capa, Aviso, Índice e Introdução gerados.', 'success');
     } else {
@@ -1680,9 +1684,9 @@ Mantenha a consistência visual com o resto do e-book.`;
     const proximoNumero = getNextChapterNumber(currentHtml);
     const temaBase = livroTitulo || 'geral';
 
-    const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, tema: temaBase });
-    const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
-    const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
+    const cap1 = obterInstrucoesBase({ numeroCapitulo: proximoNumero, tema: temaBase, palavrasAlvo: palavrasPorParagrafo });
+    const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase, palavrasAlvo: palavrasPorParagrafo });
+    const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase, palavrasAlvo: palavrasPorParagrafo });
 
     const instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
@@ -1702,7 +1706,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     ], false);
 
     if (data && data.html) {
-      aplicarHtmlNovo(data.html, true, true);
+      await aplicarHtmlNovo(data.html, true, true, palavrasPorParagrafo);
       setEtapaAtual(2);
       (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
     } else {
@@ -1720,7 +1724,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
     DIRETRIZES:
     1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
-    2. MOLDE DE CONCLUSÃO:
+    2. MOLDE DE CONCLUSÃO (cada parágrafo deve ter entre ${palavrasPorParagrafo-5} e ${palavrasPorParagrafo+5} palavras):
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
         <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
@@ -1734,7 +1738,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
     if (data && data.html) {
       let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
-      aplicarHtmlNovo(htmlFinal, true, true);
+      await aplicarHtmlNovo(htmlFinal, true, true, palavrasPorParagrafo);
       setEtapaAtual(3);
       (window as any).showNotification('Passo 3 Concluído! Conclusão e Autor gerados.', 'success');
     } else {
@@ -1830,6 +1834,7 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const savedHtml = localStorage.getItem('ebook_draft_html');
     if (savedHtml) {
+      // Não aplicar pós-processamento imediatamente, apenas carregar
       const htmlFinal = moldarApresentacaoHtml(savedHtml);
       setHtmlAtual(htmlFinal);
       if (previewFrameRef.current) {
@@ -2176,6 +2181,18 @@ Mantenha a consistência visual com o resto do e-book.`;
                         />
                         Mostrar Subtópicos no Índice
                       </label>
+                      {/* NOVO: controle de palavras por parágrafo */}
+                      <div className="mt-3">
+                        <label className="input-label">Palavras por parágrafo</label>
+                        <input
+                          type="number"
+                          min="40"
+                          max="100"
+                          value={palavrasPorParagrafo}
+                          onChange={(e) => setPalavrasPorParagrafo(Number(e.target.value))}
+                          className="input-standard"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-1">
@@ -2470,7 +2487,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                           <div>
                             <label className="input-label mb-2 text-indigo-800">🖼️ Controle Fotográfico (Unsplash)</label>
                             <button
-                              onClick={buscarImagemUnsplash}
+                              onClick={buscarImagemUnsplashManual}
                               className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[9px] uppercase py-2 rounded shadow-sm transition mb-3"
                             >
                               <i className="fas fa-search mr-1"></i> Buscar Unsplash
