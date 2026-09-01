@@ -19,18 +19,15 @@ function executarRefluxoCompleto(
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // --- 1. Limpar páginas existentes (exceto capas e páginas especiais) ---
   const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
   paginasExistentes.forEach(p => p.remove());
 
-  // --- 2. Recolher todos os elementos filhos diretos que não são containers de página ---
   const todosElementos = Array.from(container.children).filter(el =>
     !el.classList.contains('page-container') &&
     el.tagName !== 'STYLE' &&
     el.tagName !== 'SCRIPT'
   );
 
-  // --- 3. Função para criar uma nova página ---
   function criarNovaPagina(): HTMLElement {
     const novaPagina = document.createElement('div');
     novaPagina.className = 'page-container chapter-text-page';
@@ -53,19 +50,15 @@ function executarRefluxoCompleto(
 
   let paginaAtual = criarNovaPagina();
 
-  // --- 4. Distribuir elementos pelas páginas ---
   todosElementos.forEach(elemento => {
     const footer = paginaAtual.querySelector('.page-footer') as HTMLElement | null;
     paginaAtual.insertBefore(elemento, footer);
 
-    // Verifica se estourou a altura
     if (paginaAtual.scrollHeight > alturaMaxima) {
-      // Move o elemento para a nova página
       const novaPagina = criarNovaPagina();
       const novoFooter = novaPagina.querySelector('.page-footer') as HTMLElement | null;
       novaPagina.insertBefore(elemento, novoFooter);
 
-      // Anti-órfão: se o último elemento da página anterior era um título, move-o junto
       const paginaAnterior = paginaAtual.previousElementSibling as HTMLElement | null;
       if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
         const footerAnterior = paginaAnterior.querySelector('.page-footer') as HTMLElement | null;
@@ -74,22 +67,16 @@ function executarRefluxoCompleto(
           novaPagina.insertBefore(ultimoElemento, elemento);
         }
       }
-
       paginaAtual = novaPagina;
     }
   });
 
-  // --- 5. Remover páginas vazias ---
   container.querySelectorAll('.page-container').forEach(page => {
     const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
-    if (conteudo.length === 0) {
-      page.remove();
-    }
+    if (conteudo.length === 0) page.remove();
   });
 
-  // --- 6. Sincronizar Índice ---
   function sincronizarIndice() {
-    // Remover índices duplicados e deixar apenas o primeiro
     const tocs = container.querySelectorAll('.toc-container');
     if (tocs.length > 1) {
       for (let i = 1; i < tocs.length; i++) {
@@ -100,7 +87,6 @@ function executarRefluxoCompleto(
     const mainToc = tocs[0] as HTMLElement | null;
     if (!mainToc) return;
 
-    // Coletar títulos
     const selector = indexShowSubtopics
       ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'
       : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
@@ -110,12 +96,10 @@ function executarRefluxoCompleto(
     mainToc.innerHTML = '';
 
     titulos.forEach((titleEl) => {
-      // Ignorar títulos de capa, índice, etc.
       if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
       let texto = titleEl.textContent?.trim() || '';
       if (/índice|sumário/i.test(texto)) return;
 
-      // Normalizar para evitar duplicatas
       let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
       if (titulosVistos.has(chave)) return;
       titulosVistos.add(chave);
@@ -136,9 +120,7 @@ function executarRefluxoCompleto(
         a.style.fontSize = '0.9em';
         a.style.opacity = '0.85';
         a.style.fontWeight = '400';
-        if (!indexShowSubtopics) {
-          a.style.display = 'none';
-        }
+        if (!indexShowSubtopics) a.style.display = 'none';
       }
 
       a.href = '#' + titleEl.id;
@@ -155,7 +137,6 @@ function executarRefluxoCompleto(
       mainToc.appendChild(a);
     });
 
-    // Atualizar números das páginas
     const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
     const pageArray = Array.from(allPages);
     document.querySelectorAll('.toc-item').forEach(item => {
@@ -175,13 +156,11 @@ function executarRefluxoCompleto(
 
   sincronizarIndice();
 
-  // --- 7. Aplicar fundo da segunda página (opcional) ---
   let chIndex = 0;
   let currentChapterImg = '';
   container.querySelectorAll('.page-container').forEach((p) => {
     const imgEl = p.querySelector('.chapter-banner-img') as HTMLImageElement | null;
 
-    // Detectar início de capítulo
     if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
       chIndex = 1;
       if (imgEl) {
@@ -221,7 +200,6 @@ function executarRefluxoCompleto(
     }
   });
 
-  // --- 8. Forçar reflow para ajustar numeração ---
   setTimeout(() => sincronizarIndice(), 50);
 }
 
@@ -229,7 +207,6 @@ function executarRefluxoCompleto(
 // NOVAS FUNÇÕES AUXILIARES: IMAGENS, SUBTÓPICOS E PARÁGRAFOS
 // ============================================================
 
-// Busca imagem no Unsplash usando a chave de API
 async function buscarImagemUnsplashPorTema(tema: string, sig: string | number): Promise<string> {
   const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
   if (!accessKey) {
@@ -249,7 +226,6 @@ async function buscarImagemUnsplashPorTema(tema: string, sig: string | number): 
   }
 }
 
-// Substitui todas as imagens .chapter-banner-img por URLs reais do Unsplash
 async function substituirImagensPorUnsplash(html: string): Promise<string> {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
@@ -273,7 +249,6 @@ async function substituirImagensPorUnsplash(html: string): Promise<string> {
   return tempDiv.innerHTML;
 }
 
-// Garante que cada capítulo tenha um subtópico (h3) após a imagem e título
 function garantirSubtopico(html: string): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
@@ -298,7 +273,6 @@ function garantirSubtopico(html: string): string {
   return tempDiv.innerHTML;
 }
 
-// Ajusta parágrafos para ter um número alvo de palavras
 function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
@@ -332,7 +306,7 @@ function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (com a função unificada)
+// SCRIPT INJETADO NO IFRAME
 // ============================================================
 
 function getScriptPreview(
@@ -653,7 +627,7 @@ export default function Home() {
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
 
-  // Controle de palavras por parágrafo
+  // NOVO: Controle de palavras por parágrafo
   const [palavrasPorParagrafo, setPalavrasPorParagrafo] = useState(65);
 
   // Refs para uploads
@@ -751,7 +725,6 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
-/* BLINDAGEM CONTRA VAZAMENTO LATERAL E OVERFLOW */
 #ebook-container * {
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -918,7 +891,6 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-/* ORDEM DO CAPÍTULO: IMAGEM PRIMEIRO, DEPOIS TÍTULO */
 .chapter-title-inline {
   text-align: center;
   font-size: 2.1rem;
