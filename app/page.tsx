@@ -1647,7 +1647,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }, [modoInspetor, htmlAtual]);
 
   useEffect(() => {
-    //if (recarregarIframe && htmlAtual && previewFrameRef.current) {
+    if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
