@@ -80,7 +80,7 @@ function executarRefluxoCompleto(
     const tocs = container.querySelectorAll('.toc-container');
     if (tocs.length > 1) {
       for (let i = 1; i < tocs.length; i++) {
-        const page = tocs[i].closest('.page-container');
+        const page = tocs[i].closest('.page-container') as HTMLElement | null;
         if (page) page.remove();
       }
     }
@@ -144,7 +144,7 @@ function executarRefluxoCompleto(
       if (!href || !href.startsWith('#')) return;
       const target = document.getElementById(href.substring(1));
       if (target) {
-        const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+        const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura') as HTMLElement | null;
         if (page) {
           const idx = pageArray.indexOf(page) + 1;
           const numSpan = item.querySelector('.toc-page-num') as HTMLElement | null;
@@ -204,7 +204,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// NOVAS FUNÇÕES AUXILIARES: IMAGENS, SUBTÓPICOS E PARÁGRAFOS
+// FUNÇÕES AUXILIARES: IMAGENS, SUBTÓPICOS E PARÁGRAFOS
 // ============================================================
 
 async function buscarImagemUnsplashPorTema(tema: string, sig: string | number): Promise<string> {
@@ -265,7 +265,7 @@ function garantirSubtopico(html: string): string {
       h3.textContent = titulo.includes(':') ? titulo.split(':')[1]?.trim() || 'Introdução' : 'Introdução';
       let insertAfter = h2;
       while (insertAfter.nextElementSibling && insertAfter.nextElementSibling.tagName === 'IMG') {
-        insertAfter = insertAfter.nextElementSibling;
+        insertAfter = insertAfter.nextElementSibling as HTMLElement;
       }
       insertAfter.parentNode?.insertBefore(h3, insertAfter.nextSibling);
     }
@@ -570,7 +570,6 @@ function getScriptPreview(
 // ============================================================
 
 export default function Home() {
-  // Estados principais
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
@@ -582,7 +581,6 @@ export default function Home() {
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
 
-  // Configurações de estilo
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -600,12 +598,10 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
-  // Fundo da 2ª página
   const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
   const [bgSegundaPaginaUrl, setBgSegundaPaginaUrl] = useState('');
   const [bgSegundaPaginaOpacidade, setBgSegundaPaginaOpacidade] = useState('0.85');
 
-  // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
@@ -615,10 +611,7 @@ export default function Home() {
     'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="30%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="70%25" style="stop-color:%230a2342;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E'
   );
 
-  // Etapas
   const [etapaAtual, setEtapaAtual] = useState<0 | 1 | 2 | 3>(0);
-
-  // Biblioteca e modais
   const [livrosSalvos, setLivrosSalvos] = useState<{ id: string; titulo: string; data: string; html: string; prompt: string }[]>([]);
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
   const [showModalPagina, setShowModalPagina] = useState(false);
@@ -626,11 +619,8 @@ export default function Home() {
   const [paginaImagem, setPaginaImagem] = useState('');
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
-
-  // NOVO: Controle de palavras por parágrafo
   const [palavrasPorParagrafo, setPalavrasPorParagrafo] = useState(65);
 
-  // Refs para uploads
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -689,9 +679,6 @@ export default function Home() {
     return { width: '210mm', height: '297mm', padding: '22mm 20mm 25mm 20mm' };
   }
 
-  // ============================================================
-  // FUNÇÃO DE MOLDAGEM DE APRESENTAÇÃO
-  // ============================================================
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
     const conf = getEstilosFormato();
@@ -1036,9 +1023,6 @@ ${ebookStyles}
 </html>`;
   }
 
-  // ============================================================
-  // FUNÇÕES DE ATUALIZAÇÃO DA CAPA
-  // ============================================================
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
     const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
@@ -1055,9 +1039,6 @@ ${ebookStyles}
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
 
-  // ============================================================
-  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML (com pós-processamento)
-  // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
     if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
 
@@ -1083,14 +1064,8 @@ ${ebookStyles}
 
   async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true, palavrasAlvo: number = palavrasPorParagrafo) {
     let novoConteudo = purificarHTML(htmlCru);
-
-    // 1. Garantir subtópicos
     novoConteudo = garantirSubtopico(novoConteudo);
-
-    // 2. Substituir imagens (assíncrono)
     novoConteudo = await substituirImagensPorUnsplash(novoConteudo);
-
-    // 3. Ajustar parágrafos pela contagem de palavras
     novoConteudo = ajustarParagrafos(novoConteudo, palavrasAlvo);
 
     let htmlFinal = '';
@@ -1113,9 +1088,6 @@ ${ebookStyles}
     }
   }
 
-  // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
-  // ============================================================
   function gerarPaginaAviso() {
     const ano = new Date().getFullYear();
     return `
@@ -1247,9 +1219,6 @@ ${ebookStyles}
     (window as any).showNotification('Página extra inserida com sucesso!', 'success');
   }
 
-  // ============================================================
-  // FUNÇÕES DE EDIÇÃO E INSPETOR
-  // ============================================================
   function toggleInspetor() {
     const newMode = !modoInspetor;
     setModoInspetor(newMode);
@@ -1308,9 +1277,6 @@ ${ebookStyles}
     (window as any).showNotification('Ação desfeita com sucesso.', 'success');
   }
 
-  // ============================================================
-  // BUSCA DE IMAGEM UNSPLASH (manual no inspetor)
-  // ============================================================
   async function buscarImagemUnsplashManual() {
     if (!elementoSelecionado) {
       (window as any).showNotification('Selecione um elemento (imagem ou fundo) primeiro.', 'error');
@@ -1355,9 +1321,6 @@ ${ebookStyles}
     }
   }
 
-  // ============================================================
-  // EDIÇÃO LOCAL COM IA
-  // ============================================================
   async function aplicarModificacaoLocal() {
     const input = document.getElementById('ai_prompt_local') as HTMLInputElement | null;
     const comando = input?.value.trim() || '';
@@ -1403,9 +1366,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ============================================================
-  // FUNÇÕES DE GERENCIAMENTO DE BIBLIOTECA E ARQUIVOS
-  // ============================================================
   function salvarNaBiblioteca() {
     if (!livroTitulo || livroTitulo.trim() === '') {
       (window as any).showNotification('Dê um título ao E-book antes de salvar.', 'error');
@@ -1517,9 +1477,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ============================================================
-  // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
-  // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
     const regex = /Capítulo\s*(\d+)/gi;
@@ -1532,9 +1489,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
-  // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
-  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string, palavrasAlvo?: number }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
@@ -1559,11 +1513,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     return { regrasCompletas, numero };
   }
 
-  // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
-  // ============================================================
-
-  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
   async function iniciarEbookEtapas() {
     const content = productContent.trim();
     if (!content) {
@@ -1615,7 +1564,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- ETAPA 2: Adicionar 3 capítulos ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1657,7 +1605,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
@@ -1689,9 +1636,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ============================================================
-  // CHAMADA À API
-  // ============================================================
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
@@ -1744,9 +1688,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ============================================================
-  // EFEITOS (CARREGAR DADOS, SINCRONIZAR, ATUALIZAR)
-  // ============================================================
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
@@ -1792,7 +1733,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, []);
 
-  // Atualiza a capa quando título/autor mudam
   useEffect(() => {
     if (htmlAtual && (livroTitulo || livroAutores)) {
       const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
@@ -1807,7 +1747,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, [livroTitulo, livroAutores]);
 
-  // Sincroniza mensagens do iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
@@ -1836,14 +1775,12 @@ Mantenha a consistência visual com o resto do e-book.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
-  // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
@@ -1859,9 +1796,6 @@ Mantenha a consistência visual com o resto do e-book.`;
       )
     : false;
 
-  // ============================================================
-  // RENDER
-  // ============================================================
   return (
     <>
       <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
@@ -2124,18 +2058,19 @@ Mantenha a consistência visual com o resto do e-book.`;
                         Mostrar Subtópicos no Índice
                       </label>
                       {/* NOVO: controle de palavras por parágrafo */}
-<div className="mt-3 p-3 border-4 border-red-500 bg-yellow-100 rounded-lg">
-  <label className="input-label text-black font-bold">🔴 Palavras por parágrafo</label>
-  <input
-    type="number"
-    min="40"
-    max="100"
-    value={palavrasPorParagrafo}
-    onChange={(e) => setPalavrasPorParagrafo(Number(e.target.value))}
-    className="input-standard bg-white"
-  />
-</div>
-                    
+                      <div className="mt-3 p-3 border-4 border-red-500 bg-yellow-100 rounded-lg">
+                        <label className="input-label text-black font-bold">🔴 Palavras por parágrafo</label>
+                        <input
+                          type="number"
+                          min="40"
+                          max="100"
+                          value={palavrasPorParagrafo}
+                          onChange={(e) => setPalavrasPorParagrafo(Number(e.target.value))}
+                          className="input-standard bg-white"
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-3 gap-2 pt-1">
                       <button
                         onClick={iniciarEbookEtapas}
