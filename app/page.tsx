@@ -1,8 +1,10 @@
+// @ts-nocheck
 'use client';
 
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 import { jsPDF } from 'jspdf';
+
 // ============================================================
 // FUNÇÕES AUXILIARES DE PAGINAÇÃO E ÍNDICE (UNIFICADAS)
 // ============================================================
@@ -18,18 +20,15 @@ function executarRefluxoCompleto(
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // --- 1. Limpar páginas existentes (exceto capas e páginas especiais) ---
   const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
   paginasExistentes.forEach(p => p.remove());
 
-  // --- 2. Recolher todos os elementos filhos diretos que não são containers de página ---
   const todosElementos = Array.from(container.children).filter(el =>
     !el.classList.contains('page-container') &&
     el.tagName !== 'STYLE' &&
     el.tagName !== 'SCRIPT'
   );
 
-  // --- 3. Função para criar uma nova página ---
   function criarNovaPagina() {
     const novaPagina = document.createElement('div');
     novaPagina.className = 'page-container chapter-text-page';
@@ -52,19 +51,15 @@ function executarRefluxoCompleto(
 
   let paginaAtual = criarNovaPagina();
 
-  // --- 4. Distribuir elementos pelas páginas ---
   todosElementos.forEach(elemento => {
     const footer = paginaAtual.querySelector('.page-footer');
     paginaAtual.insertBefore(elemento, footer);
 
-    // Verifica se estourou a altura
     if (paginaAtual.scrollHeight > alturaMaxima) {
-      // Move o elemento para a nova página
       const novaPagina = criarNovaPagina();
       const novoFooter = novaPagina.querySelector('.page-footer');
       novaPagina.insertBefore(elemento, novoFooter);
 
-      // Anti-órfão: se o último elemento da página anterior era um título, move-o junto
       const paginaAnterior = paginaAtual.previousElementSibling;
       if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
         const footerAnterior = paginaAnterior.querySelector('.page-footer');
@@ -73,12 +68,10 @@ function executarRefluxoCompleto(
           novaPagina.insertBefore(ultimoElemento, elemento);
         }
       }
-
       paginaAtual = novaPagina;
     }
   });
 
-  // --- 5. Remover páginas vazias ---
   container.querySelectorAll('.page-container').forEach(page => {
     const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
     if (conteudo.length === 0) {
@@ -86,9 +79,7 @@ function executarRefluxoCompleto(
     }
   });
 
-  // --- 6. Sincronizar Índice ---
   function sincronizarIndice() {
-    // Remover índices duplicados e deixar apenas o primeiro
     const tocs = container.querySelectorAll('.toc-container');
     if (tocs.length > 1) {
       for (let i = 1; i < tocs.length; i++) {
@@ -98,7 +89,6 @@ function executarRefluxoCompleto(
     const mainToc = tocs[0];
     if (!mainToc) return;
 
-    // Coletar títulos
     const selector = indexShowSubtopics
       ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'
       : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
@@ -108,12 +98,10 @@ function executarRefluxoCompleto(
     mainToc.innerHTML = '';
 
     titulos.forEach((titleEl) => {
-      // Ignorar títulos de capa, índice, etc.
       if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
       let texto = titleEl.textContent?.trim() || '';
       if (/índice|sumário/i.test(texto)) return;
 
-      // Normalizar para evitar duplicatas
       let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
       if (titulosVistos.has(chave)) return;
       titulosVistos.add(chave);
@@ -153,7 +141,6 @@ function executarRefluxoCompleto(
       mainToc.appendChild(a);
     });
 
-    // Atualizar números das páginas
     const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
     const pageArray = Array.from(allPages);
     document.querySelectorAll('.toc-item').forEach(item => {
@@ -173,13 +160,11 @@ function executarRefluxoCompleto(
 
   sincronizarIndice();
 
-  // --- 7. Aplicar fundo da segunda página (opcional) ---
   let chIndex = 0;
   let currentChapterImg = '';
   container.querySelectorAll('.page-container').forEach((p) => {
     const imgEl = p.querySelector('.chapter-banner-img');
 
-    // Detectar início de capítulo
     if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
       chIndex = 1;
       if (imgEl) {
@@ -219,263 +204,257 @@ function executarRefluxoCompleto(
     }
   });
 
-  // --- 8. Forçar reflow para ajustar numeração ---
   setTimeout(() => sincronizarIndice(), 50);
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (com a função unificada)
+// SCRIPT INJETADO NO IFRAME
 // ============================================================
 
-function executarRefluxoCompleto() {
-      const container = document.getElementById('ebook-container');
-      if (!container) return;
+function getScriptPreview(
+  indexShowSubtopics: boolean,
+  ativarBgSegundaPagina: boolean,
+  bgSegundaPaginaUrl: string,
+  bgSegundaPaginaOpacidade: string
+) {
+  return `
+<script>
+  (function() {
+    let isReflowing = false;
+    function executarRefluxoCompleto() {
+      if (isReflowing) return;
+      isReflowing = true;
+      try {
+        const container = document.getElementById('ebook-container');
+        if (!container) return;
+        const c = container;
 
-      // 1. Limpa páginas antigas (exceto capas)
-      const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
-      paginasExistentes.forEach(p => p.remove());
+        const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
+        paginasExistentes.forEach(p => p.remove());
 
-      // Pega todos os elementos brutos
-      const elementosIA = Array.from(container.children).filter(el =>
-        !el.classList.contains('page-container') &&
-        el.tagName !== 'STYLE' &&
-        el.tagName !== 'SCRIPT'
-      );
+        const elementosIA = Array.from(c.children).filter(el =>
+          !el.classList.contains('page-container') &&
+          el.tagName !== 'STYLE' &&
+          el.tagName !== 'SCRIPT'
+        );
 
-      // Altura máxima super restrita (A4)
-      const ALTURA_MAXIMA = 980;
+        const ALTURA_MAXIMA = 980;
 
-      function criarNovaPagina() {
-        const novaPagina = document.createElement('div');
-        novaPagina.className = 'page-container chapter-text-page';
-        novaPagina.style.overflow = 'hidden';
-        novaPagina.style.breakAfter = 'page';
+        function criarNovaPagina() {
+          const novaPagina = document.createElement('div');
+          novaPagina.className = 'page-container chapter-text-page';
+          novaPagina.style.overflow = 'hidden';
+          novaPagina.style.breakAfter = 'page';
 
-        const header = document.createElement('div');
-        header.className = 'page-header';
-        header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
-        novaPagina.appendChild(header);
+          const header = document.createElement('div');
+          header.className = 'page-header';
+          header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
+          novaPagina.appendChild(header);
 
-        // Área restrita apenas para o texto, para podermos medir com precisão
-        const contentArea = document.createElement('div');
-        contentArea.className = 'content-area';
-        contentArea.style.display = 'flex';
-        contentArea.style.flexDirection = 'column';
-        novaPagina.appendChild(contentArea);
+          const contentArea = document.createElement('div');
+          contentArea.className = 'content-area';
+          contentArea.style.display = 'flex';
+          contentArea.style.flexDirection = 'column';
+          novaPagina.appendChild(contentArea);
 
-        const footer = document.createElement('div');
-        footer.className = 'page-footer';
-        footer.innerHTML = '<span class="page-number"></span>';
-        novaPagina.appendChild(footer);
+          const footer = document.createElement('div');
+          footer.className = 'page-footer';
+          footer.innerHTML = '<span class="page-number"></span>';
+          novaPagina.appendChild(footer);
 
-        container.appendChild(novaPagina);
-        return { pagina: novaPagina, areaTexto: contentArea };
-      }
+          c.appendChild(novaPagina);
+          return { pagina: novaPagina, areaTexto: contentArea };
+        }
 
-      if (elementosIA.length === 0) return;
+        if (elementosIA.length === 0) return;
 
-      let atual = criarNovaPagina();
+        let atual = criarNovaPagina();
 
-      // 2. Loop de Paginação Rigoroso
-      for (let i = 0; i < elementosIA.length; i++) {
-        let el = elementosIA[i];
-        atual.areaTexto.appendChild(el);
+        for (let i = 0; i < elementosIA.length; i++) {
+          let el = elementosIA[i];
+          atual.areaTexto.appendChild(el);
 
-        // O elemento fez a página estourar?
-        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-          
-          // Se for um parágrafo longo, fatiamos palavra por palavra
-          if (el.tagName === 'P') {
-            let textoOriginal = el.innerHTML;
-            let palavras = textoOriginal.split(' ');
-            
-            el.innerHTML = ''; 
-            let pIndex = 0;
-
-            // Preenche até o limite exato
-            while (pIndex < palavras.length) {
-              el.innerHTML += palavras[pIndex] + ' ';
-              
-              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-                // Remove a última palavra que causou o estouro
-                let htmlAtual = el.innerHTML;
-                el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
-                break;
+          if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+            if (el.tagName === 'P') {
+              let textoOriginal = el.innerHTML;
+              let palavras = textoOriginal.split(' ');
+              el.innerHTML = '';
+              let pIndex = 0;
+              while (pIndex < palavras.length) {
+                el.innerHTML += palavras[pIndex] + ' ';
+                if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+                  let htmlAtual = el.innerHTML;
+                  el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+                  break;
+                }
+                pIndex++;
               }
-              pIndex++;
-            }
-
-            // O texto que sobrou vira um novo elemento
-            let textoRestante = palavras.slice(pIndex).join(' ');
-            atual = criarNovaPagina();
-            
-            if (textoRestante.trim() !== '') {
-               let novoParagrafo = document.createElement('p');
-               novoParagrafo.innerHTML = textoRestante;
-               // Insere o restante de volta no loop para ser processado na nova folha
-               elementosIA.splice(i + 1, 0, novoParagrafo);
-            }
-          } 
-          // Se for uma imagem ou título, joga o bloco inteiro pra próxima página
-          else {
-            atual = criarNovaPagina();
-            atual.areaTexto.appendChild(el);
-          }
-        }
-      }
-
-      // 3. Limpeza Final
-      container.querySelectorAll('.page-container').forEach(page => {
-        const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
-        if (conteudo.length === 0) {
-          page.remove();
-        }
-      });
-
-      // 4. Sincronizar índice (só roda AGORA que as páginas estão perfeitas)
-      function sincronizarIndice() {
-        const tocs = container.querySelectorAll('.toc-container');
-        if (tocs.length > 1) {
-          for (let i = 1; i < tocs.length; i++) {
-            tocs[i].closest('.page-container')?.remove();
-          }
-        }
-        const mainToc = tocs[0];
-        if (!mainToc) return;
-
-        const selector = indexShowSubtopics ?
-          'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
-          'h1.chapter-title-exclusive, h2.chapter-title-inline';
-        const titulos = container.querySelectorAll(selector);
-        const titulosVistos = new Set();
-
-        mainToc.innerHTML = '';
-
-        titulos.forEach((titleEl) => {
-          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
-          let texto = titleEl.textContent?.trim() || '';
-          if (/índice|sumário/i.test(texto)) return;
-
-          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
-          if (titulosVistos.has(chave)) return;
-          titulosVistos.add(chave);
-
-          if (!titleEl.id) {
-            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
-          }
-
-          const a = document.createElement('a');
-          a.className = 'toc-item';
-          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
-            a.classList.add('toc-main-chapter');
-            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
-            a.style.color = 'var(--color-primary)';
-          } else if (titleEl.tagName === 'H3') {
-            a.classList.add('toc-subtopic');
-            a.style.paddingLeft = '20px';
-            a.style.fontSize = '0.9em';
-            a.style.opacity = '0.85';
-            a.style.fontWeight = '400';
-            if (!indexShowSubtopics) {
-              a.style.display = 'none';
-            }
-          }
-
-          a.href = '#' + titleEl.id;
-          const spanTitle = document.createElement('span');
-          spanTitle.innerText = texto;
-          const spanDots = document.createElement('span');
-          spanDots.className = 'toc-dots';
-          const spanPage = document.createElement('span');
-          spanPage.className = 'toc-page-num';
-
-          a.appendChild(spanTitle);
-          a.appendChild(spanDots);
-          a.appendChild(spanPage);
-          mainToc.appendChild(a);
-        });
-
-        const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-        const pageArray = Array.from(allPages);
-        document.querySelectorAll('.toc-item').forEach(item => {
-          const href = item.getAttribute('href');
-          if (!href || !href.startsWith('#')) return;
-          const target = document.getElementById(href.substring(1));
-          if (target) {
-            const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-            if (page) {
-              const idx = pageArray.indexOf(page) + 1;
-              const numSpan = item.querySelector('.toc-page-num');
-              if (numSpan) numSpan.innerText = String(idx);
-            }
-          }
-        });
-      }
-
-      sincronizarIndice();
-
-      // Fundo da segunda página (Mantido do seu original)
-      let chIndex = 0;
-      let currentChapterImg = '';
-      container.querySelectorAll('.page-container').forEach((p) => {
-        const imgEl = p.querySelector('.chapter-banner-img');
-
-        if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
-          chIndex = 1;
-          if (imgEl) {
-            currentChapterImg = imgEl.src;
-          } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-            const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
-            if (match) currentChapterImg = match[1];
-          }
-        } else {
-          chIndex++;
-        }
-
-        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
-          p.classList.add('chapter-page-2');
-          let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
-          if (finalBgUrl && finalBgUrl.trim() !== '') {
-            p.dataset.bgUrl = finalBgUrl;
-            if (ativarBgSegundaPagina) {
-              p.style.setProperty('background-image', "linear-gradient(rgba(255,255,255, " + ${bgSegundaPaginaOpacidade} + "), rgba(255,255,255, " + ${bgSegundaPaginaOpacidade} + ")), url('" + finalBgUrl + "')", "important");
-              p.style.setProperty('background-size', 'cover', 'important');
-              p.style.setProperty('background-position', 'center', 'important');
+              let textoRestante = palavras.slice(pIndex).join(' ');
+              atual = criarNovaPagina();
+              if (textoRestante.trim() !== '') {
+                let novoParagrafo = document.createElement('p');
+                novoParagrafo.innerHTML = textoRestante;
+                elementosIA.splice(i + 1, 0, novoParagrafo);
+              }
             } else {
-              p.style.removeProperty('background-image');
-              p.style.removeProperty('background-size');
-              p.style.removeProperty('background-position');
-            }
-          }
-        } else {
-          p.classList.remove('chapter-page-2');
-          if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
-            if (!p.hasAttribute('data-custom-bg')) {
-              p.style.removeProperty('background-image');
-              p.style.removeProperty('background-size');
-              p.style.removeProperty('background-position');
+              atual = criarNovaPagina();
+              atual.areaTexto.appendChild(el);
             }
           }
         }
-      });
+
+        c.querySelectorAll('.page-container').forEach(page => {
+          const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
+          if (conteudo.length === 0) {
+            page.remove();
+          }
+        });
+
+        function sincronizarIndice() {
+          const tocs = c.querySelectorAll('.toc-container');
+          if (tocs.length > 1) {
+            for (let i = 1; i < tocs.length; i++) {
+              const page = tocs[i].closest('.page-container');
+              if (page) page.remove();
+            }
+          }
+          const mainToc = tocs[0];
+          if (!mainToc) return;
+
+          const selector = ${indexShowSubtopics} ?
+            'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
+            'h1.chapter-title-exclusive, h2.chapter-title-inline';
+          const titulos = c.querySelectorAll(selector);
+          const titulosVistos = new Set();
+
+          mainToc.innerHTML = '';
+
+          titulos.forEach((titleEl) => {
+            if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+            let texto = titleEl.textContent?.trim() || '';
+            if (/índice|sumário/i.test(texto)) return;
+
+            let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
+            if (titulosVistos.has(chave)) return;
+            titulosVistos.add(chave);
+
+            if (!titleEl.id) {
+              titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+            }
+
+            const a = document.createElement('a');
+            a.className = 'toc-item';
+            if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+              a.classList.add('toc-main-chapter');
+              a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
+              a.style.color = 'var(--color-primary)';
+            } else if (titleEl.tagName === 'H3') {
+              a.classList.add('toc-subtopic');
+              a.style.paddingLeft = '20px';
+              a.style.fontSize = '0.9em';
+              a.style.opacity = '0.85';
+              a.style.fontWeight = '400';
+              if (!${indexShowSubtopics}) {
+                a.style.display = 'none';
+              }
+            }
+
+            a.href = '#' + titleEl.id;
+            const spanTitle = document.createElement('span');
+            spanTitle.innerText = texto;
+            const spanDots = document.createElement('span');
+            spanDots.className = 'toc-dots';
+            const spanPage = document.createElement('span');
+            spanPage.className = 'toc-page-num';
+
+            a.appendChild(spanTitle);
+            a.appendChild(spanDots);
+            a.appendChild(spanPage);
+            mainToc.appendChild(a);
+          });
+
+          const allPages = c.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+          const pageArray = Array.from(allPages);
+          document.querySelectorAll('.toc-item').forEach(item => {
+            const href = item.getAttribute('href');
+            if (!href || !href.startsWith('#')) return;
+            const target = document.getElementById(href.substring(1));
+            if (target) {
+              const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+              if (page) {
+                const idx = pageArray.indexOf(page) + 1;
+                const numSpan = item.querySelector('.toc-page-num');
+                if (numSpan) numSpan.innerText = String(idx);
+              }
+            }
+          });
+        }
+
+        sincronizarIndice();
+
+        let chIndex = 0;
+        let currentChapterImg = '';
+        c.querySelectorAll('.page-container').forEach((p) => {
+          const imgEl = p.querySelector('.chapter-banner-img');
+
+          if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
+            chIndex = 1;
+            if (imgEl) {
+              currentChapterImg = imgEl.src;
+            } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+              const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
+              if (match) currentChapterImg = match[1];
+            }
+          } else {
+            chIndex++;
+          }
+
+          if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
+            p.classList.add('chapter-page-2');
+            let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
+            if (finalBgUrl && finalBgUrl.trim() !== '') {
+              p.dataset.bgUrl = finalBgUrl;
+              if (${ativarBgSegundaPagina}) {
+                const opacidadeStr = "${bgSegundaPaginaOpacidade}";
+                const bgImageString = "linear-gradient(rgba(255,255,255, " + opacidadeStr + "), rgba(255,255,255, " + opacidadeStr + ")), url('" + finalBgUrl + "')";
+                p.style.setProperty('background-image', bgImageString, 'important');
+                p.style.setProperty('background-size', 'cover', 'important');
+                p.style.setProperty('background-position', 'center', 'important');
+              } else {
+                p.style.removeProperty('background-image');
+                p.style.removeProperty('background-size');
+                p.style.removeProperty('background-position');
+              }
+            }
+          } else {
+            p.classList.remove('chapter-page-2');
+            if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
+              if (!p.hasAttribute('data-custom-bg')) {
+                p.style.removeProperty('background-image');
+                p.style.removeProperty('background-size');
+                p.style.removeProperty('background-position');
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Erro no executarRefluxoCompleto:', err);
+      } finally {
+        setTimeout(() => { isReflowing = false; }, 200);
+      }
     }
 
-    // Executa após carregamento
     if (document.readyState === 'complete') {
       executarRefluxoCompleto();
     } else {
       window.addEventListener('load', () => {
         executarRefluxoCompleto();
-        // Reexecuta após imagens carregarem
         setTimeout(executarRefluxoCompleto, 500);
       });
     }
 
-    // Escuta mensagens do parent para atualizações
     window.addEventListener('message', (e) => {
-      if (e.data.type === 'TOGGLE_EDIT_MODE') {
-        // Apenas notifica que o modo mudou (já tratado no componente pai)
-      }
+      if (e.data.type === 'TOGGLE_EDIT_MODE') { /* no-op */ }
       if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
         setTimeout(executarRefluxoCompleto, 100);
       }
@@ -487,14 +466,15 @@ function executarRefluxoCompleto() {
       }
     });
 
-    // Também reage a mudanças no DOM
     const observer = new MutationObserver(() => {
-      // Debounce simples
+      if (isReflowing) return;
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
-    observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
-
+    const container = document.getElementById('ebook-container');
+    if (container) {
+      observer.observe(container, { childList: true, subtree: true });
+    }
   })();
 </script>
   `;
@@ -505,7 +485,6 @@ function executarRefluxoCompleto() {
 // ============================================================
 
 export default function Home() {
-  // Estados principais
   const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
   const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
@@ -517,7 +496,9 @@ export default function Home() {
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
 
-  // Configurações de estilo
+  const [palavrasCapitulo, setPalavrasCapitulo] = useState<number>(60);
+  const [palavrasSubtopico, setPalavrasSubtopico] = useState<number>(70);
+
   const [fontFamily, setFontFamily] = useState('Lato');
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
@@ -535,12 +516,10 @@ export default function Home() {
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
 
-  // Fundo da 2ª página
   const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
   const [bgSegundaPaginaUrl, setBgSegundaPaginaUrl] = useState('');
   const [bgSegundaPaginaOpacidade, setBgSegundaPaginaOpacidade] = useState('0.85');
 
-  // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
@@ -550,10 +529,7 @@ export default function Home() {
     'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="210" height="297" viewBox="0 0 210 297"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%231a1a2e;stop-opacity:1" /%3E%3Cstop offset="30%25" style="stop-color:%2316213e;stop-opacity:1" /%3E%3Cstop offset="70%25" style="stop-color:%230a2342;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%230f3460;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="210" height="297" fill="url(%23g)" /%3E%3C/svg%3E'
   );
 
-  // Etapas
   const [etapaAtual, setEtapaAtual] = useState<0 | 1 | 2 | 3>(0);
-
-  // Biblioteca e modais
   const [livrosSalvos, setLivrosSalvos] = useState<{ id: string; titulo: string; data: string; html: string; prompt: string }[]>([]);
   const [modalBiblioteca, setModalBiblioteca] = useState(false);
   const [showModalPagina, setShowModalPagina] = useState(false);
@@ -562,11 +538,11 @@ export default function Home() {
   const [paginaPosicaoImagem, setPaginaPosicaoImagem] = useState<'esquerda' | 'centro' | 'topo'>('centro');
   const [paginaLocal, setPaginaLocal] = useState<'depois-capa' | 'depois-conclusao'>('depois-capa');
 
-  // Refs para uploads
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-async function gerarEbookPDF(textoBruto: string) {
+
+  async function gerarEbookPDF(textoBruto: string) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -581,7 +557,7 @@ async function gerarEbookPDF(textoBruto: string) {
     const lines = textoBruto.split('\n');
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim(); // <--- É esta linha que define a variável 'line'
+      let line = lines[i].trim();
       if (line === '') {
           yPos += lineHeight;
           if (yPos > pageBottom) { doc.addPage(); yPos = margin; }
@@ -638,9 +614,6 @@ async function gerarEbookPDF(textoBruto: string) {
       iframe.src = pdfBlobUrl; 
     }
   }
-  // ============================================================
-  // FUNÇÕES AUXILIARES
-  // ============================================================
 
   function getPaletaObj() {
     if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: corManualSec };
@@ -683,7 +656,6 @@ async function gerarEbookPDF(textoBruto: string) {
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
-    // Limpa estilos invasivos
     clean = clean.replace(/<p\s+[^>]*>/gi, '<p>');
 
     return clean.trim();
@@ -726,7 +698,6 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
-/* BLINDAGEM CONTRA VAZAMENTO LATERAL E OVERFLOW */
 #ebook-container * {
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -770,7 +741,7 @@ img.chapter-banner-img {
   margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden !important; /* <-- BLINDAGEM CRÍTICA */
+  overflow: hidden !important; 
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
@@ -893,11 +864,10 @@ h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; p
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-/* ORDEM DO CAPÍTULO: IMAGEM PRIMEIRO, DEPOIS TÍTULO */
 .chapter-title-inline {
   text-align: center;
   font-size: 2.1rem;
-  margin-top: 0.5rem;   /* reduzido porque agora vem depois da imagem */
+  margin-top: 0.5rem;
   margin-bottom: 1.2rem;
   color: var(--color-primary);
   font-weight: 800;
@@ -1039,9 +1009,6 @@ ${ebookStyles}
 </html>`;
   }
 
-  // ============================================================
-  // FUNÇÕES DE ATUALIZAÇÃO DA CAPA
-  // ============================================================
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
     const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
@@ -1058,45 +1025,70 @@ ${ebookStyles}
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
 
-  // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
-  // ============================================================
-  function ajustarParagrafos(html: string): string {
-    // Cria um parser simples para ajustar o comprimento dos parágrafos
-    // sem quebrar a estrutura HTML.
-    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
-    // se tiver mais de 600, tenta quebrar em dois parágrafos.
-    // Isso garante uma consistência visual sem depender da IA.
+  function ajustarParagrafos(html: string, minAbertura: number, minSubtopico: number): string {
+    if (html.toLowerCase().includes('<body') || html.includes('id="ebook-container"')) return html;
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-    const paragrafos = tempDiv.querySelectorAll('p');
-    paragrafos.forEach(p => {
-      let texto = p.textContent || '';
-      // Remove espaços extras
-      texto = texto.replace(/\s+/g, ' ').trim();
-      if (texto.length > 600) {
-        // Tenta quebrar na última frase antes de 450 caracteres
-        const mid = Math.min(450, texto.length);
-        let breakPos = texto.lastIndexOf('. ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
-        if (breakPos !== -1) {
-          const p1 = texto.substring(0, breakPos + 1);
-          const p2 = texto.substring(breakPos + 2);
-          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
-          p.textContent = p1;
-          const novoP = document.createElement('p');
-          novoP.textContent = p2;
-          p.parentNode?.insertBefore(novoP, p.nextSibling);
+    
+    const containers = tempDiv.querySelectorAll('.page-container, div');
+    containers.forEach(container => {
+      const paragrafos = Array.from(container.querySelectorAll('p'));
+      if (paragrafos.length === 0) return;
+
+      for (let i = 0; i < paragrafos.length; i++) {
+        let p = paragrafos[i] as HTMLElement;
+        if (!p || !p.parentNode) continue;
+        if (p.closest('.page-cover-img, .page-cover-text, .legal-page, .author-page, .page-header, .page-footer, .toc-container')) continue;
+
+        const isAbertura = !p.previousElementSibling || p.previousElementSibling.tagName === 'H2';
+        const limiteMinimo = isAbertura ? minAbertura : minSubtopico;
+        const limiteMaximo = limiteMinimo + 15;
+
+        let texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!texto) { p.remove(); continue; }
+        let palavras = texto.split(' ');
+
+        while (palavras.length < limiteMinimo && i + 1 < paragrafos.length) {
+          let proximoP = paragrafos[i + 1] as HTMLElement;
+          if (p.nextElementSibling === proximoP) {
+            p.innerHTML = p.innerHTML + ' ' + proximoP.innerHTML;
+            texto = (p.textContent || '').replace(/\s+/g, ' ').trim();
+            palavras = texto.split(' ');
+            proximoP.remove();
+            paragrafos.splice(i + 1, 1);
+          } else break;
+        }
+
+        if (palavras.length > limiteMaximo) {
+          let fragmentos = [];
+          let currentWords = palavras;
+          while (currentWords.length > limiteMaximo) {
+            let splitIndex = limiteMaximo;
+            for (let j = limiteMaximo - 1; j >= limiteMinimo; j--) {
+              if (currentWords[j].endsWith('.') || currentWords[j].endsWith('?') || currentWords[j].endsWith('!')) {
+                splitIndex = j + 1; break;
+              }
+            }
+            fragmentos.push(currentWords.slice(0, splitIndex).join(' '));
+            currentWords = currentWords.slice(splitIndex);
+          }
+          if (currentWords.length > 0) fragmentos.push(currentWords.join(' '));
+
+          p.textContent = fragmentos[0];
+          let lastP = p;
+          for (let f = 1; f < fragmentos.length; f++) {
+            const novoP = document.createElement('p');
+            novoP.textContent = fragmentos[f];
+            lastP.parentNode?.insertBefore(novoP, lastP.nextSibling);
+            lastP = novoP;
+            paragrafos.splice(i + f, 0, novoP);
+          }
         }
       }
     });
     return tempDiv.innerHTML;
   }
 
-  // ============================================================
-  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
-  // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
     if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
 
@@ -1122,7 +1114,7 @@ ${ebookStyles}
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
+    novoConteudo = ajustarParagrafos(novoConteudo, palavrasCapitulo, palavrasSubtopico); 
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -1144,9 +1136,6 @@ ${ebookStyles}
     }
   }
 
-  // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
-  // ============================================================
   function gerarPaginaAviso() {
     const ano = new Date().getFullYear();
     return `
@@ -1283,9 +1272,6 @@ ${ebookStyles}
     (window as any).showNotification('Página extra inserida com sucesso!', 'success');
   }
 
-  // ============================================================
-  // FUNÇÕES DE EDIÇÃO E INSPETOR
-  // ============================================================
   function toggleInspetor() {
     const newMode = !modoInspetor;
     setModoInspetor(newMode);
@@ -1344,26 +1330,23 @@ ${ebookStyles}
     (window as any).showNotification('Ação desfeita com sucesso.', 'success');
   }
 
-  // ============================================================
-  // BUSCA DE IMAGEM UNSPLASH
-  // ============================================================
-  async function buscarImagemUnsplash() {
+  async function buscarImagemUnsplashManual() {
     if (!elementoSelecionado) {
       (window as any).showNotification('Selecione um elemento (imagem ou fundo) primeiro.', 'error');
       return;
     }
-    (window as any).showNotification('Lendo contexto para buscar imagem perfeita na API do Unsplash...', 'info');
+    (window as any).showNotification('Buscando imagem...', 'info');
 
     let keyword = 'abstract';
     try {
-      const instrucao = 'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto, focando em pessoas reais e fotografia realista. Nenhuma outra palavra. **PROIBIDO usar palavras relacionadas a animais (cat, dog, pet, animal), tecnologia, sci-fi, desenhos, ilustrações ou gráficos animados. USE APENAS FOTOS REAIS**.';
+      const instrucao = 'Você é um fotógrafo. Retorne APENAS UMA palavra-chave em INGLÊS que represente o texto. USE APENAS FOTOS REAIS.';
       const data = await chamarMotorIA(instrucao, [{ text: elementoSelecionado.text || elementoSelecionado.outerHTML }], true);
       if (data && data.html) {
         keyword = data.html.replace(/<[^>]*>?/gm, '').trim().replace(/[^a-zA-Z0-9]/g, '');
         if (!keyword) keyword = 'abstract';
       }
     } catch (e) {
-      console.error('Falha ao ler palavras-chave via IA, usando padrão.');
+      console.error('Falha ao ler palavras-chave via IA');
     }
 
     try {
@@ -1372,19 +1355,16 @@ ${ebookStyles}
 
       if (accessKey) {
         const unsplashRes = await fetch(`https://api.unsplash.com/photos/random?query=${encodeURIComponent(keyword)}&orientation=landscape`, {
-          headers: {
-            Authorization: `Client-ID ${accessKey}`
-          }
+          headers: { Authorization: `Client-ID ${accessKey}` }
         });
 
-        if (!unsplashRes.ok) throw new Error('Erro ao autenticar na API do Unsplash. Verifique sua chave.');
+        if (!unsplashRes.ok) throw new Error('Erro API');
 
         const unsplashData = await unsplashRes.json();
         url = unsplashData.urls.regular;
       } else {
         const termoDinamico = encodeURIComponent((elementoSelecionado?.innerText || "chapter portrait") + " real human photography");
         url = `https://images.unsplash.com/featured/?${termoDinamico}`;
-        (window as any).showNotification('Imagem dinâmica aplicada por tema.', 'warning');
       }
 
       const isImg = elementoSelecionado.tagName === 'img';
@@ -1392,30 +1372,21 @@ ${ebookStyles}
 
       if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
         previewFrameRef.current.contentWindow.postMessage(
-          {
-            type: 'UPDATE_ELEMENT',
-            id: elementoSelecionado.id,
-            [field]: url,
-            forceTextUpdate: false,
-          },
-          '*'
+          { type: 'UPDATE_ELEMENT', id: elementoSelecionado.id, [field]: url, forceTextUpdate: false }, '*'
         );
       }
 
       setElementoSelecionado((prev: any) => ({ ...prev, [field]: url }));
-      (window as any).showNotification('Fotografia aplicada via Unsplash com sucesso!', 'success');
+      (window as any).showNotification('Fotografia aplicada!', 'success');
     } catch (err) {
       console.error(err);
-      (window as any).showNotification('Falha ao conectar com a API do Unsplash.', 'error');
+      (window as any).showNotification('Falha ao conectar com a API.', 'error');
     }
   }
 
-  // ============================================================
-  // EDIÇÃO LOCAL COM IA
-  // ============================================================
   async function aplicarModificacaoLocal() {
-    const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
-    const comando = input?.value.trim();
+    const input = document.getElementById('ai_prompt_local') as HTMLInputElement | null;
+    const comando = input?.value.trim() || '';
     if (!comando) {
       (window as any).showNotification('Digite o que alterar neste elemento.', 'error');
       return;
@@ -1425,22 +1396,8 @@ ${ebookStyles}
     setHistoricoCodigo((prev) => [...prev, htmlAtual]);
     const paleta = getPaletaObj();
 
-    const instrucao = `Você é um Assistente Editorial. O usuário selecionou um trecho específico de HTML de um e-book.
-Sua tarefa é modificar APENAS este elemento HTML de acordo com o pedido: "${comando}".
-
-REGRAS MÁXIMAS:
-1. PRESERVAÇÃO DE ESTRUTURA: Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos. Não os apague.
-2. Retorne APENAS o código HTML modificado DESSA CAIXA/ELEMENTO específico.
-3. Mantenha as classes originais.
-4. Use as cores do tema atual:
-   - Cor primária: ${paleta.pri}
-   - Cor secundária: ${paleta.sec}
-   - Cor de texto: ${paleta.text}
-   - Cor de fundo: ${paleta.bg}
-   - Cor de borda: ${paleta.borda}
-Mantenha a consistência visual com o resto do e-book.`;
-
-    const data = await chamarMotorIA(instrucao, [{ text: `HTML DO ELEMENTO SELECIONADO:\n"""\n${elementoSelecionado.outerHTML}\n"""` }], true);
+    const instrucao = `Modifique APENAS este elemento HTML de acordo com o pedido: "${comando}". Mantenha classes. Cores: Pri: ${paleta.pri}, Sec: ${paleta.sec}.`;
+    const data = await chamarMotorIA(instrucao, [{ text: `HTML:\n"""\n${elementoSelecionado.outerHTML}\n"""` }], true);
 
     if (data && data.html) {
       let novoHtml = data.html;
@@ -1453,21 +1410,18 @@ Mantenha a consistência visual com o resto do e-book.`;
       }
 
       setElementoSelecionado(null);
-      input.value = '';
-      (window as any).showNotification('Trecho modificado com sucesso!', 'success');
+      if (input) input.value = '';
+      (window as any).showNotification('Modificado com sucesso!', 'success');
     }
   }
 
-  // ============================================================
-  // FUNÇÕES DE GERENCIAMENTO DE BIBLIOTECA E ARQUIVOS
-  // ============================================================
   function salvarNaBiblioteca() {
     if (!livroTitulo || livroTitulo.trim() === '') {
-      (window as any).showNotification('Dê um título ao E-book antes de salvar.', 'error');
+      (window as any).showNotification('Dê um título ao E-book.', 'error');
       return;
     }
     if (!htmlAtual || htmlAtual.trim() === '') {
-      (window as any).showNotification('Não há conteúdo para salvar.', 'error');
+      (window as any).showNotification('Não há conteúdo.', 'error');
       return;
     }
 
@@ -1476,7 +1430,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     const novaBiblioteca = [...livrosSalvos, novoLivro];
     setLivrosSalvos(novaBiblioteca);
     localStorage.setItem('ebook_saved_books', JSON.stringify(novaBiblioteca));
-    (window as any).showNotification('E-book salvo na sua Biblioteca Local!', 'success');
+    (window as any).showNotification('Salvo!', 'success');
   }
 
   function carregarDaBiblioteca(livro: any) {
@@ -1485,11 +1439,11 @@ Mantenha a consistência visual com o resto do e-book.`;
     setEtapaAtual(0);
     aplicarHtmlNovo(livro.html, false, true);
     setModalBiblioteca(false);
-    (window as any).showNotification(`Livro "${livro.titulo}" carregado.`, 'success');
+    (window as any).showNotification(`Carregado.`, 'success');
   }
 
   function excluirDaBiblioteca(id: string) {
-    if (confirm('Tem certeza que deseja excluir este e-book da biblioteca?')) {
+    if (confirm('Excluir?')) {
       const novaBiblioteca = livrosSalvos.filter((l) => l.id !== id);
       setLivrosSalvos(novaBiblioteca);
       localStorage.setItem('ebook_saved_books', JSON.stringify(novaBiblioteca));
@@ -1516,7 +1470,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       const content = ev.target?.result as string;
       if (content) {
         aplicarHtmlNovo(content, false, true);
-        (window as any).showNotification('Arquivo importado com sucesso!', 'success');
+        (window as any).showNotification('Importado!', 'success');
       }
     };
     reader.readAsText(file);
@@ -1531,13 +1485,10 @@ Mantenha a consistência visual com o resto do e-book.`;
       const base64Img = event.target?.result as string;
       if (elementoSelecionado && elementoSelecionado.tagName === 'img') {
         atualizarElemento('src', base64Img);
-        (window as any).showNotification('Imagem substituída com sucesso!', 'success');
       } else if (elementoSelecionado && (elementoSelecionado.bgImage !== undefined || elementoSelecionado.isBgTarget)) {
         atualizarElemento('bgImage', base64Img);
-        (window as any).showNotification('Fundo substituído com sucesso!', 'success');
       } else {
         setImagemCapaUrl(base64Img);
-        (window as any).showNotification('Capa atualizada com sucesso! (Formato A4 recomendado)', 'success');
       }
       if (imageInputRef.current) imageInputRef.current.value = '';
     };
@@ -1551,14 +1502,13 @@ Mantenha a consistência visual com o resto do e-book.`;
     reader.onload = (event) => {
       const base64Img = event.target?.result as string;
       setPaginaImagem(base64Img);
-      (window as any).showNotification('Imagem carregada para página extra!', 'success');
     };
     reader.readAsDataURL(file);
     if (extraImageInputRef.current) extraImageInputRef.current.value = '';
   }
 
   function iniciarNovoLivro() {
-    if (confirm('ATENÇÃO: Tem certeza que deseja iniciar um novo livro? Todo o progresso atual não salvo será perdido.')) {
+    if (confirm('Apagar tudo não salvo?')) {
       localStorage.removeItem('ebook_draft_html');
       localStorage.removeItem('ebook_draft_prompt');
       setHtmlAtual('');
@@ -1568,13 +1518,9 @@ Mantenha a consistência visual com o resto do e-book.`;
       if (previewFrameRef.current) {
         previewFrameRef.current.srcdoc = '';
       }
-      (window as any).showNotification('Novo documento em branco criado.', 'info');
     }
   }
 
-  // ============================================================
-  // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
-  // ============================================================
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
     const regex = /Capítulo\s*(\d+)/gi;
@@ -1587,36 +1533,30 @@ Mantenha a consistência visual com o resto do e-book.`;
     return max + 1;
   }
 
-// ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
-  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
-    const tema = opts?.tema || 'geral';
-
+    
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
-  2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
+  2. ORDEM RIGOROSA DA PÁGINA:
      - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
-     - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
-  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
-     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
+     - Adapte 100% o seu tom de escrita ao tema solicitado.
+     - CONTROLE DE PALAVRAS EXATO:
+       -> Os parágrafos de ABERTURA (logo após o Capítulo) devem ter no mínimo ${palavrasCapitulo} palavras cada.
+       -> Os parágrafos sob os SUBTÓPICOS (Páginas seguintes) devem ter no mínimo ${palavrasSubtopico} palavras cada.
+     - Desenvolva o texto de forma a preencher esse volume exato em todos os parágrafos.
+  4. IMAGENS EXCLUSIVAS: Traduza o assunto principal para UMA palavra-chave em inglês. Use a estrutura:
+     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem">
   `;
 
     return { regrasCompletas, numero };
   }
 
-  // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
-  // ============================================================
-
-  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
   async function iniciarEbookEtapas() {
     const content = productContent.trim();
     if (!content) {
@@ -1644,31 +1584,24 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">[Primeiro tópico da introdução]</h3>
-        <p>[Parágrafo 1]</p>
-        <p>[Parágrafo 2]</p>
+        <p>[Parágrafos com mín. ${palavrasCapitulo} palavras]</p>
+        <p>[Parágrafos com mín. ${palavrasCapitulo} palavras]</p>
         <h3 class="subtopic-title">[Segundo tópico da introdução]</h3>
-        <p>[Parágrafo 3]</p>
-        <p>[Parágrafo 4]</p>
+        <p>[Parágrafos com mín. ${palavrasSubtopico} palavras]</p>
+        <p>[Parágrafos com mín. ${palavrasSubtopico} palavras]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
-
-    REGRAS CRÍTICAS:
-    1. PARE AQUI! NÃO gere Capítulos! Apenas devolva a Capa, o Aviso, o Índice e a Introdução.
-    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto, linha ou lista dentro.
-    3. Não use imagens na introdução.
+    REGRAS CRÍTICAS: PARE AQUI! NÃO gere Capítulos! O ÍNDICE DEVE SER VAZIO.
     `;
 
-    const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
+    const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE:\n"""\n${content}\n"""` }], false);
     if (data && data.html) {
-      aplicarHtmlNovo(data.html, false, true);
+      await aplicarHtmlNovo(data.html, false, true);
       setEtapaAtual(1);
-      (window as any).showNotification('Passo 1 Concluído! Capa, Aviso, Índice e Introdução gerados.', 'success');
-    } else {
-      console.error('Dados retornados pela IA são inválidos:', data);
+      (window as any).showNotification('Passo 1 Concluído!', 'success');
     }
   }
 
-  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1684,43 +1617,33 @@ Mantenha a consistência visual com o resto do e-book.`;
     const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
-    const instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
-    Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
-    Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-    ATENÇÃO: Não pule números. Respeite rigorosamente a ordem (imagem primeiro, depois título).
-
+    const instrucao = `CONTINUAR a escrita. Gere EXATAMENTE 3 CAPÍTULOS completos.
     MOLDE PARA CADA CAPÍTULO:
     ${cap1.regrasCompletas}
     ${cap2.regrasCompletas}
     ${cap3.regrasCompletas}
-
-    A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos acima preenchidos, sem repetir cabeçalhos ou rodapés. Não escreva "Conclusão".`;
+    A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos acima.`;
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
-      { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
+      { text: `INSTRUÇÕES:\n"""\n${content}\n"""` },
     ], false);
 
     if (data && data.html) {
-      aplicarHtmlNovo(data.html, true, true);
+      await aplicarHtmlNovo(data.html, true, true);
       setEtapaAtual(2);
-      (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
-    } else {
-      console.error('Dados retornados pela IA são inválidos:', data);
+      (window as any).showNotification('Passo 2 Concluído!', 'success');
     }
   }
 
-  // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
-      (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
+      (window as any).showNotification('Gere o livro antes.', 'error');
       return;
     }
 
-    const instrucao = `Você vai FINALIZAR a escrita do e-book.
-    DIRETRIZES:
-    1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
-    2. MOLDE DE CONCLUSÃO:
+    const instrucao = `FINALIZAR e-book.
+    MOLDE DE CONCLUSÃO (cada parágrafo deve ter em média ${palavrasCapitulo} palavras):
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
         <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
@@ -1728,25 +1651,19 @@ Mantenha a consistência visual com o resto do e-book.`;
         <p>[Conclusão...]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
-    O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará de adicionar o Autor nativamente.
-    `;
+    Termine apenas fechando a div de Conclusão.`;
 
-    const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
+    const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK:\n"""\n${livroTitulo}\n"""` }], false);
     if (data && data.html) {
       let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
-      aplicarHtmlNovo(htmlFinal, true, true);
+      await aplicarHtmlNovo(htmlFinal, true, true);
       setEtapaAtual(3);
-      (window as any).showNotification('Passo 3 Concluído! Conclusão e Autor gerados.', 'success');
-    } else {
-      console.error('Dados retornados pela IA são inválidos:', data);
+      (window as any).showNotification('Passo 3 Concluído!', 'success');
     }
   }
 
-  // ============================================================
-  // CHAMADA À API
-  // ============================================================
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
-    setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
+    setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'Diagramando os capítulos...', processing: true });
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
@@ -1773,23 +1690,11 @@ Mantenha a consistência visual com o resto do e-book.`;
 
       const responseText = await response.text();
       let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (err) {
-        throw new Error(`Erro no Servidor (${response.status}): ${responseText.substring(0, 80)}`);
-      }
-      if (!data.success) throw new Error(data.error || 'Erro retornado pela API.');
+      try { data = JSON.parse(responseText); } catch (err) { throw new Error('Erro no Servidor'); }
+      if (!data.success) throw new Error(data.error || 'Erro na API.');
       return data;
     } catch (err: any) {
       let errorMsg = err.message;
-      if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota')) {
-        errorMsg = 'Limite excedido (Quota).';
-      }
-      if (errorMsg.includes('aborted') || err.name === 'AbortError') {
-        errorMsg = 'Tempo limite excedido. Tente gerar um capítulo por vez.';
-      }
-      console.error('Erro na chamada da IA:', errorMsg);
-      if (isElementRefinement) throw new Error(errorMsg);
       (window as any).showNotification(errorMsg, 'error');
       return null;
     } finally {
@@ -1797,9 +1702,6 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }
 
-  // ============================================================
-  // EFEITOS (CARREGAR DADOS, SINCRONIZAR, ATUALIZAR)
-  // ============================================================
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
@@ -1839,13 +1741,10 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const savedBooks = localStorage.getItem('ebook_saved_books');
     if (savedBooks) {
-      try {
-        setLivrosSalvos(JSON.parse(savedBooks));
-      } catch (e) {}
+      try { setLivrosSalvos(JSON.parse(savedBooks)); } catch (e) {}
     }
   }, []);
 
-  // Atualiza a capa quando título/autor mudam
   useEffect(() => {
     if (htmlAtual && (livroTitulo || livroAutores)) {
       const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
@@ -1853,14 +1752,10 @@ Mantenha a consistência visual com o resto do e-book.`;
         setHtmlAtual(htmlAtualizado);
         localStorage.setItem('ebook_draft_html', htmlAtualizado);
         setRecarregarIframe(true);
-        if (previewFrameRef.current) {
-          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-        }
       }
     }
   }, [livroTitulo, livroAutores]);
 
-  // Sincroniza mensagens do iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
@@ -1879,9 +1774,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           setHtmlAtual(htmlLimpo);
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(true);
-          if (previewFrameRef.current) {
-            previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
-          }
         }
       }
     };
@@ -1889,14 +1781,12 @@ Mantenha a consistência visual com o resto do e-book.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
-  // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
@@ -1906,22 +1796,13 @@ Mantenha a consistência visual com o resto do e-book.`;
     }
   }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
 
-  const isTextElement = elementoSelecionado
-    ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
-        elementoSelecionado.tagName.toLowerCase()
-      )
-    : false;
-
-  // ============================================================
-  // RENDER
-  // ============================================================
   return (
     <>
       <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
         <i className="fas fa-desktop text-6xl mb-6 text-indigo-400"></i>
         <h2 className="text-2xl font-black mb-3">Acesso Restrito ao Computador</h2>
-        <p className="text-base text-slate-300">Para garantir uma experiência de nível profissional na edição e diagramação do seu E-book, o painel do E-bookPro deve ser acessado por uma tela maior.</p>
-      </div>
+        <p className="text-base text-slate-300">Acesse por uma tela maior.</p>
+        </div>
 
       <div className="hidden md:flex h-screen overflow-hidden relative bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -1945,7 +1826,6 @@ Mantenha a consistência visual com o resto do e-book.`;
           <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
             <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-5"></div>
             <p className="text-slate-800 font-black text-xl tracking-tight mb-2">{statusApis.texto}</p>
-            <p className="text-slate-500 font-medium text-sm">Organizando estrutura e conteúdo editorial...</p>
           </div>
         )}
 
@@ -1958,69 +1838,33 @@ Mantenha a consistência visual com o resto do e-book.`;
               <div className="space-y-4">
                 <div>
                   <label className="input-label">Título (opcional)</label>
-                  <input
-                    type="text"
-                    value={paginaTitulo}
-                    onChange={(e) => setPaginaTitulo(e.target.value)}
-                    className="input-standard"
-                    placeholder="Ex: Dedicatória, Agradecimentos..."
-                  />
+                  <input type="text" value={paginaTitulo} onChange={(e) => setPaginaTitulo(e.target.value)} className="input-standard" />
                 </div>
                 <div>
                   <label className="input-label">URL da Imagem (opcional)</label>
-                  <input
-                    type="text"
-                    value={paginaImagem}
-                    onChange={(e) => setPaginaImagem(e.target.value)}
-                    className="input-standard"
-                    placeholder="https://exemplo.com/imagem.jpg"
-                  />
+                  <input type="text" value={paginaImagem} onChange={(e) => setPaginaImagem(e.target.value)} className="input-standard" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => extraImageInputRef.current?.click()}
-                    className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-[9px] px-3 py-1.5 rounded-lg transition flex items-center gap-1.5"
-                  >
-                    <i className="fas fa-upload"></i> Upload Imagem
-                  </button>
-                  <span className="text-[9px] text-slate-400">(PC)</span>
+                  <button onClick={() => extraImageInputRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-[9px] px-3 py-1.5 rounded-lg transition">Upload Imagem</button>
                 </div>
                 <div>
                   <label className="input-label">Posição da Imagem</label>
-                  <select
-                    value={paginaPosicaoImagem}
-                    onChange={(e) => setPaginaPosicaoImagem(e.target.value as any)}
-                    className="input-standard"
-                  >
-                    <option value="esquerda">Esquerda (flutuante)</option>
+                  <select value={paginaPosicaoImagem} onChange={(e) => setPaginaPosicaoImagem(e.target.value as any)} className="input-standard">
+                    <option value="esquerda">Esquerda</option>
                     <option value="centro">Centralizada</option>
                     <option value="topo">Topo</option>
                   </select>
                 </div>
                 <div>
                   <label className="input-label">Local de Inserção</label>
-                  <select
-                    value={paginaLocal}
-                    onChange={(e) => setPaginaLocal(e.target.value as any)}
-                    className="input-standard"
-                  >
+                  <select value={paginaLocal} onChange={(e) => setPaginaLocal(e.target.value as any)} className="input-standard">
                     <option value="depois-capa">Depois da Capa</option>
                     <option value="depois-conclusao">Depois da Conclusão</option>
                   </select>
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={inserirPaginaExtra}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition"
-                  >
-                    Inserir
-                  </button>
-                  <button
-                    onClick={() => setShowModalPagina(false)}
-                    className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-lg transition"
-                  >
-                    Cancelar
-                  </button>
+                  <button onClick={inserirPaginaExtra} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">Inserir</button>
+                  <button onClick={() => setShowModalPagina(false)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-lg transition">Cancelar</button>
                 </div>
               </div>
             </div>
@@ -2034,49 +1878,25 @@ Mantenha a consistência visual com o resto do e-book.`;
                 <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
                   <i className="fas fa-book text-indigo-600"></i> Seus E-books Salvos
                 </h2>
-                <button onClick={() => setModalBiblioteca(false)} className="text-slate-400 hover:text-slate-600">
-                  <i className="fas fa-times text-xl"></i>
-                </button>
+                <button onClick={() => setModalBiblioteca(false)} className="text-slate-400 hover:text-slate-600"><i className="fas fa-times text-xl"></i></button>
               </div>
               <div className="p-5 max-h-[60vh] overflow-y-auto">
                 {livrosSalvos.length === 0 ? (
                   <div className="text-center py-10 text-slate-400">
-                    <i className="fas fa-folder-open text-4xl mb-3 opacity-30"></i>
-                    <p className="font-bold">Sua biblioteca está vazia</p>
-                    <p className="text-sm mt-1">Salve seus e-books clicando em "Salvar Local" no topo da tela.</p>
+                    <p className="font-bold">Biblioteca vazia</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
                     {livrosSalvos.map((livro) => (
-                      <div
-                        key={livro.id}
-                        className="border border-slate-200 rounded-xl p-4 flex justify-between items-center hover:border-indigo-300 hover:shadow-md transition bg-white"
-                      >
+                      <div key={livro.id} className="border border-slate-200 rounded-xl p-4 flex justify-between items-center hover:border-indigo-300 hover:shadow-md transition bg-white">
                         <div>
                           <h3 className="font-bold text-slate-800 text-base">{livro.titulo}</h3>
-                          <p className="text-xs text-slate-400 font-medium mt-1">
-                            <i className="far fa-calendar-alt"></i> Salvo em: {livro.data}
-                          </p>
+                          <p className="text-xs text-slate-400 font-medium mt-1">Salvo em: {livro.data}</p>
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => carregarDaBiblioteca(livro)}
-                            className="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white font-bold px-4 py-2 rounded-lg text-xs transition"
-                          >
-                            Carregar
-                          </button>
-                          <button
-                            onClick={() => baixarArquivo(livro.html, livro.titulo)}
-                            className="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"
-                          >
-                            <i className="fas fa-download"></i> Salvar arquivo
-                          </button>
-                          <button
-                            onClick={() => excluirDaBiblioteca(livro.id)}
-                            className="bg-red-50 text-red-500 hover:bg-red-50 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
+                          <button onClick={() => carregarDaBiblioteca(livro)} className="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white font-bold px-4 py-2 rounded-lg text-xs transition">Carregar</button>
+                          <button onClick={() => baixarArquivo(livro.html, livro.titulo)} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"><i className="fas fa-download"></i></button>
+                          <button onClick={() => excluirDaBiblioteca(livro.id)} className="bg-red-50 text-red-500 hover:bg-red-50 hover:text-white font-bold px-3 py-2 rounded-lg text-xs transition"><i className="fas fa-trash"></i></button>
                         </div>
                       </div>
                     ))}
@@ -2095,16 +1915,8 @@ Mantenha a consistência visual com o resto do e-book.`;
               </div>
               E-book<span className="text-indigo-600">Pro</span>
             </h1>
-            <button
-              onClick={toggleInspetor}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
-                modoInspetor
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                  : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <i className={`fas fa-pen-nib ${modoInspetor ? 'animate-pulse text-yellow-300' : ''}`}></i>{' '}
-              {modoInspetor ? 'Editor Inteligente' : 'Modo Editor'}
+            <button onClick={toggleInspetor} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${modoInspetor ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+              <i className={`fas fa-pen-nib ${modoInspetor ? 'animate-pulse text-yellow-300' : ''}`}></i> {modoInspetor ? 'Editor Inteligente' : 'Modo Editor'}
             </button>
           </div>
 
@@ -2115,88 +1927,50 @@ Mantenha a consistência visual com o resto do e-book.`;
                   <div className="flex justify-between items-center mb-3">
                     <label className="input-label mb-0 text-indigo-600">Conteúdo & Capítulos</label>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => setModalBiblioteca(true)}
-                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 transition shadow-sm"
-                      >
-                        <i className="fas fa-book mr-1"></i> Biblioteca ({livrosSalvos.length})
-                      </button>
-                      <button
-                        onClick={salvarNaBiblioteca}
-                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 transition shadow-sm"
-                      >
-                        <i className="fas fa-save mr-1"></i> Salvar Local
-                      </button>
+                      <button onClick={() => setModalBiblioteca(true)} className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 transition shadow-sm"><i className="fas fa-book mr-1"></i> Biblioteca ({livrosSalvos.length})</button>
+                      <button onClick={salvarNaBiblioteca} className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 transition shadow-sm"><i className="fas fa-save mr-1"></i> Salvar Local</button>
                     </div>
                   </div>
                   <div className="space-y-3">
                     <div>
                       <label className="input-label">Título do Livro</label>
-                      <input
-                        type="text"
-                        value={livroTitulo}
-                        onChange={(e) => setLivroTitulo(e.target.value)}
-                        className="input-standard"
-                        placeholder="Ex: O Poder da Mente"
-                      />
+                      <input type="text" value={livroTitulo} onChange={(e) => setLivroTitulo(e.target.value)} className="input-standard" />
                     </div>
                     <div>
                       <label className="input-label">Nome do Autor</label>
-                      <input
-                        type="text"
-                        value={livroAutores}
-                        onChange={(e) => setLivroAutores(e.target.value)}
-                        className="input-standard"
-                        placeholder="Ex: João da Silva"
-                      />
+                      <input type="text" value={livroAutores} onChange={(e) => setLivroAutores(e.target.value)} className="input-standard" />
                     </div>
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="input-label mb-0">Texto Base / Sumário / Ideia</label>
-                        <button
-                          onClick={iniciarNovoLivro}
-                          className="text-[9px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm flex items-center gap-1.5"
-                        >
-                          <i className="fas fa-file-alt"></i> Novo Livro
-                        </button>
+                        <label className="input-label mb-0">Texto Base</label>
+                        <button onClick={iniciarNovoLivro} className="text-[9px] font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 transition shadow-sm"><i className="fas fa-file-alt"></i> Novo</button>
                       </div>
-                      <textarea
-                        rows={4}
-                        value={productContent}
-                        onChange={(e) => setProductContent(e.target.value)}
-                        className="input-standard resize-y"
-                        placeholder="Descreva os capítulos ou cole seu texto aqui..."
-                      ></textarea>
+                      <textarea rows={4} value={productContent} onChange={(e) => setProductContent(e.target.value)} className="input-standard resize-y"></textarea>
                       <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={indexShowSubtopics}
-                          onChange={(e) => setIndexShowSubtopics(e.target.checked)}
-                          className="w-4 h-4 text-indigo-600 rounded border-slate-300"
-                        />
-                        Mostrar Subtópicos no Índice
+                        <input type="checkbox" checked={indexShowSubtopics} onChange={(e) => setIndexShowSubtopics(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded border-slate-300" /> Mostrar Subtópicos
                       </label>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-1">
-                      <button
-                        onClick={iniciarEbookEtapas}
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
-                      >
-                        1. Capa/Intro
-                      </button>
-                      <button
-                        onClick={continuarEbookEtapas}
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
-                      >
-                        2. +3 Capítulos
-                      </button>
-                      <button
-                        onClick={finalizarEbookEtapas}
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm"
-                      >
-                        3. Fim/Autor
-                      </button>
+                      <button onClick={iniciarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">1. Capa/Intro</button>
+                      <button onClick={continuarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">2. +3 Capítulos</button>
+                      <button onClick={finalizarEbookEtapas} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded-lg transition shadow-sm">3. Fim/Autor</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="panel-section border-b border-slate-100 bg-indigo-50/50">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="input-label mb-0 text-indigo-700 font-black"><i className="fas fa-robot"></i> Inteligência Artificial (Volume)</label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Abertura)</label>
+                      <input type="number" min="20" max="150" value={palavrasCapitulo} onChange={(e) => setPalavrasCapitulo(Number(e.target.value))} className="input-standard border-indigo-200 focus:border-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="input-label text-[9px] text-slate-600">Palavras p/ Parágrafo (Subtópicos)</label>
+                      <input type="number" min="20" max="150" value={palavrasSubtopico} onChange={(e) => setPalavrasSubtopico(Number(e.target.value))} className="input-standard border-indigo-200 focus:border-indigo-500" />
                     </div>
                   </div>
                 </div>
@@ -2205,196 +1979,71 @@ Mantenha a consistência visual com o resto do e-book.`;
                   <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="input-label text-[9px]">Fonte Títulos / Corpo</label>
+                      <label className="input-label text-[9px]">Fonte</label>
                       <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard text-[10px]">
                         <option value="Lato">Lato & Playfair</option>
                         <option value="Poppins">Poppins</option>
-                        <option value="Merriweather">Merriweather</option>
-                        <option value="Lora">Lora</option>
-                        <option value="EB Garamond">Garamond</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Arial">Arial</option>
                       </select>
                     </div>
                     <div>
-                      <label className="input-label text-[9px]">Tamanho Base</label>
-                      <select
-                        value={tamanhoFonteBase}
-                        onChange={(e) => setTamanhoFonteBase(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="12pt">12pt (Compacto)</option>
-                        <option value="13pt">13pt (Padrão)</option>
-                        <option value="14pt">14pt (Confortável)</option>
-                        <option value="15pt">15pt (Grande)</option>
+                      <label className="input-label text-[9px]">Tamanho</label>
+                      <select value={tamanhoFonteBase} onChange={(e) => setTamanhoFonteBase(e.target.value)} className="input-standard text-[10px]">
+                        <option value="12pt">12pt</option>
+                        <option value="14pt">14pt</option>
                       </select>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="input-label text-[9px]">Paleta de Cores</label>
-                      <select
-                        value={paletaCores}
-                        onChange={(e: any) => setPaletaCores(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="classico">Clássico (Madeira/Café)</option>
-                        <option value="moderno">Moderno (Azul Executivo)</option>
-                        <option value="sepia">Sépia (Vintage)</option>
-                        <option value="dark">Dark (Noturno)</option>
-                        <option value="manual">Manual (Personalizado)</option>
+                      <label className="input-label text-[9px]">Cores</label>
+                      <select value={paletaCores} onChange={(e: any) => setPaletaCores(e.target.value)} className="input-standard text-[10px]">
+                        <option value="classico">Clássico</option>
+                        <option value="moderno">Moderno</option>
                       </select>
                     </div>
                     <div>
-                      <label className="input-label text-[9px]">Molde de Capítulos</label>
+                      <label className="input-label text-[9px]">Molde</label>
                       <div className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                        <i className="fas fa-image text-indigo-400 mr-1"></i> Padrão com Banner
+                        Padrão c/ Banner
                       </div>
-                    </div>
-                  </div>
-
-                  {paletaCores === 'manual' && (
-                    <div className="bg-slate-100 p-3 rounded-lg grid grid-cols-2 gap-2 mb-3">
-                      <div>
-                        <label className="input-label text-[9px]">Primária</label>
-                        <input
-                          type="color"
-                          value={corManualPri}
-                          onChange={(e) => setCorManualPri(e.target.value)}
-                          className="w-full h-7 rounded border cursor-pointer"
-                        />
-                      </div>
-                      <div>
-                        <label className="input-label text-[9px]">Secundária</label>
-                        <input
-                          type="color"
-                          value={corManualSec}
-                          onChange={(e) => setCorManualSec(e.target.value)}
-                          className="w-full h-7 rounded border cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="input-label text-[9px]">Rodapé da Página</label>
-                      <select
-                        value={estiloRodape}
-                        onChange={(e: any) => setEstiloRodape(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="linha-superior">Linha Superior + Autor + Num</option>
-                        <option value="simples">Simples (Autor + Num)</option>
-                        <option value="centralizado-circulo">Centralizado com Círculo</option>
-                        <option value="centralizado">Apenas Número Centralizado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="input-label text-[9px]">Recuo do Parágrafo</label>
-                      <select
-                        value={recuoParagrafo}
-                        onChange={(e) => setRecuoParagrafo(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="0px">0px (sem recuo)</option>
-                        <option value="10px">10px</option>
-                        <option value="20px">20px (padrão)</option>
-                        <option value="30px">30px</option>
-                        <option value="40px">40px</option>
-                      </select>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="input-label text-[9px]">Tipo de Livro</label>
-                      <select
-                        value={modoConteudo}
-                        onChange={(e: any) => setModoConteudo(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="expandido">Padrão (Expandido)</option>
-                        <option value="rigoroso">Rigoroso (texto original)</option>
+                      <label className="input-label text-[9px]">Rodapé</label>
+                      <select value={estiloRodape} onChange={(e: any) => setEstiloRodape(e.target.value)} className="input-standard text-[10px]">
+                        <option value="linha-superior">Linha Superior</option>
+                        <option value="simples">Simples</option>
                       </select>
                     </div>
                     <div>
-                      <label className="input-label text-[9px]">Espaçamento entre Parágrafos</label>
-                      <select
-                        value={espacamentoParagrafo}
-                        onChange={(e) => setEspacamentoParagrafo(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="0.5em">0.5em</option>
-                        <option value="0.8em">0.8em (padrão)</option>
-                        <option value="1em">1em</option>
-                        <option value="1.2em">1.2em</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="input-label text-[9px]">Borda das Páginas</label>
-                      <select
-                        value={tipoBorda}
-                        onChange={(e: any) => setTipoBorda(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="none">Sem borda</option>
-                        <option value="single">Linha fina</option>
-                        <option value="medium">Linha média</option>
-                        <option value="double-thin">Linha dupla fina</option>
+                      <label className="input-label text-[9px]">Recuo</label>
+                      <select value={recuoParagrafo} onChange={(e) => setRecuoParagrafo(e.target.value)} className="input-standard text-[10px]">
+                        <option value="0px">0px</option>
+                        <option value="20px">20px</option>
                       </select>
                     </div>
                   </div>
 
                   <div className="mt-3 border-t border-slate-200 pt-3">
-                    <button
-                      onClick={() => setShowModalPagina(true)}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2"
-                    >
+                    <button onClick={() => setShowModalPagina(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2">
                       <i className="fas fa-plus-circle"></i> Inserir Página Extra
                     </button>
-                    <p className="text-[9px] text-slate-400 text-center mt-1.5">Adicione dedicatória, agradecimentos, etc.</p>
                   </div>
                 </div>
 
                 <div className="panel-section">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
-                    <input
-                      type="checkbox"
-                      checked={ativarBgSegundaPagina}
-                      onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)}
-                      className="rounded text-indigo-600 accent-indigo-600 cursor-pointer"
-                    />
+                    <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página</label>
+                    <input type="checkbox" checked={ativarBgSegundaPagina} onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)} className="rounded text-indigo-600 accent-indigo-600 cursor-pointer" />
                   </div>
                   {ativarBgSegundaPagina && (
                     <div className="space-y-2 mt-2">
-                      <input
-                        type="text"
-                        value={bgSegundaPaginaUrl}
-                        onChange={(e) => setBgSegundaPaginaUrl(e.target.value)}
-                        className="input-standard text-[10px]"
-                        placeholder="URL de fundo opcional (ou usa do cap)..."
-                      />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-bold text-slate-500">Opacidade:</span>
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="0.98"
-                          step="0.02"
-                          value={bgSegundaPaginaOpacidade}
-                          onChange={(e) => setBgSegundaPaginaOpacidade(e.target.value)}
-                          className="flex-1 accent-indigo-600 cursor-pointer"
-                        />
-                      </div>
+                      <input type="text" value={bgSegundaPaginaUrl} onChange={(e) => setBgSegundaPaginaUrl(e.target.value)} className="input-standard text-[10px]" placeholder="URL de fundo..." />
                     </div>
                   )}
-                  <p className="text-[9px] text-slate-400 mt-2">Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar globalmente após gerar.</p>
                 </div>
               </div>
             )}
@@ -2402,292 +2051,46 @@ Mantenha a consistência visual com o resto do e-book.`;
             {modoInspetor && (
               <div className="animate-[fadeIn_0.2s_ease] mt-4 border-t border-slate-200 pt-4">
                 <div className="bg-indigo-600 text-white p-4 text-[11px] font-black tracking-widest uppercase flex justify-between items-center shadow-inner">
-                  <span>Mestre Editorial (IA)</span>
+                  <span>Mestre Editorial</span>
                   <i className="fas fa-magic text-indigo-300"></i>
                 </div>
                 {!elementoSelecionado ? (
                   <div className="flex flex-col items-center justify-center p-14 text-center text-slate-400">
-                    <div className="w-16 h-16 rounded-full bg-white border-2 border-dashed border-slate-200 flex items-center justify-center mb-4 shadow-sm">
-                      <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
-                    </div>
-                    <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                    <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
+                    <p className="text-sm font-bold text-slate-600">Selecione para Revisar</p>
                   </div>
                 ) : (
                   <div className="pb-10 bg-white">
                     <div className="panel-section bg-slate-50/50">
                       <div className="flex justify-between items-center mb-3">
-                        <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
-                        <div className="flex gap-2">
-                          {(elementoSelecionado.tagName === 'img' ||
-                            elementoSelecionado.bgImage ||
-                            elementoSelecionado.isBgTarget) && (
-                            <button
-                              onClick={() => imageInputRef.current?.click()}
-                              className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 transition flex items-center bg-indigo-50 border border-indigo-200 px-2 py-1 rounded shadow-sm"
-                            >
-                              <i className="fas fa-upload mr-1"></i> Upload PC
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-                                previewFrameRef.current.contentWindow.postMessage(
-                                  { type: 'DELETE_ELEMENT', id: elementoSelecionado.id },
-                                  '*'
-                                );
-                              }
-                            }}
-                            className="text-[9px] font-bold text-red-500 hover:text-red-700 transition flex items-center bg-red-50 border border-red-200 hover:border-red-400 px-2 py-1 rounded shadow-sm"
-                          >
-                            <i className="fas fa-trash-alt mr-1"></i> Apagar
-                          </button>
-                        </div>
+                        <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md shadow-sm">Tag: {elementoSelecionado.tagName}</span>
                       </div>
-
+                      
                       <div className="mt-2 mb-4">
-                        <label className="input-label mb-2 text-indigo-700 flex items-center gap-1">
-                          <i className="fas fa-magic text-yellow-500"></i> Editar este trecho com IA
-                        </label>
-                        <textarea
-                          id="ai_prompt_local"
-                          rows={2}
-                          className="input-standard text-xs mb-2 border-indigo-200 shadow-inner"
-                          placeholder="Ex: Reescreva este parágrafo em um tom mais persuasivo..."
-                        ></textarea>
-                        <button
-                          onClick={aplicarModificacaoLocal}
-                          className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase tracking-wide py-2 rounded-lg transition shadow-sm"
-                        >
-                          Aplicar IA no Selecionado
-                        </button>
+                        <label className="input-label mb-2 text-indigo-700 flex items-center gap-1">Editar com IA</label>
+                        <textarea id="ai_prompt_local" rows={2} className="input-standard text-xs mb-2 border-indigo-200 shadow-inner" placeholder="O que alterar?"></textarea>
+                        <button onClick={aplicarModificacaoLocal} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm">Aplicar IA</button>
                       </div>
-
-                      {(elementoSelecionado.tagName === 'img' ||
-                        elementoSelecionado.bgImage ||
-                        elementoSelecionado.isBgTarget) && (
-                        <div className="space-y-3 pt-3 border-t border-slate-100">
-                          <div>
-                            <label className="input-label mb-2 text-indigo-800">🖼️ Controle Fotográfico (Unsplash)</label>
-                            <button
-                              onClick={buscarImagemUnsplash}
-                              className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[9px] uppercase py-2 rounded shadow-sm transition mb-3"
-                            >
-                              <i className="fas fa-search mr-1"></i> Buscar Unsplash
-                            </button>
-                            <input
-                              type="text"
-                              value={elementoSelecionado.src || elementoSelecionado.bgImage}
-                              onChange={(e) =>
-                                atualizarElemento(
-                                  elementoSelecionado.tagName === 'img' ? 'src' : 'bgImage',
-                                  e.target.value
-                                )
-                              }
-                              className="input-standard text-[10px] mb-2 font-mono text-slate-500"
-                              placeholder="URL da imagem (cole aqui)..."
-                            />
-                          </div>
-
-                          {(elementoSelecionado.bgImage || elementoSelecionado.isBgTarget) && (
-                            <div className="mt-3 pt-3 border-t border-slate-100">
-                              <label className="input-label mb-1">Clareamento de Fundo (Opacidade para Leitura)</label>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-slate-500 font-bold">0%</span>
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="1"
-                                  step="0.05"
-                                  defaultValue="0"
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const newBg =
-                                      val === '0'
-                                        ? `url('${elementoSelecionado.bgImage}')`
-                                        : `linear-gradient(rgba(255,255,255,${val}), rgba(255,255,255,${val})), url('${elementoSelecionado.bgImage}')`;
-                                    if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-                                      previewFrameRef.current.contentWindow.postMessage(
-                                        {
-                                          type: 'UPDATE_ELEMENT',
-                                          id: elementoSelecionado.id,
-                                          rawBgImage: newBg,
-                                        },
-                                        '*'
-                                      );
-                                    }
-                                  }}
-                                  className="flex-1 accent-indigo-600 cursor-pointer"
-                                />
-                                <span className="text-[10px] text-slate-500 font-bold">100%</span>
-                              </div>
-                              <button
-                                onClick={() => atualizarElemento('rawBgImage', 'none')}
-                                className="w-full mt-3 bg-orange-50 border border-orange-200 text-orange-700 font-bold text-[9px] uppercase py-2 rounded transition hover:bg-orange-100"
-                              >
-                                <i className="fas fa-times-circle mr-1"></i> Remover Imagem de Fundo
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {!elementoSelecionado.isBgTarget && isTextElement && (
-                        <div className="pt-3 border-t border-slate-100">
-                          <label className="input-label mb-2">Edição Manual de Texto</label>
-                          <textarea
-                            rows={5}
-                            value={elementoSelecionado.text}
-                            onChange={(e) => atualizarElemento('text', e.target.value, true)}
-                            className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"
-                          ></textarea>
-
-                          <div className="mt-3 flex gap-2">
-                            <button
-                              onClick={() =>
-                                atualizarElemento(
-                                  'fontWeight',
-                                  elementoSelecionado.fontWeight === 'bold' ? 'normal' : 'bold'
-                                )
-                              }
-                              className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] uppercase py-2 rounded transition shadow-sm border border-slate-700"
-                            >
-                              <i className="fas fa-bold mr-1"></i> Negrito
-                            </button>
-
-                            <label className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition cursor-pointer flex items-center justify-center">
-                              <i className="fas fa-palette mr-1"></i> Cor
-                              <input
-                                type="color"
-                                value={elementoSelecionado.textColor || '#1e1914'}
-                                onChange={(e) => atualizarElemento('textColor', e.target.value)}
-                                className="w-0 h-0 opacity-0 absolute"
-                              />
-                            </label>
-                          </div>
-
-                          <div className="mt-2 flex gap-2">
-                            <button
-                              onClick={() => transformarEmNode('blockquote')}
-                              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[9px] uppercase py-2 rounded border border-slate-300 transition"
-                            >
-                              <i className="fas fa-quote-right mr-1"></i> Virar Citação
-                            </button>
-                            <button
-                              onClick={() => transformarEmNode('div', 'highlight-box')}
-                              className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-bold text-[9px] uppercase py-2 rounded border border-yellow-200 transition"
-                            >
-                              <i className="fas fa-highlighter mr-1"></i> Fundo
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => atualizarElemento('forceBreak', true)}
-                            className="w-full mt-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold text-[9px] uppercase py-2 rounded transition shadow-sm"
-                          >
-                            <i className="fas fa-level-down-alt mr-1"></i> Mover p/ Próxima Página
-                          </button>
-                        </div>
-                      )}
-
-                      {!elementoSelecionado.isBgTarget && !isTextElement && elementoSelecionado.tagName !== 'img' && (
-                        <div className="pt-3 border-t border-slate-100">
-                          <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
-                            <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
-                            <strong>Container Estrutural</strong><br/>
-                            A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
-                          </div>
-                        </div>
-                      )}
                     </div>
-
-                    {elementoSelecionado.tagName !== 'img' && (
-                      <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100 mt-3">
-                        <div>
-                          <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
-                          <input
-                            type="color"
-                            value={elementoSelecionado.bgColor || '#ffffff'}
-                            onChange={(e) => atualizarElemento('bgColor', e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="input-label mb-0 text-[9px] flex justify-between">Tamanho Fonte <span className="text-indigo-600 font-bold">{elementoSelecionado.fontSize || 16}px</span></label>
-                          <input
-                            type="range"
-                            min="10"
-                            max="60"
-                            value={elementoSelecionado.fontSize || 16}
-                            onChange={(e) => atualizarElemento('fontSize', parseInt(e.target.value))}
-                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {elementoSelecionado.tagName !== 'img' && (
-                      <div className="panel-section border-t border-slate-100">
-                        <label className="input-label mb-2 text-[9px]">Alinhamento</label>
-                        <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
-                          <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
-                          <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
-                          <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
-                          <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
             )}
-          </div>
-
-          <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between text-xs">
-            <span className="text-slate-400 font-medium">Motor IA: Google Gemini</span>
-            <span className="text-slate-300">v2.0</span>
           </div>
         </aside>
 
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
           <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => uploadInputRef.current?.click()}
-                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
-              >
-                <i className="fas fa-file-upload"></i> Importar HTML
-              </button>
-              <button
-                onClick={toggleBackground}
-                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
-              >
-                <i className="fas fa-image"></i> Fundo 2ª Pág
-              </button>
+              <button onClick={() => uploadInputRef.current?.click()} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition"><i className="fas fa-file-upload"></i> Importar HTML</button>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={desfazerCodigo}
-                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
-              >
-                <i className="fas fa-undo"></i> Desfazer
-              </button>
-              <button
-                onClick={() => (window as any).baixarPdf()}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md shadow-indigo-200 transition flex items-center gap-2"
-              >
-                <i className="fas fa-print"></i> Imprimir / PDF
-              </button>
-            </div>
+<div className="flex items-center gap-3">
+  <button onClick={desfazerCodigo} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition"><i className="fas fa-undo"></i> Desfazer</button>
+  <button onClick={() => (window as any).baixarPdf()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md transition"><i className="fas fa-print"></i> PDF</button>
+</div>
           </header>
 
           <div className="flex-1 overflow-y-auto p-8 flex justify-center relative">
-            <iframe
-              ref={previewFrameRef}
-              id="previewFrame"
-              className="w-full h-full border-none shadow-2xl bg-transparent rounded-lg"
-              title="Preview E-book"
-            ></iframe>
+            <iframe ref={previewFrameRef} id="previewFrame" className="w-full h-full border-none shadow-2xl bg-transparent rounded-lg" title="Preview E-book"></iframe>
           </div>
         </main>
       </div>
