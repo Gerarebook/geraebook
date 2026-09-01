@@ -307,7 +307,7 @@ function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME
+// SCRIPT INJETADO NO IFRAME (CORRIGIDO)
 // ============================================================
 
 function getScriptPreview(
@@ -320,215 +320,220 @@ function getScriptPreview(
 <script>
   (function() {
     function executarRefluxoCompleto() {
-      const container = document.getElementById('ebook-container');
-      if (!container) return;
+      try {
+        const container = document.getElementById('ebook-container');
+        if (!container) return;
+        const c = container; // variável não nula
 
-      const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
-      paginasExistentes.forEach(p => p.remove());
+        const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
+        paginasExistentes.forEach(p => p.remove());
 
-      const elementosIA = Array.from(container.children).filter(el =>
-        !el.classList.contains('page-container') &&
-        el.tagName !== 'STYLE' &&
-        el.tagName !== 'SCRIPT'
-      );
+        const elementosIA = Array.from(c.children).filter(el =>
+          !el.classList.contains('page-container') &&
+          el.tagName !== 'STYLE' &&
+          el.tagName !== 'SCRIPT'
+        );
 
-      const ALTURA_MAXIMA = 980;
+        const ALTURA_MAXIMA = 980;
 
-      function criarNovaPagina() {
-        const novaPagina = document.createElement('div');
-        novaPagina.className = 'page-container chapter-text-page';
-        novaPagina.style.overflow = 'hidden';
-        novaPagina.style.breakAfter = 'page';
+        function criarNovaPagina() {
+          const novaPagina = document.createElement('div');
+          novaPagina.className = 'page-container chapter-text-page';
+          novaPagina.style.overflow = 'hidden';
+          novaPagina.style.breakAfter = 'page';
 
-        const header = document.createElement('div');
-        header.className = 'page-header';
-        header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
-        novaPagina.appendChild(header);
+          const header = document.createElement('div');
+          header.className = 'page-header';
+          header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
+          novaPagina.appendChild(header);
 
-        const contentArea = document.createElement('div');
-        contentArea.className = 'content-area';
-        contentArea.style.display = 'flex';
-        contentArea.style.flexDirection = 'column';
-        novaPagina.appendChild(contentArea);
+          const contentArea = document.createElement('div');
+          contentArea.className = 'content-area';
+          contentArea.style.display = 'flex';
+          contentArea.style.flexDirection = 'column';
+          novaPagina.appendChild(contentArea);
 
-        const footer = document.createElement('div');
-        footer.className = 'page-footer';
-        footer.innerHTML = '<span class="page-number"></span>';
-        novaPagina.appendChild(footer);
+          const footer = document.createElement('div');
+          footer.className = 'page-footer';
+          footer.innerHTML = '<span class="page-number"></span>';
+          novaPagina.appendChild(footer);
 
-        container.appendChild(novaPagina);
-        return { pagina: novaPagina, areaTexto: contentArea };
-      }
+          c.appendChild(novaPagina);
+          return { pagina: novaPagina, areaTexto: contentArea };
+        }
 
-      if (elementosIA.length === 0) return;
+        if (elementosIA.length === 0) return;
 
-      let atual = criarNovaPagina();
+        let atual = criarNovaPagina();
 
-      for (let i = 0; i < elementosIA.length; i++) {
-        let el = elementosIA[i];
-        atual.areaTexto.appendChild(el);
+        for (let i = 0; i < elementosIA.length; i++) {
+          let el = elementosIA[i];
+          atual.areaTexto.appendChild(el);
 
-        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-          if (el.tagName === 'P') {
-            let textoOriginal = el.innerHTML;
-            let palavras = textoOriginal.split(' ');
-            el.innerHTML = '';
-            let pIndex = 0;
-            while (pIndex < palavras.length) {
-              el.innerHTML += palavras[pIndex] + ' ';
-              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-                let htmlAtual = el.innerHTML;
-                el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
-                break;
+          if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+            if (el.tagName === 'P') {
+              let textoOriginal = el.innerHTML;
+              let palavras = textoOriginal.split(' ');
+              el.innerHTML = '';
+              let pIndex = 0;
+              while (pIndex < palavras.length) {
+                el.innerHTML += palavras[pIndex] + ' ';
+                if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+                  let htmlAtual = el.innerHTML;
+                  el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+                  break;
+                }
+                pIndex++;
               }
-              pIndex++;
+              let textoRestante = palavras.slice(pIndex).join(' ');
+              atual = criarNovaPagina();
+              if (textoRestante.trim() !== '') {
+                let novoParagrafo = document.createElement('p');
+                novoParagrafo.innerHTML = textoRestante;
+                elementosIA.splice(i + 1, 0, novoParagrafo);
+              }
+            } else {
+              atual = criarNovaPagina();
+              atual.areaTexto.appendChild(el);
             }
-            let textoRestante = palavras.slice(pIndex).join(' ');
-            atual = criarNovaPagina();
-            if (textoRestante.trim() !== '') {
-              let novoParagrafo = document.createElement('p');
-              novoParagrafo.innerHTML = textoRestante;
-              elementosIA.splice(i + 1, 0, novoParagrafo);
+          }
+        }
+
+        c.querySelectorAll('.page-container').forEach(page => {
+          const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
+          if (conteudo.length === 0) {
+            page.remove();
+          }
+        });
+
+        function sincronizarIndice() {
+          const tocs = c.querySelectorAll('.toc-container');
+          if (tocs.length > 1) {
+            for (let i = 1; i < tocs.length; i++) {
+              const page = tocs[i].closest('.page-container');
+              if (page) page.remove();
+            }
+          }
+          const mainToc = tocs[0];
+          if (!mainToc) return;
+
+          const selector = ${indexShowSubtopics} ?
+            'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
+            'h1.chapter-title-exclusive, h2.chapter-title-inline';
+          const titulos = c.querySelectorAll(selector);
+          const titulosVistos = new Set();
+
+          mainToc.innerHTML = '';
+
+          titulos.forEach((titleEl) => {
+            if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+            let texto = titleEl.textContent?.trim() || '';
+            if (/índice|sumário/i.test(texto)) return;
+
+            let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
+            if (titulosVistos.has(chave)) return;
+            titulosVistos.add(chave);
+
+            if (!titleEl.id) {
+              titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+            }
+
+            const a = document.createElement('a');
+            a.className = 'toc-item';
+            if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+              a.classList.add('toc-main-chapter');
+              a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
+              a.style.color = 'var(--color-primary)';
+            } else if (titleEl.tagName === 'H3') {
+              a.classList.add('toc-subtopic');
+              a.style.paddingLeft = '20px';
+              a.style.fontSize = '0.9em';
+              a.style.opacity = '0.85';
+              a.style.fontWeight = '400';
+              if (!${indexShowSubtopics}) {
+                a.style.display = 'none';
+              }
+            }
+
+            a.href = '#' + titleEl.id;
+            const spanTitle = document.createElement('span');
+            spanTitle.innerText = texto;
+            const spanDots = document.createElement('span');
+            spanDots.className = 'toc-dots';
+            const spanPage = document.createElement('span');
+            spanPage.className = 'toc-page-num';
+
+            a.appendChild(spanTitle);
+            a.appendChild(spanDots);
+            a.appendChild(spanPage);
+            mainToc.appendChild(a);
+          });
+
+          const allPages = c.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+          const pageArray = Array.from(allPages);
+          document.querySelectorAll('.toc-item').forEach(item => {
+            const href = item.getAttribute('href');
+            if (!href || !href.startsWith('#')) return;
+            const target = document.getElementById(href.substring(1));
+            if (target) {
+              const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+              if (page) {
+                const idx = pageArray.indexOf(page) + 1;
+                const numSpan = item.querySelector('.toc-page-num');
+                if (numSpan) numSpan.innerText = String(idx);
+              }
+            }
+          });
+        }
+
+        sincronizarIndice();
+
+        let chIndex = 0;
+        let currentChapterImg = '';
+        c.querySelectorAll('.page-container').forEach((p) => {
+          const imgEl = p.querySelector('.chapter-banner-img');
+
+          if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
+            chIndex = 1;
+            if (imgEl) {
+              currentChapterImg = imgEl.src;
+            } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+              const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
+              if (match) currentChapterImg = match[1];
             }
           } else {
-            atual = criarNovaPagina();
-            atual.areaTexto.appendChild(el);
-          }
-        }
-      }
-
-      container.querySelectorAll('.page-container').forEach(page => {
-        const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
-        if (conteudo.length === 0) {
-          page.remove();
-        }
-      });
-
-      function sincronizarIndice() {
-        const tocs = container.querySelectorAll('.toc-container');
-        if (tocs.length > 1) {
-          for (let i = 1; i < tocs.length; i++) {
-            const page = tocs[i].closest('.page-container');
-            if (page) page.remove();
-          }
-        }
-        const mainToc = tocs[0];
-        if (!mainToc) return;
-
-        const selector = ${indexShowSubtopics} ?
-          'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
-          'h1.chapter-title-exclusive, h2.chapter-title-inline';
-        const titulos = container.querySelectorAll(selector);
-        const titulosVistos = new Set();
-
-        mainToc.innerHTML = '';
-
-        titulos.forEach((titleEl) => {
-          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
-          let texto = titleEl.textContent?.trim() || '';
-          if (/índice|sumário/i.test(texto)) return;
-
-          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
-          if (titulosVistos.has(chave)) return;
-          titulosVistos.add(chave);
-
-          if (!titleEl.id) {
-            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+            chIndex++;
           }
 
-          const a = document.createElement('a');
-          a.className = 'toc-item';
-          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
-            a.classList.add('toc-main-chapter');
-            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
-            a.style.color = 'var(--color-primary)';
-          } else if (titleEl.tagName === 'H3') {
-            a.classList.add('toc-subtopic');
-            a.style.paddingLeft = '20px';
-            a.style.fontSize = '0.9em';
-            a.style.opacity = '0.85';
-            a.style.fontWeight = '400';
-            if (!${indexShowSubtopics}) {
-              a.style.display = 'none';
+          if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
+            p.classList.add('chapter-page-2');
+            let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
+            if (finalBgUrl && finalBgUrl.trim() !== '') {
+              p.dataset.bgUrl = finalBgUrl;
+              if (${ativarBgSegundaPagina}) {
+                p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
+                p.style.setProperty('background-size', 'cover', 'important');
+                p.style.setProperty('background-position', 'center', 'important');
+              } else {
+                p.style.removeProperty('background-image');
+                p.style.removeProperty('background-size');
+                p.style.removeProperty('background-position');
+              }
             }
-          }
-
-          a.href = '#' + titleEl.id;
-          const spanTitle = document.createElement('span');
-          spanTitle.innerText = texto;
-          const spanDots = document.createElement('span');
-          spanDots.className = 'toc-dots';
-          const spanPage = document.createElement('span');
-          spanPage.className = 'toc-page-num';
-
-          a.appendChild(spanTitle);
-          a.appendChild(spanDots);
-          a.appendChild(spanPage);
-          mainToc.appendChild(a);
-        });
-
-        const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-        const pageArray = Array.from(allPages);
-        document.querySelectorAll('.toc-item').forEach(item => {
-          const href = item.getAttribute('href');
-          if (!href || !href.startsWith('#')) return;
-          const target = document.getElementById(href.substring(1));
-          if (target) {
-            const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-            if (page) {
-              const idx = pageArray.indexOf(page) + 1;
-              const numSpan = item.querySelector('.toc-page-num');
-              if (numSpan) numSpan.innerText = String(idx);
+          } else {
+            p.classList.remove('chapter-page-2');
+            if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
+              if (!p.hasAttribute('data-custom-bg')) {
+                p.style.removeProperty('background-image');
+                p.style.removeProperty('background-size');
+                p.style.removeProperty('background-position');
+              }
             }
           }
         });
+      } catch (err) {
+        console.error('Erro no executarRefluxoCompleto:', err);
       }
-
-      sincronizarIndice();
-
-      let chIndex = 0;
-      let currentChapterImg = '';
-      container.querySelectorAll('.page-container').forEach((p) => {
-        const imgEl = p.querySelector('.chapter-banner-img');
-
-        if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
-          chIndex = 1;
-          if (imgEl) {
-            currentChapterImg = imgEl.src;
-          } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-            const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
-            if (match) currentChapterImg = match[1];
-          }
-        } else {
-          chIndex++;
-        }
-
-        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
-          p.classList.add('chapter-page-2');
-          let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
-          if (finalBgUrl && finalBgUrl.trim() !== '') {
-            p.dataset.bgUrl = finalBgUrl;
-            if (${ativarBgSegundaPagina}) {
-              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
-              p.style.setProperty('background-size', 'cover', 'important');
-              p.style.setProperty('background-position', 'center', 'important');
-            } else {
-              p.style.removeProperty('background-image');
-              p.style.removeProperty('background-size');
-              p.style.removeProperty('background-position');
-            }
-          }
-        } else {
-          p.classList.remove('chapter-page-2');
-          if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
-            if (!p.hasAttribute('data-custom-bg')) {
-              p.style.removeProperty('background-image');
-              p.style.removeProperty('background-size');
-              p.style.removeProperty('background-position');
-            }
-          }
-        }
-      });
     }
 
     if (document.readyState === 'complete') {
@@ -1064,7 +1069,9 @@ ${ebookStyles}
   }
 
   async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true, palavrasAlvo: number = palavrasPorParagrafo) {
+    console.log('HTML cru recebido:', htmlCru.substring(0, 200));
     let novoConteudo = purificarHTML(htmlCru);
+    console.log('Após purificação:', novoConteudo.substring(0, 200));
     novoConteudo = garantirSubtopico(novoConteudo);
     novoConteudo = await substituirImagensPorUnsplash(novoConteudo);
     novoConteudo = ajustarParagrafos(novoConteudo, palavrasAlvo);
@@ -1553,6 +1560,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     1. PARE AQUI! NÃO gere Capítulos! Apenas devolva a Capa, o Aviso, o Índice e a Introdução.
     2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto, linha ou lista dentro.
     3. Não use imagens na introdução.
+    4. Use exatamente os placeholders [Parágrafo 1] etc. – serão preenchidos pela IA.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
