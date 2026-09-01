@@ -2124,17 +2124,17 @@ Mantenha a consistência visual com o resto do e-book.`;
                         Mostrar Subtópicos no Índice
                       </label>
                       {/* NOVO: controle de palavras por parágrafo */}
-                      <div className="mt-3">
-                        <label className="input-label">Palavras por parágrafo</label>
-                        <input
-                          type="number"
-                          min="40"
-                          max="100"
-                          value={palavrasPorParagrafo}
-                          onChange={(e) => setPalavrasPorParagrafo(Number(e.target.value))}
-                          className="input-standard"
-                        />
-                      </div>
+<div className="mt-3 p-3 border-4 border-red-500 bg-yellow-100 rounded-lg">
+  <label className="input-label text-black font-bold">🔴 Palavras por parágrafo</label>
+  <input
+    type="number"
+    min="40"
+    max="100"
+    value={palavrasPorParagrafo}
+    onChange={(e) => setPalavrasPorParagrafo(Number(e.target.value))}
+    className="input-standard bg-white"
+  />
+</div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-1">
