@@ -18,7 +18,7 @@ function executarRefluxoCompleto(
 ) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  const c = container; // variável não nula
+  const c = container;
 
   const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
   paginasExistentes.forEach(p => p.remove());
@@ -307,7 +307,7 @@ function ajustarParagrafos(html: string, palavrasAlvo: number = 65): string {
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (CORRIGIDO)
+// SCRIPT INJETADO NO IFRAME (CORRIGIDO SEM LOOP)
 // ============================================================
 
 function getScriptPreview(
@@ -319,11 +319,22 @@ function getScriptPreview(
   return `
 <script>
   (function() {
+    let _reflowing = false;
+    let _lastHtml = '';
+
     function executarRefluxoCompleto() {
+      if (_reflowing) return;
+      _reflowing = true;
       try {
         const container = document.getElementById('ebook-container');
         if (!container) return;
-        const c = container; // variável não nula
+        const c = container;
+
+        const currentHtml = c.innerHTML;
+        if (currentHtml === _lastHtml) {
+          return;
+        }
+        _lastHtml = currentHtml;
 
         const paginasExistentes = c.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
         paginasExistentes.forEach(p => p.remove());
@@ -533,34 +544,32 @@ function getScriptPreview(
         });
       } catch (err) {
         console.error('Erro no executarRefluxoCompleto:', err);
+      } finally {
+        _reflowing = false;
       }
     }
 
+    let timeoutId;
+
     if (document.readyState === 'complete') {
-      executarRefluxoCompleto();
+      setTimeout(executarRefluxoCompleto, 100);
     } else {
       window.addEventListener('load', () => {
-        executarRefluxoCompleto();
-        setTimeout(executarRefluxoCompleto, 500);
+        setTimeout(executarRefluxoCompleto, 100);
       });
     }
 
     window.addEventListener('message', (e) => {
       if (e.data.type === 'TOGGLE_EDIT_MODE') { /* no-op */ }
-      if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
-        setTimeout(executarRefluxoCompleto, 100);
-      }
-      if (e.data.type === 'UPDATE_ELEMENT') {
-        setTimeout(executarRefluxoCompleto, 200);
-      }
-      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
-        setTimeout(executarRefluxoCompleto, 200);
+      if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE' || e.data.type === 'UPDATE_ELEMENT' || e.data.type === 'REPLACE_ELEMENT_HTML') {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(executarRefluxoCompleto, 300);
       }
     });
 
     const observer = new MutationObserver(() => {
-      clearTimeout(window._reflowTimeout);
-      window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(executarRefluxoCompleto, 500);
     });
     const container = document.getElementById('ebook-container');
     if (container) {
@@ -1069,9 +1078,7 @@ ${ebookStyles}
   }
 
   async function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true, palavrasAlvo: number = palavrasPorParagrafo) {
-    console.log('HTML cru recebido:', htmlCru.substring(0, 200));
     let novoConteudo = purificarHTML(htmlCru);
-    console.log('Após purificação:', novoConteudo.substring(0, 200));
     novoConteudo = garantirSubtopico(novoConteudo);
     novoConteudo = await substituirImagensPorUnsplash(novoConteudo);
     novoConteudo = ajustarParagrafos(novoConteudo, palavrasAlvo);
@@ -1081,6 +1088,11 @@ ${ebookStyles}
       htmlFinal = injetarHtmlNoFinal(htmlAtual || '', novoConteudo);
     } else {
       htmlFinal = moldarApresentacaoHtml(novoConteudo);
+    }
+
+    // Evita atualização se o HTML final for igual ao atual
+    if (htmlFinal === htmlAtual) {
+      return;
     }
 
     setHistoricoCodigo((prev) => [...prev, htmlAtual]);
@@ -1761,6 +1773,10 @@ Mantenha a consistência visual com o resto do e-book.`;
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
       if (e.data.type === 'HTML_SYNC') {
         const htmlLimpo = moldarApresentacaoHtml(e.data.html);
+        // Evita loop se o HTML recebido for igual ao atual
+        if (htmlLimpo === htmlAtual) {
+          return;
+        }
         if (modoInspetor) {
           setHistoricoCodigo((prev) => {
             if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
@@ -1786,16 +1802,24 @@ Mantenha a consistência visual com o resto do e-book.`;
 
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
-      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      // Evita recarregar se o srcdoc já for o mesmo
+      const newSrc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      if (previewFrameRef.current.srcdoc !== newSrc) {
+        previewFrameRef.current.srcdoc = newSrc;
+      }
+      setRecarregarIframe(false); // Reseta a flag após aplicar
     }
   }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
-      setHtmlAtual(htmlFinal);
-      localStorage.setItem('ebook_draft_html', htmlFinal);
-      setRecarregarIframe(true);
+      // Só atualiza se o processado for diferente do atual
+      if (htmlFinal !== htmlAtual) {
+        setHtmlAtual(htmlFinal);
+        localStorage.setItem('ebook_draft_html', htmlFinal);
+        setRecarregarIframe(true);
+      }
     }
   }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
 
