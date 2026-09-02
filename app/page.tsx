@@ -240,6 +240,10 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (Paginador + Navegação Segura)
 // ============================================================
 
+// ============================================================
+// SCRIPT INJETADO NO IFRAME (Paginador de Parágrafos 2x4)
+// ============================================================
+
 function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
@@ -306,70 +310,76 @@ function getScriptPreview(
 
       if (elementosIA.length > 0) {
         let atual = criarNovaPagina();
+        let pCount = 0;
+        let maxP = 2; // Começa com 2 parágrafos porque Capítulos/Intro começam com títulos
 
         for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
+          let deveQuebrar = false;
 
-          // ========================================================
-          // REGRA INTELIGENTE DE QUEBRA DE PÁGINA
-          // ========================================================
           if (atual.areaTexto.children.length > 0) {
             let ultimoInserido = atual.areaTexto.lastElementChild;
             let isImgBanner = (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img'));
             let isTituloPrincipal = (el.tagName === 'H2' && el.classList.contains('chapter-title-inline'));
             let isSubtitulo = (el.tagName === 'H3' && el.classList.contains('subtopic-title'));
 
+            // Regras de Quebra de Página baseadas na Estrutura
             if (isImgBanner) {
-              atual = criarNovaPagina();
+              deveQuebrar = true;
             } else if (isTituloPrincipal) {
-              let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG' && ultimoInserido.classList.contains('chapter-banner-img'));
-              if (!ultimoFoiImagem) {
-                atual = criarNovaPagina();
-              }
+              let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG');
+              if (!ultimoFoiImagem) deveQuebrar = true;
             } else if (isSubtitulo) {
-              // H3 gera página nova, EXCETO se estiver logo após o H2 ou Imagem
               let ultimoFoiH2 = (ultimoInserido && ultimoInserido.tagName === 'H2');
               let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG');
-              if (!ultimoFoiH2 && !ultimoFoiImagem) {
-                atual = criarNovaPagina();
-              }
+              if (!ultimoFoiH2 && !ultimoFoiImagem) deveQuebrar = true;
+            } else if (el.tagName === 'P') {
+              // Quebra se atingir o limite exato de parágrafos daquela página (2 ou 4)
+              if (pCount >= maxP) deveQuebrar = true;
             }
           }
 
-          // Adiciona o elemento inteiro
+          if (deveQuebrar) {
+            atual = criarNovaPagina();
+            pCount = 0;
+            maxP = 4; // Páginas subsequentes ganham limite de 4 parágrafos
+          }
+
           atual.areaTexto.appendChild(el);
 
-          // Se estourar a altura, move o bloco INTEIRO para a próxima página (Sem cortar frases no meio!)
+          // Atualiza as variáveis de controle após a inserção
+          if (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img')) maxP = 2;
+          if (el.tagName === 'H2' && el.classList.contains('chapter-title-inline')) maxP = 2;
+          if (el.tagName === 'P') pCount++;
+
+          // Salvaguarda Orgânica: Se um Box, Quote ou Parágrafo for gigante e estourar a altura
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             atual = criarNovaPagina();
             atual.areaTexto.appendChild(el);
+            pCount = (el.tagName === 'P') ? 1 : 0;
+            maxP = 4;
+            if (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img')) maxP = 2;
+            if (el.tagName === 'H2' && el.classList.contains('chapter-title-inline')) maxP = 2;
           }
         }
       }
 
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
-        if (!area || area.children.length === 0) {
-          page.remove();
-        }
+        if (!area || area.children.length === 0) page.remove();
       });
 
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
-          for (let i = 1; i < tocs.length; i++) {
-            tocs[i].closest('.page-container')?.remove();
-          }
+          for (let i = 1; i < tocs.length; i++) tocs[i].closest('.page-container')?.remove();
         }
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        const selector = ${indexShowSubtopics} ?
-          'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
-          'h1.chapter-title-exclusive, h2.chapter-title-inline';
+        const selector = ${indexShowSubtopics} ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
         const titulos = container.querySelectorAll(selector);
         const titulosVistos = new Set();
-
         mainToc.innerHTML = '';
 
         titulos.forEach((titleEl) => {
@@ -381,9 +391,7 @@ function getScriptPreview(
           if (titulosVistos.has(chave)) return;
           titulosVistos.add(chave);
 
-          if (!titleEl.id) {
-            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
-          }
+          if (!titleEl.id) titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
 
           const a = document.createElement('a');
           a.className = 'toc-item';
@@ -397,9 +405,7 @@ function getScriptPreview(
             a.style.fontSize = '0.9em';
             a.style.opacity = '0.85';
             a.style.fontWeight = '400';
-            if (!${indexShowSubtopics}) {
-              a.style.display = 'none';
-            }
+            if (!${indexShowSubtopics}) a.style.display = 'none';
           }
 
           a.href = '#' + titleEl.id;
@@ -480,9 +486,7 @@ function getScriptPreview(
       });
 
       setTimeout(() => {
-        if (observer) {
-           observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
-        }
+        if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
       }, 300);
     }
 
@@ -501,9 +505,7 @@ function getScriptPreview(
         e.preventDefault(); 
         const targetId = link.getAttribute('href').substring(1);
         const targetElement = document.getElementById(targetId);
-        if (targetElement) {
-          targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (targetElement) targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
 
@@ -520,9 +522,7 @@ function getScriptPreview(
     });
     
     const containerParaObservar = document.getElementById('ebook-container');
-    if (containerParaObservar) {
-      observer.observe(containerParaObservar, { childList: true, subtree: true });
-    }
+    if (containerParaObservar) observer.observe(containerParaObservar, { childList: true, subtree: true });
 
   })();
 </script>
@@ -948,11 +948,16 @@ h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; mar
   ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'}
   ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''}
 }
+
+/* ========================================= */
+/* ALINHAMENTO DO NÚMERO DA PÁGINA À DIREITA */
+/* ========================================= */
+.page-number { margin-left: auto !important; }
 .page-number::after { content: counter(ebook-page); }
 
 .page-number.circulo {
   display: inline-flex; justify-content: center; align-items: center;
-  width: 26px; height: 26px; border-radius: 50%;
+  width: 26px; height: 26px; border-radius: 50%; margin-left: auto !important;
   background-color: var(--color-primary); color: #ffffff !important;
   font-size: 10px; font-weight: 800; margin-bottom: -3px;
 }
@@ -1616,10 +1621,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
-  // ============================================================
-  // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA E ANTI-RASCUNHO)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA DE BOX, QUOTE E PARÁGRAFOS)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1628,18 +1630,27 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
-  2. ORDEM RIGOROSA DA PÁGINA (OBRIGATÓRIO INCLUIR O SUBTÍTULO ABAIXO DO TÍTULO):
+  2. ESTRUTURA RIGOROSA DO CAPÍTULO (SIGA EXATAMENTE ESTA ORDEM E QUANTIDADE):
      - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
-     - <h3 class="subtopic-title">[Subtítulo Inicial Obrigatório]</h3>
+     - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
      - <p>[Parágrafo 1]</p>
      - <p>[Parágrafo 2]</p>
-     - <p>[Último Parágrafo - Mais Curto]</p>
-  3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
+     - <h3 class="subtopic-title">[Subtítulo 2]</h3>
+     - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA de acordo com o conteúdo abordado]</div>
+     - <p>[Parágrafo 3]</p>
+     - <p>[Parágrafo 4]</p>
+     - <p>[Parágrafo 5]</p>
+     - <p>[Parágrafo 6]</p>
+     - <h3 class="subtopic-title">[Subtítulo Final]</h3>
+     - <p>[Parágrafo 7]</p>
+     - <p>[Parágrafo 8]</p>
+     - <p>[Parágrafo 9]</p>
+     - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL sobre o tema do capítulo]</blockquote>
+  3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
      - Adapte 100% o seu tom de escrita ao tema solicitado.
-     - CADA parágrafo (<p>) normal deve ter no máximo 400 caracteres.
-     - O ÚLTIMO parágrafo de cada bloco deve ser OBRIGATORIAMENTE MENOR (máximo 150 caracteres). Isso é crucial para finalizar a página corretamente sem transbordar o texto.
-     - REGRA ABSOLUTA: FAÇA A CONTAGEM MENTALMENTE. É ESTRITAMENTE PROIBIDO imprimir na resposta qualquer rascunho de contagem, raciocínio matemático ou comentários. Entregue APENAS o código HTML.
+     - CADA parágrafo (<p>) deve ter no máximo 350 caracteres.
+     - REGRA ABSOLUTA: FAÇA A CONTAGEM MENTALMENTE. Entregue APENAS o código HTML, sem nenhum rascunho ou texto fora do código.
   4. IMAGENS EXCLUSIVAS: Use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
@@ -1681,12 +1692,11 @@ Mantenha a consistência visual com o resto do e-book.`;
         <h3 class="subtopic-title">O Início da Jornada</h3>
         <p>[Parágrafo 1 - Aprox 350 caracteres]</p>
         <p>[Parágrafo 2 - Aprox 350 caracteres]</p>
-        <p>[Parágrafo 3 FINAL - OBRIGATÓRIO ser curto (máximo 150 caracteres) para não transbordar]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
     REGRAS CRÍTICAS:
-    1. A INTRODUÇÃO DEVE TER EXATAMENTE 1 ÚNICA PÁGINA. Limite-se a apenas 3 parágrafos, sendo o último bem pequeno.
+    1. A INTRODUÇÃO DEVE TER EXATAMENTE 1 ÚNICA PÁGINA (Apenas Título, Subtítulo e EXATAMENTE 2 parágrafos).
     2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto.
     3. PARE AQUI! NÃO gere Capítulos!
     `;
