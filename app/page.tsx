@@ -241,7 +241,6 @@ function getScriptPreview(
     let isEditMode = false;
     let selectedEl = null;
 
-    // Tradutor de cores para evitar o erro do Input Type Color
     function rgbToHex(rgb) {
       if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return '#ffffff';
       let m = rgb.match(/^rgb(?:a)?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
@@ -251,6 +250,9 @@ function getScriptPreview(
 
     function executarRefluxoCompleto() {
       if (observer) observer.disconnect();
+      
+      // SALVA A POSIÇÃO DA TELA PARA NÃO PULAR!
+      const currentScrollY = window.scrollY;
 
       const container = document.getElementById('ebook-container');
       if (!container) return;
@@ -370,8 +372,8 @@ function getScriptPreview(
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        const selector = ${indexShowSubtopics} ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
-        const titulos = container.querySelectorAll(selector);
+        // CORREÇÃO: Pega TODOS os subtítulos sempre. O CSS vai decidir se mostra ou esconde!
+        const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title');
         const titulosVistos = new Set();
         mainToc.innerHTML = '';
 
@@ -394,7 +396,7 @@ function getScriptPreview(
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
             a.classList.add('toc-subtopic');
-            if (!${indexShowSubtopics}) a.style.display = 'none';
+            // Removemos o display:none do JS. O CSS faz isso sozinho de forma limpa.
           }
 
           a.href = '#' + titleEl.id;
@@ -479,6 +481,9 @@ function getScriptPreview(
          selectedEl.style.outline = '3px solid #4f46e5';
       }
 
+      // RESTAURA A POSIÇÃO IMEDIATAMENTE APÓS A RECONSTRUÇÃO
+      window.scrollTo(0, currentScrollY);
+
       setTimeout(() => {
         if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
       }, 300);
@@ -492,6 +497,17 @@ function getScriptPreview(
             selectedEl = null;
          }
       }
+      
+      // SISTEMA DE DESFAZER COM INJEÇÃO SUAVE
+      if (e.data.type === 'UNDO_HTML') {
+         const scrollY = window.scrollY;
+         document.getElementById('ebook-container').innerHTML = e.data.html;
+         setTimeout(() => {
+            executarRefluxoCompleto();
+            window.scrollTo(0, scrollY);
+         }, 50);
+      }
+
       if (e.data.type === 'UPDATE_ELEMENT') {
          const target = document.getElementById(e.data.id);
          if (target) {
@@ -523,6 +539,14 @@ function getScriptPreview(
             window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
             setTimeout(executarRefluxoCompleto, 100);
          }
+      }
+    });
+
+    // ATALHO CTRL+Z FUNCIONANDO DENTRO DO EBOOK
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        window.parent.postMessage({ type: 'CTRL_Z' }, '*');
       }
     });
 
@@ -566,7 +590,6 @@ function getScriptPreview(
          
          const computed = window.getComputedStyle(el);
          
-         // Aqui usamos o rgbToHex para blindar o input de cor!
          window.parent.postMessage({
             type: 'ELEMENT_SELECTED',
             id: el.id,
@@ -1314,23 +1337,25 @@ ${ebookStyles}
   }
 
   function desfazerCodigo() {
-    if (historicoCodigo.length === 0) {
-      (window as any).showNotification('Nenhuma alteração para desfazer.', 'error');
-      return;
-    }
-    const novoHistorico = [...historicoCodigo];
-    const estadoAnterior = novoHistorico.pop();
-    setHistoricoCodigo(novoHistorico);
-    if (estadoAnterior) {
-      setHtmlAtual(estadoAnterior);
-      localStorage.setItem('ebook_draft_html', estadoAnterior);
-      setRecarregarIframe(true);
-      if (previewFrameRef.current) {
-        previewFrameRef.current.srcdoc = estadoAnterior + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+    setHistoricoCodigo((prev) => {
+      if (prev.length === 0) {
+        (window as any).showNotification('Nenhuma alteração para desfazer.', 'error');
+        return prev;
       }
-    }
-    setElementoSelecionado(null);
-    (window as any).showNotification('Ação desfeita com sucesso.', 'success');
+      const novoHistorico = [...prev];
+      const estadoAnterior = novoHistorico.pop();
+
+      if (estadoAnterior) {
+        setHtmlAtual(estadoAnterior);
+        localStorage.setItem('ebook_draft_html', estadoAnterior);
+        setRecarregarIframe(false); // Impede o iframe de piscar/quebrar
+        if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+          previewFrameRef.current.contentWindow.postMessage({ type: 'UNDO_HTML', html: estadoAnterior }, '*');
+        }
+      }
+      (window as any).showNotification('Ação desfeita com sucesso.', 'success');
+      return novoHistorico;
+    });
   }
 
   // ============================================================
@@ -1589,8 +1614,8 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
      - <img class="chapter-banner-img" src="https://loremflickr.com/1200/800/[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     - <p>[Parágrafo 1 - EXATOS 85 PALAVRAS (Longo, para preencher a primeira página)]</p>
-     - <p>[Parágrafo 2 - EXATOS 85 PALAVRAS (Longo, para preencher a primeira página)]</p>
+     - <p>[Parágrafo 1 - EXATOS 60 PALAVRAS (Longo, para preencher a primeira página)]</p>
+     - <p>[Parágrafo 2 - EXATOS 60 PALAVRAS (Longo, para preencher a primeira página)]</p>
      - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
      - <p>[Parágrafo 3 - EXATOS 85 PALAVRAS]</p>
      - <p>[Parágrafo 4 - EXATOS 85 PALAVRAS]</p>
@@ -1795,6 +1820,17 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   // EFEITOS (CARREGAR DADOS, SINCRONIZAR, ATUALIZAR)
   // ============================================================
+  // Ativar Ctrl+Z no teclado global
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        desfazerCodigo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
