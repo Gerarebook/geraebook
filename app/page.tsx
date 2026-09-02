@@ -228,6 +228,10 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Rodapé Contínuo)
 // ============================================================
 
+// ============================================================
+// SCRIPT INJETADO NO IFRAME (Versão Automática e Sem Erros)
+// ============================================================
+
 function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
@@ -245,10 +249,11 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // 1. Captura o título do livro para exibir corretamente no cabeçalho direito
-      let tituloDoLivro = (${JSON.stringify(livroTitulo || 'E-book')}).toUpperCase();
+      // Pega o título do livro automaticamente direto da capa da página
+      const capaH1 = container.querySelector('.page-cover-img h1, .page-cover-text h1, .page-cover-pura h1');
+      let tituloDoLivro = capaH1 ? capaH1.textContent.toUpperCase() : "E-BOOK";
 
-      // 2. Captura o modelo exato do rodapé atual para manter o nome do autor
+      // Captura o modelo exato do rodapé atual para manter o nome do autor
       let modeloFooter = '<span class="page-number"></span>';
       const footerExistente = container.querySelector('.page-footer');
       if (footerExistente) {
@@ -283,7 +288,6 @@ function getScriptPreview(
 
         const header = document.createElement('div');
         header.className = 'page-header';
-        // Exibe o título do e-book no cabeçalho direito dinamicamente
         header.innerHTML = '<span>E-book</span><span>' + tituloDoLivro + '</span>';
         novaPagina.appendChild(header);
 
