@@ -232,6 +232,10 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (Paginador com Resgate de Conteúdo)
 // ============================================================
 
+// ============================================================
+// SCRIPT INJETADO NO IFRAME (Paginador com Quebra de Página Lógica)
+// ============================================================
+
 function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
@@ -244,31 +248,26 @@ function getScriptPreview(
     let observer;
 
     function executarRefluxoCompleto() {
-      // 1. DESCONECTA O OBSERVER ANTES DE ALTERAR O DOM
+      // 1. DESCONECTA O OBSERVER
       if (observer) observer.disconnect();
 
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // 2. LIMPEZA INTELIGENTE: Pega páginas antigas (Ignora capas e páginas especiais como Aviso e Autor)
+      // 2. LIMPEZA INTELIGENTE: Ignora capas e páginas especiais
       const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura):not(.legal-page):not(.author-page):not(.page-extra)');
       
-      // RESGATA O CONTEÚDO ANTES DE DELETAR A PÁGINA
+      // RESGATA O CONTEÚDO
       paginasExistentes.forEach(p => {
         const area = p.querySelector('.content-area') || p;
         const filhos = Array.from(area.children).filter(el => 
           !el.classList.contains('page-header') && 
           !el.classList.contains('page-footer')
         );
-        
-        // Joga os elementos resgatados (Títulos, Textos do Índice e Intro) de volta no fluxo
         filhos.forEach(filho => container.insertBefore(filho, p));
-        
-        // Agora sim, remove a caixa velha com segurança
         p.remove();
       });
 
-      // Pega todos os elementos brutos soltos
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         el.tagName !== 'STYLE' &&
@@ -310,8 +309,33 @@ function getScriptPreview(
         // Loop de Paginação
         for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
+
+          // ========================================================
+          // REGRA DE QUEBRA DE PÁGINA FORÇADA (Separa Índice, Intro e Capítulos)
+          // ========================================================
+          if (atual.areaTexto.children.length > 0) {
+            let ultimoInserido = atual.areaTexto.lastElementChild;
+            let isImgBanner = (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img'));
+            let isTituloPrincipal = (el.tagName === 'H2' && el.classList.contains('chapter-title-inline'));
+
+            // Se o elemento for uma imagem de capítulo, força nova página
+            if (isImgBanner) {
+              atual = criarNovaPagina();
+            } 
+            // Se for um título H2 (Índice, Intro, Capítulos), força nova página,
+            // A MENOS que a imagem do capítulo já tenha feito a quebra logo acima.
+            else if (isTituloPrincipal) {
+              let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG' && ultimoInserido.classList.contains('chapter-banner-img'));
+              if (!ultimoFoiImagem) {
+                atual = criarNovaPagina();
+              }
+            }
+          }
+          // ========================================================
+
           atual.areaTexto.appendChild(el);
 
+          // Verifica se estourou a altura limite da página
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             if (el.tagName === 'P') {
               let textoOriginal = el.innerHTML;
@@ -350,7 +374,7 @@ function getScriptPreview(
         }
       }
 
-      // 3. LIMPEZA FINAL INTELIGENTE (Só apaga páginas de texto que realmente ficaram vazias)
+      // 3. LIMPEZA FINAL INTELIGENTE
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
         if (!area || area.children.length === 0) {
@@ -358,7 +382,7 @@ function getScriptPreview(
         }
       });
 
-      // Sincronizar índice
+      // 4. Sincronizar índice
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
@@ -485,7 +509,7 @@ function getScriptPreview(
         }
       });
 
-      // RECONECTA O OBSERVER
+      // 5. RECONECTA O OBSERVER
       setTimeout(() => {
         if (observer) {
            observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
@@ -493,7 +517,6 @@ function getScriptPreview(
       }, 300);
     }
 
-    // Executa após carregamento
     if (document.readyState === 'complete') {
       executarRefluxoCompleto();
     } else {
@@ -503,7 +526,6 @@ function getScriptPreview(
       });
     }
 
-    // Escuta mensagens
     window.addEventListener('message', (e) => {
       if (e.data.type === 'TOGGLE_EDIT_MODE') {}
       if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE' || e.data.type === 'UPDATE_ELEMENT' || e.data.type === 'REPLACE_ELEMENT_HTML') {
@@ -511,7 +533,6 @@ function getScriptPreview(
       }
     });
 
-    // INICIA O OBSERVER
     observer = new MutationObserver(() => {
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
