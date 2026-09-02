@@ -225,7 +225,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (com a função unificada e corrigida)
+// SCRIPT INJETADO NO IFRAME (com a função unificada e corrigida 100%)
 // ============================================================
 
 function getScriptPreview(
@@ -246,7 +246,7 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // Limpa páginas antigas (exceto capas)
+      // Limpa páginas antigas
       const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
       paginasExistentes.forEach(p => p.remove());
 
@@ -257,7 +257,9 @@ function getScriptPreview(
         el.tagName !== 'SCRIPT'
       );
 
-      const ALTURA_MAXIMA = 980;
+      // O GRANDE VILÃO DO TRAVAMENTO ESTAVA AQUI!
+      // Vamos medir APENAS a altura do conteúdo flexível (areaTexto) e não a página inteira.
+      const LIMITE_ALTURA_TEXTO = 880; 
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
@@ -274,6 +276,7 @@ function getScriptPreview(
         contentArea.className = 'content-area';
         contentArea.style.display = 'flex';
         contentArea.style.flexDirection = 'column';
+        contentArea.style.width = '100%'; 
         novaPagina.appendChild(contentArea);
 
         const footer = document.createElement('div');
@@ -294,7 +297,8 @@ function getScriptPreview(
         let el = elementosIA[i];
         atual.areaTexto.appendChild(el);
 
-        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+        // CORREÇÃO VITAL: Mede 'areaTexto.scrollHeight' (que começa em 0) e não a página inteira
+        if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
           
           if (el.tagName === 'P') {
             let textoOriginal = el.innerHTML;
@@ -306,8 +310,8 @@ function getScriptPreview(
             while (pIndex < palavras.length) {
               el.innerHTML += palavras[pIndex] + ' ';
               
-              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
-                // 2. CORREÇÃO DE LOOP NO TEXTO: Garante que o pIndex avance
+              // Verifica palavra por palavra no content-area
+              if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
                 if (pIndex === 0) {
                   pIndex++; 
                 } else {
