@@ -225,17 +225,28 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (com a função unificada)
+// SCRIPT INJETADO NO IFRAME (com a função unificada e corrigida)
 // ============================================================
 
-function executarRefluxoCompleto() {
-      // Trava de segurança no topo da função
-      window._isReflowing = true;
-      
+function getScriptPreview(
+  indexShowSubtopics: boolean,
+  ativarBgSegundaPagina: boolean,
+  bgSegundaPaginaUrl: string,
+  bgSegundaPaginaOpacidade: string
+) {
+  return `
+<script>
+  (function() {
+    let observer; // Declara o observer globalmente no iframe
+
+    function executarRefluxoCompleto() {
+      // 1. DESCONECTA O OBSERVER ANTES DE ALTERAR O DOM (Evita Loop Infinito)
+      if (observer) observer.disconnect();
+
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // 1. Limpa páginas antigas (exceto capas)
+      // Limpa páginas antigas (exceto capas)
       const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
       paginasExistentes.forEach(p => p.remove());
 
@@ -246,7 +257,6 @@ function executarRefluxoCompleto() {
         el.tagName !== 'SCRIPT'
       );
 
-      // Altura máxima super restrita (A4)
       const ALTURA_MAXIMA = 980;
 
       function criarNovaPagina() {
@@ -260,7 +270,6 @@ function executarRefluxoCompleto() {
         header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
         novaPagina.appendChild(header);
 
-        // Área restrita apenas para o texto, para podermos medir com precisão
         const contentArea = document.createElement('div');
         contentArea.className = 'content-area';
         contentArea.style.display = 'flex';
@@ -280,13 +289,12 @@ function executarRefluxoCompleto() {
 
       let atual = criarNovaPagina();
 
-      // 2. Loop de Paginação Rigoroso
+      // Loop de Paginação Rigoroso
       for (let i = 0; i < elementosIA.length; i++) {
         let el = elementosIA[i];
         atual.areaTexto.appendChild(el);
 
-        // CORREÇÃO: Medir a 'areaTexto' que é dinâmica, não a 'pagina' que tem 297mm fixos
-        if (atual.areaTexto.scrollHeight > ALTURA_MAXIMA) {
+        if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
           
           if (el.tagName === 'P') {
             let textoOriginal = el.innerHTML;
@@ -298,12 +306,10 @@ function executarRefluxoCompleto() {
             while (pIndex < palavras.length) {
               el.innerHTML += palavras[pIndex] + ' ';
               
-              // CORREÇÃO: Medir a areaTexto aqui também
-              if (atual.areaTexto.scrollHeight > ALTURA_MAXIMA) {
-                
-                // CORREÇÃO: Prevenção de loop infinito caso a primeira palavra seja enorme
+              if (atual.pagina.scrollHeight > ALTURA_MAXIMA) {
+                // 2. CORREÇÃO DE LOOP NO TEXTO: Garante que o pIndex avance
                 if (pIndex === 0) {
-                  pIndex = 1; 
+                  pIndex++; 
                 } else {
                   let htmlAtual = el.innerHTML;
                   el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
@@ -329,7 +335,7 @@ function executarRefluxoCompleto() {
         }
       }
 
-      // 3. Limpeza Final
+      // Limpeza Final
       container.querySelectorAll('.page-container').forEach(page => {
         const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
         if (conteudo.length === 0) {
@@ -337,7 +343,7 @@ function executarRefluxoCompleto() {
         }
       });
 
-      // 4. Sincronizar índice (só roda AGORA que as páginas estão perfeitas)
+      // Sincronizar índice
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
@@ -348,7 +354,7 @@ function executarRefluxoCompleto() {
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        const selector = indexShowSubtopics ?
+        const selector = ${indexShowSubtopics} ?
           'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title' :
           'h1.chapter-title-exclusive, h2.chapter-title-inline';
         const titulos = container.querySelectorAll(selector);
@@ -373,7 +379,7 @@ function executarRefluxoCompleto() {
           a.className = 'toc-item';
           if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
             a.classList.add('toc-main-chapter');
-            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
+            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
             a.classList.add('toc-subtopic');
@@ -381,7 +387,7 @@ function executarRefluxoCompleto() {
             a.style.fontSize = '0.9em';
             a.style.opacity = '0.85';
             a.style.fontWeight = '400';
-            if (!indexShowSubtopics) {
+            if (!${indexShowSubtopics}) {
               a.style.display = 'none';
             }
           }
@@ -419,7 +425,7 @@ function executarRefluxoCompleto() {
 
       sincronizarIndice();
 
-      // Fundo da segunda página (Mantido do seu original)
+      // Fundo da segunda página
       let chIndex = 0;
       let currentChapterImg = '';
       container.querySelectorAll('.page-container').forEach((p) => {
@@ -437,13 +443,12 @@ function executarRefluxoCompleto() {
           chIndex++;
         }
 
-        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container')) {
-  p.classList.add('chapter-page-2');
+        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
           p.classList.add('chapter-page-2');
           let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
-            if (ativarBgSegundaPagina) {
+            if (${ativarBgSegundaPagina}) {
               p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
               p.style.setProperty('background-size', 'cover', 'important');
               p.style.setProperty('background-position', 'center', 'important');
@@ -464,6 +469,13 @@ function executarRefluxoCompleto() {
           }
         }
       });
+
+      // 3. RECONECTA O OBSERVER COM DELAY
+      setTimeout(() => {
+        if (observer) {
+           observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
+        }
+      }, 300);
     }
 
     // Executa após carregamento
@@ -472,44 +484,30 @@ function executarRefluxoCompleto() {
     } else {
       window.addEventListener('load', () => {
         executarRefluxoCompleto();
-        // Reexecuta após imagens carregarem
         setTimeout(executarRefluxoCompleto, 500);
       });
     }
 
-    // Escuta mensagens do parent para atualizações
+    // Escuta mensagens do parent
     window.addEventListener('message', (e) => {
-      if (e.data.type === 'TOGGLE_EDIT_MODE') {
-        // Apenas notifica que o modo mudou (já tratado no componente pai)
-      }
-      if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE') {
-        setTimeout(executarRefluxoCompleto, 100);
-      }
-      if (e.data.type === 'UPDATE_ELEMENT') {
-        setTimeout(executarRefluxoCompleto, 200);
-      }
-      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
+      if (e.data.type === 'TOGGLE_EDIT_MODE') {}
+      if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE' || e.data.type === 'UPDATE_ELEMENT' || e.data.type === 'REPLACE_ELEMENT_HTML') {
         setTimeout(executarRefluxoCompleto, 200);
       }
     });
 
-   // Flag de controle para evitar o loop do MutationObserver
-    window._isReflowing = false;
-
-    const observer = new MutationObserver(() => {
-      // Se já estiver processando um refluxo, ignora a mutação
-      if (window._isReflowing) return;
-      
+    // 4. INICIA O OBSERVER GLOBALMENTE
+    observer = new MutationObserver(() => {
       clearTimeout(window._reflowTimeout);
-      window._reflowTimeout = setTimeout(() => {
-        window._isReflowing = true; // Trava o observer
-        executarRefluxoCompleto();
-        
-        // Libera o observer após dar tempo das renderizações terminarem
-        setTimeout(() => { window._isReflowing = false; }, 500);
-      }, 300);
+      window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
-    observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
+    
+    // Escuta inicial
+    const containerParaObservar = document.getElementById('ebook-container');
+    if (containerParaObservar) {
+      observer.observe(containerParaObservar, { childList: true, subtree: true });
+    }
+
   })();
 </script>
   `;
