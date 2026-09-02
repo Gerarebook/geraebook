@@ -2276,10 +2276,10 @@ Mantenha a consistência visual com o resto do e-book.`;
   onChange={(e: any) => setPaletaCores(e.target.value)} 
   className="input-standard text-[10px]"
 >
-  <option value="preto">Preto + Amarelo/Laranja</option>
-  <option value="verde">Verde Escuro + Claro</option>
-  <option value="azul-marinho">Azul Marinho + Celeste</option>
-  <option value="manual">Manual (Personalizado)</option>
+  <option value="preto">Fundo Preto + Texto Branco</option>
+  <option value="azul-marinho">Fundo Azul Marinho + Texto Branco</option>
+  <option value="verde">Fundo Verde + Texto Branco</option>
+  <option value="manual">Personalizar Cores (Fundo, Texto e Títulos)</option>
 </select>
                     </div>
                     <div>
