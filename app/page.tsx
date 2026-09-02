@@ -1666,10 +1666,10 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">O Início da Jornada</h3>
-        <p>[Parágrafo 1 - aprox 45 palavras]</p>
-        <p>[Parágrafo 2 - aprox 45 palavras]</p>
-        <p>[Parágrafo 3 - aprox 45 palavras]</p>
-        <p>[Parágrafo 4 - aprox 45 palavras]</p>
+        <p>[Parágrafo 1 - aprox 80 palavras]</p>
+        <p>[Parágrafo 2 - aprox 80 palavras]</p>
+        <p>[Parágrafo 3 - aprox 80 palavras]</p>
+        <p>[Parágrafo 4 - aprox 80 palavras]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
