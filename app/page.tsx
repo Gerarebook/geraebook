@@ -1602,7 +1602,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (LAYOUT PERFEITO & LOREM FLICKR)
+  // FUNÇÃO DE INSTRUÇÕES BASE (BLINDADA CONTRA RASCUNHOS DA IA)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1614,20 +1614,21 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
      - <img class="chapter-banner-img" src="https://loremflickr.com/1200/800/[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     - <p>[Parágrafo 1 - EXATOS 60 PALAVRAS (Longo, para preencher a primeira página)]</p>
-     - <p>[Parágrafo 2 - EXATOS 60 PALAVRAS (Longo, para preencher a primeira página)]</p>
+     - <p>[Parágrafo 1 - MÁXIMO 55 PALAVRAS (Curto, para caber na página da imagem)]</p>
+     - <p>[Parágrafo 2 - MÁXIMO 55 PALAVRAS (Curto, para caber na página da imagem)]</p>
      - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     - <p>[Parágrafo 3 - EXATOS 85 PALAVRAS]</p>
-     - <p>[Parágrafo 4 - EXATOS 85 PALAVRAS]</p>
-     - <p>[Parágrafo 5 - EXATOS 85 PALAVRAS]</p>
+     - <p>[Parágrafo 3 - Aprox 85 PALAVRAS]</p>
+     - <p>[Parágrafo 4 - Aprox 85 PALAVRAS]</p>
+     - <p>[Parágrafo 5 - Aprox 85 PALAVRAS]</p>
      - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA para fechar a segunda página]</div>
      - <h3 class="subtopic-title">[Subtítulo Final]</h3>
-     - <p>[Parágrafo 6 - EXATOS 85 PALAVRAS]</p>
-     - <p>[Parágrafo 7 - EXATOS 85 PALAVRAS]</p>
-     - <p>[Parágrafo 8 - EXATOS 85 PALAVRAS]</p>
+     - <p>[Parágrafo 6 - Aprox 85 PALAVRAS]</p>
+     - <p>[Parágrafo 7 - Aprox 85 PALAVRAS]</p>
+     - <p>[Parágrafo 8 - Aprox 85 PALAVRAS]</p>
      - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL para fechar a terceira página]</blockquote>
-  3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
-     - Adapte 100% o seu tom de escrita. NÃO escreva rascunhos. Devolva apenas o HTML.
+  3. REGRA DE SEGURANÇA E TOM DE VOZ (LEIA COM ATENÇÃO): 
+     - PROIBIÇÃO ABSOLUTA: Você está ESTRITAMENTE PROIBIDO de mostrar o seu processo de pensamento, rascunhos, contagem de palavras (como "Word count check" ou "Goal: 85 words").
+     - DEVOLVA APENAS AS TAGS HTML E O CONTEÚDO FINAL. NÃO escreva NENHUM texto fora das tags HTML.
   4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para puxar a foto.
   `;
 
