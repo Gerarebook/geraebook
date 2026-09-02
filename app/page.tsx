@@ -545,7 +545,7 @@ export default function Home() {
   const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('0.8em');
   const [recuoParagrafo, setRecuoParagrafo] = useState('20px');
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
-  const [paletaCores, setPaletaCores] = useState<'classico' | 'moderno' | 'sepia' | 'dark' | 'manual'>('classico');
+  const [paletaCores, setPaletaCores] = useState<'branco-preto' | 'branco-dourado' | 'branco-verde' | 'manual'>('branco-preto');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
   const [corManualSec, setCorManualSec] = useState('#3b82f6');
   const [corManualText, setCorManualText] = useState('#111827');
@@ -664,12 +664,19 @@ async function gerarEbookPDF(textoBruto: string) {
   // ============================================================
 
   function getPaletaObj() {
-    if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: corManualSec };
+    // Modo Personalizado: Títulos (pri), subtítulos (sec) e bordas acompanham a cor exata do texto escolhido.
+    if (paletaCores === 'manual') {
+      return { bg: corManualBg, text: corManualText, pri: corManualText, sec: corManualText, borda: corManualText };
+    }
+    
     switch (paletaCores) {
-      case 'verde': return { bg: '#064e3b', text: '#ecfdf5', pri: '#34d399', sec: '#10b981', borda: '#34d399' };
-      case 'azul-marinho': return { bg: '#0f172a', text: '#f8fafc', pri: '#60a5fa', sec: '#3b82f6', borda: '#60a5fa' };
-      case 'preto': return { bg: '#0f1014', text: '#f3f4f6', pri: '#fbbf24', sec: '#f59e0b', borda: '#fbbf24' };
-      default: return { bg: '#0f1014', text: '#f3f4f6', pri: '#fbbf24', sec: '#f59e0b', borda: '#fbbf24' };
+      case 'branco-dourado': 
+        return { bg: '#ffffff', text: '#333333', pri: '#b8860b', sec: '#d4af37', borda: '#b8860b' };
+      case 'branco-verde': 
+        return { bg: '#ffffff', text: '#333333', pri: '#059669', sec: '#10b981', borda: '#059669' };
+      case 'branco-preto': 
+      default: 
+        return { bg: '#ffffff', text: '#111827', pri: '#111827', sec: '#374151', borda: '#111827' };
     }
   }
 
@@ -2268,19 +2275,19 @@ Mantenha a consistência visual com o resto do e-book.`;
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                 <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="input-label text-[9px]">Paleta de Cores</label>
-                      <select 
-  value={paletaCores} 
-  onChange={(e: any) => setPaletaCores(e.target.value)} 
-  className="input-standard text-[10px]"
->
-  <option value="preto">Fundo Preto + Texto Branco</option>
-  <option value="azul-marinho">Fundo Azul Marinho + Texto Branco</option>
-  <option value="verde">Fundo Verde + Texto Branco</option>
-  <option value="manual">Personalizar Cores (Fundo, Texto e Títulos)</option>
-</select>
+                      <select
+                        value={paletaCores}
+                        onChange={(e: any) => setPaletaCores(e.target.value)}
+                        className="input-standard text-[10px]"
+                      >
+                        <option value="preto">Fundo Preto + Texto Branco</option>
+                        <option value="azul-marinho">Fundo Azul Marinho + Texto Branco</option>
+                        <option value="verde">Fundo Verde + Texto Branco</option>
+                        <option value="manual">Personalizar Cores (Fundo, Texto e Títulos)</option>
+                      </select>
                     </div>
                     <div>
                       <label className="input-label text-[9px]">Molde de Capítulos</label>
