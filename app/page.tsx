@@ -2275,47 +2275,77 @@ Mantenha a consistência visual com o resto do e-book.`;
                     </div>
                   </div>
 
-                 <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="input-label text-[9px]">Paleta de Cores</label>
-                      <select
-                        value={paletaCores}
-                        onChange={(e: any) => setPaletaCores(e.target.value)}
-                        className="input-standard text-[10px]"
+                 <div className="mb-4">
+                    <label className="input-label text-[9px] mb-2">🎨 Cores do E-book</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setPaletaCores('branco-preto')}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'branco-preto' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
                       >
-                        <option value="preto">Fundo Preto + Texto Branco</option>
-                        <option value="azul-marinho">Fundo Azul Marinho + Texto Branco</option>
-                        <option value="verde">Fundo Verde + Texto Branco</option>
-                        <option value="manual">Personalizar Cores (Fundo, Texto e Títulos)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="input-label text-[9px]">Molde de Capítulos</label>
-                      <div className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                        <i className="fas fa-image text-indigo-400 mr-1"></i> Padrão com Banner
-                      </div>
+                        <div className="flex gap-1.5 mb-1.5">
+                          <span className="w-4 h-4 rounded-full border border-slate-300 bg-white"></span>
+                          <span className="w-4 h-4 rounded-full bg-slate-900"></span>
+                        </div>
+                        Branco + Preto
+                      </button>
+
+                      <button
+                        onClick={() => setPaletaCores('branco-dourado')}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'branco-dourado' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        <div className="flex gap-1.5 mb-1.5">
+                          <span className="w-4 h-4 rounded-full border border-slate-300 bg-white"></span>
+                          <span className="w-4 h-4 rounded-full bg-yellow-600"></span>
+                        </div>
+                        Branco + Dourado
+                      </button>
+
+                      <button
+                        onClick={() => setPaletaCores('branco-verde')}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'branco-verde' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        <div className="flex gap-1.5 mb-1.5">
+                          <span className="w-4 h-4 rounded-full border border-slate-300 bg-white"></span>
+                          <span className="w-4 h-4 rounded-full bg-emerald-600"></span>
+                        </div>
+                        Branco + Verde
+                      </button>
+
+                      <button
+                        onClick={() => setPaletaCores('manual')}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'manual' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        <i className={`fas fa-palette text-lg mb-1 ${paletaCores === 'manual' ? 'text-indigo-600' : 'text-slate-400'}`}></i>
+                        Personalizar
+                      </button>
                     </div>
                   </div>
 
                   {paletaCores === 'manual' && (
-                    <div className="bg-slate-100 p-3 rounded-lg grid grid-cols-2 gap-2 mb-3">
-                      <div>
-                        <label className="input-label text-[9px]">Primária</label>
-                        <input
-                          type="color"
-                          value={corManualPri}
-                          onChange={(e) => setCorManualPri(e.target.value)}
-                          className="w-full h-7 rounded border cursor-pointer"
-                        />
-                      </div>
-                      <div>
-                        <label className="input-label text-[9px]">Secundária</label>
-                        <input
-                          type="color"
-                          value={corManualSec}
-                          onChange={(e) => setCorManualSec(e.target.value)}
-                          className="w-full h-7 rounded border cursor-pointer"
-                        />
+                    <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 mb-4 animate-[fadeIn_0.3s_ease]">
+                      <p className="text-[9px] font-bold text-indigo-700 mb-3 leading-relaxed flex gap-1.5">
+                        <i className="fas fa-info-circle mt-0.5 text-indigo-500"></i>
+                        Dica: Defina as duas cores abaixo. A numeração, os títulos e as bordas seguirão automaticamente a "Cor do Texto" que você escolher!
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="input-label text-[9px] text-indigo-900">Fundo da Página</label>
+                          <input
+                            type="color"
+                            value={corManualBg}
+                            onChange={(e) => setCorManualBg(e.target.value)}
+                            className="w-full h-8 rounded cursor-pointer border-none p-0 bg-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label text-[9px] text-indigo-900">Cor do Texto</label>
+                          <input
+                            type="color"
+                            value={corManualText}
+                            onChange={(e) => setCorManualText(e.target.value)}
+                            className="w-full h-8 rounded cursor-pointer border-none p-0 bg-transparent"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
