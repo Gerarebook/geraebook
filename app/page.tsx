@@ -225,7 +225,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (Modo Editor + Anti-Inception)
+// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Blindado)
 // ============================================================
 
 function getScriptPreview(
@@ -247,11 +247,19 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // Lê o título da capa e o texto esquerdo dinâmico escolhido no painel
       const capaH1 = container.querySelector('.page-cover-img h1, .page-cover-text h1, .page-cover-pura h1');
-      let tituloDoLivro = capaH1 ? capaH1.textContent.toUpperCase() : "E-BOOK";
+      let tituloDoLivro = capaH1 ? capaH1.textContent.toUpperCase() : "";
+
       const metaHeader = document.getElementById('meta-header-text');
-      const textoEsquerdo = metaHeader ? metaHeader.getAttribute('content').toUpperCase() : '';
+      let textoEsquerdo = metaHeader ? metaHeader.getAttribute('content').toUpperCase().trim() : '';
+
+      // BLINDAGEM DO CABEÇALHO: Força todos os cabeçalhos a obedecerem o painel em tempo real
+      container.querySelectorAll('.page-header').forEach(h => {
+         const spans = h.querySelectorAll('span');
+         if (spans.length >= 1) {
+             spans[0].textContent = textoEsquerdo; 
+         }
+      });
 
       let modeloFooter = '<span class="page-number"></span>';
       const footerExistente = container.querySelector('.page-footer');
@@ -287,8 +295,7 @@ function getScriptPreview(
 
         const header = document.createElement('div');
         header.className = 'page-header';
-        // Aplica o texto da esquerda dinâmico (se estiver vazio, não mostra nada)
-        header.innerHTML = (textoEsquerdo ? '<span>' + textoEsquerdo + '</span>' : '<span></span>') + '<span>' + tituloDoLivro + '</span>';
+        header.innerHTML = '<span>' + textoEsquerdo + '</span><span>' + tituloDoLivro + '</span>';
         novaPagina.appendChild(header);
 
         const contentArea = document.createElement('div');
@@ -470,9 +477,6 @@ function getScriptPreview(
       }, 300);
     }
 
-    // ==========================================================
-    // SISTEMA DO MODO INSPETOR (CLIQUE E EDIÇÃO)
-    // ==========================================================
     window.addEventListener('message', (e) => {
       if (e.data.type === 'TOGGLE_EDIT_MODE') {
          isEditMode = e.data.value;
@@ -528,7 +532,6 @@ function getScriptPreview(
     });
     
     document.addEventListener('click', (e) => {
-      // 1. SEMPRE VERIFICA SE O CLIQUE FOI EM UM LINK DO ÍNDICE PRIMEIRO
       const link = e.target.closest('a');
       if (link && link.getAttribute('href') && link.getAttribute('href').startsWith('#')) {
         e.preventDefault(); 
@@ -538,13 +541,11 @@ function getScriptPreview(
         if (targetElement) {
             targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        return; // Sai da função aqui, evitando o recarregamento "Inception"!
+        return; 
       }
 
-      // 2. SE NÃO ESTIVER NO MODO EDITOR, IGNORA O RESTO DOS CLIQUES
       if (!isEditMode) return;
       
-      // 3. LÓGICA DO MODO EDITOR (SE ESTIVER ATIVO)
       e.preventDefault(); 
       e.stopPropagation();
       const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
@@ -1567,7 +1568,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (UNSPLASH DE VOLTA)
+  // FUNÇÃO DE INSTRUÇÕES BASE (LAYOUT PERFEITO & UNSPLASH)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1575,31 +1576,29 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
-  2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas):
+  2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas completas e sem espaços vazios):
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-     - <img class="chapter-banner-img" src="https://source.unsplash.com/random/1200x800/?[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
+     - <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     - <p>[Parágrafo 1 - MÁXIMO 35 PALAVRAS (Curto, para caber na página da imagem)]</p>
-     - <p>[Parágrafo 2 - MÁXIMO 35 PALAVRAS (Curto, para caber na página da imagem)]</p>
+     - <p>[Parágrafo 1 - EXATOS 85 PALAVRAS (Longo, para preencher a primeira página)]</p>
+     - <p>[Parágrafo 2 - EXATOS 85 PALAVRAS (Longo, para preencher a primeira página)]</p>
      - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     - <p>[Parágrafo 3 - aprox 60 palavras]</p>
-     - <p>[Parágrafo 4 - aprox 60 palavras]</p>
-     - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA de acordo com o conteúdo]</div>
-     - <p>[Parágrafo 5 - aprox 60 palavras]</p>
-     - <p>[Parágrafo 6 - aprox 60 palavras]</p>
+     - <p>[Parágrafo 3 - EXATOS 85 PALAVRAS]</p>
+     - <p>[Parágrafo 4 - EXATOS 85 PALAVRAS]</p>
+     - <p>[Parágrafo 5 - EXATOS 85 PALAVRAS]</p>
+     - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA para fechar a segunda página]</div>
      - <h3 class="subtopic-title">[Subtítulo Final]</h3>
-     - <p>[Parágrafo 7 - aprox 60 palavras]</p>
-     - <p>[Parágrafo 8 - aprox 60 palavras]</p>
-     - <p>[Parágrafo 9 - aprox 60 palavras]</p>
-     - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL sobre o tema do capítulo]</blockquote>
+     - <p>[Parágrafo 6 - EXATOS 85 PALAVRAS]</p>
+     - <p>[Parágrafo 7 - EXATOS 85 PALAVRAS]</p>
+     - <p>[Parágrafo 8 - EXATOS 85 PALAVRAS]</p>
+     - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL para fechar a terceira página]</blockquote>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
      - Adapte 100% o seu tom de escrita. NÃO escreva rascunhos. Devolva apenas o HTML.
-  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para o Unsplash puxar a foto correta.
+  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para o Unsplash puxar a foto correta (Sem usar aspas ou espaços na URL).
   `;
 
     return { regrasCompletas, numero };
   }
-
   // ============================================================
   // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
   // ============================================================
