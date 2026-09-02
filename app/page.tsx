@@ -247,8 +247,11 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
+      // Lê o título da capa e o texto esquerdo dinâmico escolhido no painel
       const capaH1 = container.querySelector('.page-cover-img h1, .page-cover-text h1, .page-cover-pura h1');
       let tituloDoLivro = capaH1 ? capaH1.textContent.toUpperCase() : "E-BOOK";
+      const metaHeader = document.getElementById('meta-header-text');
+      const textoEsquerdo = metaHeader ? metaHeader.getAttribute('content').toUpperCase() : '';
 
       let modeloFooter = '<span class="page-number"></span>';
       const footerExistente = container.querySelector('.page-footer');
@@ -284,7 +287,8 @@ function getScriptPreview(
 
         const header = document.createElement('div');
         header.className = 'page-header';
-        header.innerHTML = '<span>E-book</span><span>' + tituloDoLivro + '</span>';
+        // Aplica o texto da esquerda dinâmico (se estiver vazio, não mostra nada)
+        header.innerHTML = (textoEsquerdo ? '<span>' + textoEsquerdo + '</span>' : '<span></span>') + '<span>' + tituloDoLivro + '</span>';
         novaPagina.appendChild(header);
 
         const contentArea = document.createElement('div');
@@ -633,6 +637,7 @@ export default function Home() {
 
   // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
+  const [textoCabecalho, setTextoCabecalho] = useState('E-book');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso'>('expandido');
@@ -999,9 +1004,10 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta id="meta-header-text" content="${textoCabecalho}">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <title>${livroTitulo || 'Meu E-book Profissional'}</title>
 ${ebookStyles}
 </head>
@@ -1012,7 +1018,6 @@ ${ebookStyles}
 </body>
 </html>`;
   }
-
   // ============================================================
   // FUNÇÕES DE ATUALIZAÇÃO DA CAPA
   // ============================================================
@@ -1566,33 +1571,30 @@ Mantenha a consistência visual com o resto do e-book.`;
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
-    const tema = opts?.tema || 'geral';
 
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas):
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-     - <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES_AQUI]&sig=${numero}" alt="Imagem do capítulo">
+     - <img class="chapter-banner-img" src="https://source.unsplash.com/random/1200x800/?[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     - <p>[Parágrafo 1]</p>
-     - <p>[Parágrafo 2]</p>
+     - <p>[Parágrafo 1 - MÁXIMO 35 PALAVRAS (Curto, para caber na página da imagem)]</p>
+     - <p>[Parágrafo 2 - MÁXIMO 35 PALAVRAS (Curto, para caber na página da imagem)]</p>
      - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     - <p>[Parágrafo 3]</p>
-     - <p>[Parágrafo 4]</p>
+     - <p>[Parágrafo 3 - aprox 60 palavras]</p>
+     - <p>[Parágrafo 4 - aprox 60 palavras]</p>
      - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA de acordo com o conteúdo]</div>
-     - <p>[Parágrafo 5]</p>
-     - <p>[Parágrafo 6]</p>
+     - <p>[Parágrafo 5 - aprox 60 palavras]</p>
+     - <p>[Parágrafo 6 - aprox 60 palavras]</p>
      - <h3 class="subtopic-title">[Subtítulo Final]</h3>
-     - <p>[Parágrafo 7]</p>
-     - <p>[Parágrafo 8]</p>
-     - <p>[Parágrafo 9]</p>
+     - <p>[Parágrafo 7 - aprox 60 palavras]</p>
+     - <p>[Parágrafo 8 - aprox 60 palavras]</p>
+     - <p>[Parágrafo 9 - aprox 60 palavras]</p>
      - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL sobre o tema do capítulo]</blockquote>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
-     - Adapte 100% o seu tom de escrita ao tema solicitado.
-     - CADA parágrafo (<p>) DEVE TER EXATAMENTE em média 57 palavras.
-     - REGRA ABSOLUTA: NÃO escreva rascunhos ou cálculos matemáticos na resposta. Devolva apenas o código HTML.
-  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para a API Unsplash puxar a foto correta.
+     - Adapte 100% o seu tom de escrita. NÃO escreva rascunhos. Devolva apenas o HTML.
+  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para o Unsplash puxar a foto correta.
   `;
 
     return { regrasCompletas, numero };
@@ -1889,7 +1891,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       localStorage.setItem('ebook_draft_html', htmlFinal);
       setRecarregarIframe(true);
     }
-  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato]);
+  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, indexShowSubtopics, textoCabecalho]);
 
   const isTextElement = elementoSelecionado
     ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
@@ -2121,8 +2123,18 @@ Mantenha a consistência visual com o resto do e-book.`;
                         type="text"
                         value={livroTitulo}
                         onChange={(e) => setLivroTitulo(e.target.value)}
-                        className="input-standard"
+                        className="input-standard mb-3"
                         placeholder="Ex: O Poder da Mente"
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label">Texto do Cabeçalho (Esquerda)</label>
+                      <input
+                        type="text"
+                        value={textoCabecalho}
+                        onChange={(e) => setTextoCabecalho(e.target.value)}
+                        className="input-standard"
+                        placeholder="Deixe vazio para esconder"
                       />
                     </div>
                     <div>
