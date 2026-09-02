@@ -1607,6 +1607,9 @@ Mantenha a consistência visual com o resto do e-book.`;
 // ============================================================
   // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA, TOM ADAPTÁVEL)
   // ============================================================
+  // ============================================================
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA RÍGIDA E ANTI-RASCUNHO)
+  // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
     const tema = opts?.tema || 'geral';
@@ -1620,8 +1623,9 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
      - <p>[Conteúdo longo e detalhado]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
-     - Adapte 100% o seu tom de escrita ao tema solicitado (seja ele um texto acadêmico, um livro de comédia/piadas, ficção ou infantil).
-     - Mantenha a regra matemática: CADA parágrafo (<p>) deve ter estritamente entre mínimo 400 e máximo 450 caracteres para o formato a4. Desenvolva o texto (ou a piada/história) de forma a preencher esse volume exato em todos os parágrafos, sem criar parágrafos curtos , faça com linguajar humanizado, profissional e com dicas relevantes.
+     - Adapte 100% o seu tom de escrita ao tema solicitado (acadêmico, ficção, etc).
+     - CADA parágrafo (<p>) deve ter estritamente entre 400 e 450 caracteres.
+     - REGRA ABSOLUTA DE SAÍDA: FAÇA ESSA CONTAGEM MENTALMENTE. É ESTRITAMENTE PROIBIDO imprimir na resposta qualquer rascunho de contagem, raciocínio matemático (ex: "Words + spaces = ..."), ou comentários. Sua resposta deve conter EXCLUSIVAMENTE código HTML válido.
   4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
