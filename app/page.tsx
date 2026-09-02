@@ -225,27 +225,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (com a função unificada e corrigida 100%)
-// ============================================================
-
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (Paginador com Resgate de Conteúdo)
-// ============================================================
-
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (Paginador com Quebra de Página Lógica)
-// ============================================================
-
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (Paginador + Navegação Segura)
-// ============================================================
-
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (Paginador de Parágrafos 2x4)
-// ============================================================
-
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (Paginador Lógico e Rodapé Contínuo)
+// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Rodapé Contínuo)
 // ============================================================
 
 function getScriptPreview(
@@ -265,8 +245,11 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // Captura o modelo exato do rodapé atual para não perder o nome do autor
-      let modeloFooter = '<span>Conteúdo</span><span class="page-number"></span>';
+      // 1. Captura o título do livro para exibir corretamente no cabeçalho direito
+      let tituloDoLivro = "${livroTitulo || 'E-book'}".toUpperCase();
+
+      // 2. Captura o modelo exato do rodapé atual para manter o nome do autor
+      let modeloFooter = '<span class="page-number"></span>';
       const footerExistente = container.querySelector('.page-footer');
       if (footerExistente) {
         modeloFooter = footerExistente.innerHTML;
@@ -300,7 +283,8 @@ function getScriptPreview(
 
         const header = document.createElement('div');
         header.className = 'page-header';
-        header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
+        // Exibe o título do e-book no cabeçalho direito dinamicamente
+        header.innerHTML = '<span>E-book</span><span>' + tituloDoLivro + '</span>';
         novaPagina.appendChild(header);
 
         const contentArea = document.createElement('div');
@@ -312,7 +296,7 @@ function getScriptPreview(
 
         const footer = document.createElement('div');
         footer.className = 'page-footer';
-        footer.innerHTML = modeloFooter; // CLONE PERFEITO DO RODAPÉ
+        footer.innerHTML = modeloFooter; 
         novaPagina.appendChild(footer);
 
         container.appendChild(novaPagina);
@@ -331,7 +315,6 @@ function getScriptPreview(
             let isTituloPrincipal = (el.tagName === 'H2');
             let isSubtitulo = (el.tagName === 'H3');
 
-            // Lógica Exata para 3 páginas: Quebra no H2, ou no H3 (se não for vizinho do H2/Img)
             if (isTituloPrincipal) {
               deveQuebrar = true;
             } else if (isSubtitulo) {
@@ -349,7 +332,6 @@ function getScriptPreview(
 
           atual.areaTexto.appendChild(el);
 
-          // Segurança: Se um parágrafo estourar a altura por acidente
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             atual = criarNovaPagina();
             atual.areaTexto.appendChild(el);
