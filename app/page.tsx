@@ -1649,7 +1649,7 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL sobre o tema do capítulo]</blockquote>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
      - Adapte 100% o seu tom de escrita ao tema solicitado.
-     - CADA parágrafo (<p>) DEVE TER EXATAMENTE em média 65 palavras (cerca de 450 caracteres).
+     - CADA parágrafo (<p>) DEVE TER EXATAMENTE em média 57 palavras (cerca de 420 caracteres).
      - REGRA ABSOLUTA: NÃO escreva rascunhos ou cálculos matemáticos na resposta. Devolva apenas o código HTML.
   4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para a API da Unsplash puxar a foto correta.
   `;
