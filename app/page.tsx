@@ -1010,6 +1010,21 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
   margin-bottom: 2px !important;
 }
 
+/* Permite que o Índice flua naturalmente para as próximas páginas sem pular em bloco */
+#toc, 
+.toc-container {
+  break-inside: auto !important;
+  page-break-inside: auto !important;
+  display: block !important; 
+}
+
+/* Garante que uma linha (um capítulo) não seja cortada no meio da palavra ao trocar de página */
+#toc a, 
+.toc-subtopic {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; page-break-inside: avoid; break-inside: avoid; }
 .author-section.layout-topo { flex-direction: column; text-align: center; }
