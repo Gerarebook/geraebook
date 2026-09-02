@@ -225,7 +225,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (Modo Editor + Paginação Corrigida)
+// SCRIPT INJETADO NO IFRAME (Modo Editor + Anti-Inception)
 // ============================================================
 
 function getScriptPreview(
@@ -274,7 +274,7 @@ function getScriptPreview(
         el.tagName !== 'SCRIPT'
       );
 
-      const LIMITE_ALTURA_TEXTO = 890; // Aumentado para garantir que a pag 1 não quebre tão cedo
+      const LIMITE_ALTURA_TEXTO = 890; 
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
@@ -457,7 +457,6 @@ function getScriptPreview(
         }
       });
 
-      // Se o inspetor estiver ativo, reaplica as marcações visuais após reflow
       if (isEditMode && selectedEl) {
          selectedEl.style.outline = '3px solid #4f46e5';
       }
@@ -525,7 +524,23 @@ function getScriptPreview(
     });
     
     document.addEventListener('click', (e) => {
+      // 1. SEMPRE VERIFICA SE O CLIQUE FOI EM UM LINK DO ÍNDICE PRIMEIRO
+      const link = e.target.closest('a');
+      if (link && link.getAttribute('href') && link.getAttribute('href').startsWith('#')) {
+        e.preventDefault(); 
+        e.stopPropagation();
+        const targetId = link.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        return; // Sai da função aqui, evitando o recarregamento "Inception"!
+      }
+
+      // 2. SE NÃO ESTIVER NO MODO EDITOR, IGNORA O RESTO DOS CLIQUES
       if (!isEditMode) return;
+      
+      // 3. LÓGICA DO MODO EDITOR (SE ESTIVER ATIVO)
       e.preventDefault(); 
       e.stopPropagation();
       const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
@@ -552,12 +567,6 @@ function getScriptPreview(
             fontWeight: computed.fontWeight,
             textAlign: computed.textAlign
          }, '*');
-      } else if (e.target.closest('a')) {
-         // Navegação no índice com modo editor desligado
-         const link = e.target.closest('a');
-         const targetId = link.getAttribute('href').substring(1);
-         const targetElement = document.getElementById(targetId);
-         if (targetElement) targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, true);
 
