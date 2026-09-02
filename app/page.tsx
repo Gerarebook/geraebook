@@ -275,7 +275,6 @@ function getScriptPreview(
         el.tagName !== 'SCRIPT'
       );
 
-      // REDUZIDO DE 880 PARA 840 (Dá respiro para o rodapé não esmagar o texto)
       const LIMITE_ALTURA_TEXTO = 840; 
 
       function criarNovaPagina() {
@@ -311,10 +310,14 @@ function getScriptPreview(
         for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
 
+          // ========================================================
+          // REGRA INTELIGENTE DE QUEBRA DE PÁGINA
+          // ========================================================
           if (atual.areaTexto.children.length > 0) {
             let ultimoInserido = atual.areaTexto.lastElementChild;
             let isImgBanner = (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img'));
             let isTituloPrincipal = (el.tagName === 'H2' && el.classList.contains('chapter-title-inline'));
+            let isSubtitulo = (el.tagName === 'H3' && el.classList.contains('subtopic-title'));
 
             if (isImgBanner) {
               atual = criarNovaPagina();
@@ -323,45 +326,23 @@ function getScriptPreview(
               if (!ultimoFoiImagem) {
                 atual = criarNovaPagina();
               }
+            } else if (isSubtitulo) {
+              // H3 gera página nova, EXCETO se estiver logo após o H2 ou Imagem
+              let ultimoFoiH2 = (ultimoInserido && ultimoInserido.tagName === 'H2');
+              let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG');
+              if (!ultimoFoiH2 && !ultimoFoiImagem) {
+                atual = criarNovaPagina();
+              }
             }
           }
 
+          // Adiciona o elemento inteiro
           atual.areaTexto.appendChild(el);
 
+          // Se estourar a altura, move o bloco INTEIRO para a próxima página (Sem cortar frases no meio!)
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-            if (el.tagName === 'P') {
-              let textoOriginal = el.innerHTML;
-              let palavras = textoOriginal.split(' ');
-              
-              el.innerHTML = ''; 
-              let pIndex = 0;
-
-              while (pIndex < palavras.length) {
-                el.innerHTML += palavras[pIndex] + ' ';
-                if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-                  if (pIndex === 0) {
-                    pIndex++; 
-                  } else {
-                    let htmlAtual = el.innerHTML;
-                    el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
-                  }
-                  break;
-                }
-                pIndex++;
-              }
-
-              let textoRestante = palavras.slice(pIndex).join(' ');
-              atual = criarNovaPagina();
-              
-              if (textoRestante.trim() !== '') {
-                 let novoParagrafo = document.createElement('p');
-                 novoParagrafo.innerHTML = textoRestante;
-                 elementosIA.splice(i + 1, 0, novoParagrafo);
-              }
-            } else {
-              atual = criarNovaPagina();
-              atual.areaTexto.appendChild(el);
-            }
+            atual = criarNovaPagina();
+            atual.areaTexto.appendChild(el);
           }
         }
       }
@@ -514,13 +495,10 @@ function getScriptPreview(
       });
     }
 
-    // ========================================================
-    // BLOQUEIO ANTI-INCEPTION (Impede o iframe de recarregar a página)
-    // ========================================================
     document.addEventListener('click', function(e) {
       const link = e.target.closest('a');
       if (link && link.getAttribute('href') && link.getAttribute('href').startsWith('#')) {
-        e.preventDefault(); // Impede o navegador de tentar navegar
+        e.preventDefault(); 
         const targetId = link.getAttribute('href').substring(1);
         const targetElement = document.getElementById(targetId);
         if (targetElement) {
@@ -550,7 +528,6 @@ function getScriptPreview(
 </script>
   `;
 }
-
 // ============================================================
 // COMPONENTE PRINCIPAL (Home)
 // ============================================================
@@ -1651,16 +1628,19 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
-  2. ORDEM RIGOROSA DA PÁGINA (RESPEITE A ORDEM):
+  2. ORDEM RIGOROSA DA PÁGINA (OBRIGATÓRIO INCLUIR O SUBTÍTULO ABAIXO DO TÍTULO):
      - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
-     - <h3 class="subtopic-title">[Primeiro subtópico]</h3>
-     - <p>[Conteúdo longo e detalhado]</p>
+     - <h3 class="subtopic-title">[Subtítulo Inicial Obrigatório]</h3>
+     - <p>[Parágrafo 1]</p>
+     - <p>[Parágrafo 2]</p>
+     - <p>[Último Parágrafo - Mais Curto]</p>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ (CRÍTICO): 
-     - Adapte 100% o seu tom de escrita ao tema solicitado (acadêmico, ficção, etc).
-     - CADA parágrafo (<p>) deve ter estritamente entre 400 e 450 caracteres.
-     - REGRA ABSOLUTA DE SAÍDA: FAÇA ESSA CONTAGEM MENTALMENTE. É ESTRITAMENTE PROIBIDO imprimir na resposta qualquer rascunho de contagem, raciocínio matemático (ex: "Words + spaces = ..."), ou comentários. Sua resposta deve conter EXCLUSIVAMENTE código HTML válido.
-  4. IMAGENS EXCLUSIVAS (CRÍTICO): Traduza o assunto principal deste capítulo para UMA palavra-chave em inglês. Para forçar o banco de imagens a não repetir a foto, use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
+     - Adapte 100% o seu tom de escrita ao tema solicitado.
+     - CADA parágrafo (<p>) normal deve ter no máximo 400 caracteres.
+     - O ÚLTIMO parágrafo de cada bloco deve ser OBRIGATORIAMENTE MENOR (máximo 150 caracteres). Isso é crucial para finalizar a página corretamente sem transbordar o texto.
+     - REGRA ABSOLUTA: FAÇA A CONTAGEM MENTALMENTE. É ESTRITAMENTE PROIBIDO imprimir na resposta qualquer rascunho de contagem, raciocínio matemático ou comentários. Entregue APENAS o código HTML.
+  4. IMAGENS EXCLUSIVAS: Use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
      <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
   `;
 
@@ -1698,19 +1678,17 @@ Mantenha a consistência visual com o resto do e-book.`;
     <div class="page-container">
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-        <h3 class="subtopic-title">[Primeiro tópico da introdução]</h3>
-        <p>[Parágrafo 1]</p>
-        <p>[Parágrafo 2]</p>
-        <h3 class="subtopic-title">[Segundo tópico da introdução]</h3>
-        <p>[Parágrafo 3]</p>
-        <p>[Parágrafo 4]</p>
+        <h3 class="subtopic-title">O Início da Jornada</h3>
+        <p>[Parágrafo 1 - Aprox 350 caracteres]</p>
+        <p>[Parágrafo 2 - Aprox 350 caracteres]</p>
+        <p>[Parágrafo 3 FINAL - OBRIGATÓRIO ser curto (máximo 150 caracteres) para não transbordar]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
     REGRAS CRÍTICAS:
-    1. PARE AQUI! NÃO gere Capítulos! Apenas devolva a Capa, o Aviso, o Índice e a Introdução.
-    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto, linha ou lista dentro.
-    3. Não use imagens na introdução.
+    1. A INTRODUÇÃO DEVE TER EXATAMENTE 1 ÚNICA PÁGINA. Limite-se a apenas 3 parágrafos, sendo o último bem pequeno.
+    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto.
+    3. PARE AQUI! NÃO gere Capítulos!
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
