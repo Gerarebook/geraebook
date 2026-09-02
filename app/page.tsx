@@ -225,7 +225,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Cores Perfeitas)
+// SCRIPT INJETADO NO IFRAME (Modo Editor + Paginação Corrigida)
 // ============================================================
 
 function getScriptPreview(
@@ -238,6 +238,8 @@ function getScriptPreview(
 <script>
   (function() {
     let observer;
+    let isEditMode = false;
+    let selectedEl = null;
 
     function executarRefluxoCompleto() {
       if (observer) observer.disconnect();
@@ -272,7 +274,7 @@ function getScriptPreview(
         el.tagName !== 'SCRIPT'
       );
 
-      const LIMITE_ALTURA_TEXTO = 840; 
+      const LIMITE_ALTURA_TEXTO = 890; // Aumentado para garantir que a pag 1 não quebre tão cedo
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
@@ -374,10 +376,6 @@ function getScriptPreview(
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
             a.classList.add('toc-subtopic');
-            a.style.paddingLeft = '20px';
-            a.style.fontSize = '0.9em';
-            a.style.opacity = '0.85';
-            a.style.fontWeight = '400';
             if (!${indexShowSubtopics}) a.style.display = 'none';
           }
 
@@ -437,7 +435,6 @@ function getScriptPreview(
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
             if (${ativarBgSegundaPagina}) {
-              // CORREÇÃO: Transparência calculada EXATAMENTE na cor escolhida no painel!
               let opac = parseFloat('${bgSegundaPaginaOpacidade}') * 100;
               p.style.setProperty('background-image', \`linear-gradient(color-mix(in srgb, var(--color-bg) \${opac}%, transparent), color-mix(in srgb, var(--color-bg) \${opac}%, transparent)), url('\${finalBgUrl}')\`, 'important');
               p.style.setProperty('background-size', 'cover', 'important');
@@ -460,10 +457,109 @@ function getScriptPreview(
         }
       });
 
+      // Se o inspetor estiver ativo, reaplica as marcações visuais após reflow
+      if (isEditMode && selectedEl) {
+         selectedEl.style.outline = '3px solid #4f46e5';
+      }
+
       setTimeout(() => {
         if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
       }, 300);
     }
+
+    // ==========================================================
+    // SISTEMA DO MODO INSPETOR (CLIQUE E EDIÇÃO)
+    // ==========================================================
+    window.addEventListener('message', (e) => {
+      if (e.data.type === 'TOGGLE_EDIT_MODE') {
+         isEditMode = e.data.value;
+         if (!isEditMode && selectedEl) {
+            selectedEl.style.outline = '';
+            selectedEl = null;
+         }
+      }
+      if (e.data.type === 'UPDATE_ELEMENT') {
+         const target = document.getElementById(e.data.id);
+         if (target) {
+            if (e.data.text !== undefined && e.data.forceTextUpdate) target.innerHTML = e.data.text;
+            if (e.data.src !== undefined && target.tagName === 'IMG') target.src = e.data.src;
+            if (e.data.bgImage !== undefined) target.style.setProperty('background-image', \`url(\${e.data.bgImage})\`, 'important');
+            if (e.data.rawBgImage !== undefined) target.style.setProperty('background-image', e.data.rawBgImage, 'important');
+            if (e.data.textColor !== undefined) target.style.setProperty('color', e.data.textColor, 'important');
+            if (e.data.bgColor !== undefined) target.style.setProperty('background-color', e.data.bgColor, 'important');
+            if (e.data.fontSize !== undefined) target.style.setProperty('font-size', e.data.fontSize + 'px', 'important');
+            if (e.data.fontWeight !== undefined) target.style.setProperty('font-weight', e.data.fontWeight, 'important');
+            if (e.data.textAlign !== undefined) target.className = target.className.replace(/text-(left|center|right|justify)/, '') + ' ' + e.data.textAlign;
+
+            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+         }
+      }
+      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
+         const target = document.getElementById(e.data.id);
+         if (target) {
+            target.outerHTML = e.data.newHtml;
+            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+            setTimeout(executarRefluxoCompleto, 100);
+         }
+      }
+      if (e.data.type === 'DELETE_ELEMENT') {
+         const target = document.getElementById(e.data.id);
+         if (target) {
+            target.remove();
+            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+            setTimeout(executarRefluxoCompleto, 100);
+         }
+      }
+    });
+
+    document.addEventListener('mouseover', (e) => {
+      if (!isEditMode) return;
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
+      if (el && el !== selectedEl) el.style.outline = '2px dashed rgba(99,102,241,0.5)';
+    });
+    
+    document.addEventListener('mouseout', (e) => {
+      if (!isEditMode) return;
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
+      if (el && el !== selectedEl) el.style.outline = '';
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!isEditMode) return;
+      e.preventDefault(); 
+      e.stopPropagation();
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
+      
+      if (el) {
+         if (selectedEl) selectedEl.style.outline = '';
+         selectedEl = el;
+         el.style.outline = '3px solid #4f46e5';
+         
+         if (!el.id) el.id = 'el-' + Math.random().toString(36).substr(2, 9);
+         
+         const computed = window.getComputedStyle(el);
+         window.parent.postMessage({
+            type: 'ELEMENT_SELECTED',
+            id: el.id,
+            tagName: el.tagName.toLowerCase(),
+            text: el.innerHTML,
+            src: el.src,
+            bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
+            isBgTarget: el.classList.contains('page-container'),
+            textColor: computed.color,
+            bgColor: computed.backgroundColor,
+            fontSize: parseInt(computed.fontSize),
+            fontWeight: computed.fontWeight,
+            textAlign: computed.textAlign
+         }, '*');
+      } else if (e.target.closest('a')) {
+         // Navegação no índice com modo editor desligado
+         const link = e.target.closest('a');
+         const targetId = link.getAttribute('href').substring(1);
+         const targetElement = document.getElementById(targetId);
+         if (targetElement) targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, true);
 
     if (document.readyState === 'complete') {
       executarRefluxoCompleto();
@@ -473,23 +569,6 @@ function getScriptPreview(
         setTimeout(executarRefluxoCompleto, 500);
       });
     }
-
-    document.addEventListener('click', function(e) {
-      const link = e.target.closest('a');
-      if (link && link.getAttribute('href') && link.getAttribute('href').startsWith('#')) {
-        e.preventDefault(); 
-        const targetId = link.getAttribute('href').substring(1);
-        const targetElement = document.getElementById(targetId);
-        if (targetElement) targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-
-    window.addEventListener('message', (e) => {
-      if (e.data.type === 'TOGGLE_EDIT_MODE') {}
-      if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE' || e.data.type === 'UPDATE_ELEMENT' || e.data.type === 'REPLACE_ELEMENT_HTML') {
-        setTimeout(executarRefluxoCompleto, 200);
-      }
-    });
 
     observer = new MutationObserver(() => {
       clearTimeout(window._reflowTimeout);
@@ -705,14 +784,18 @@ async function gerarEbookPDF(textoBruto: string) {
 
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
+    // Remove o estilo antigo para forçar a atualização em tempo real (Bordas)
+    clean = clean.replace(/<style id="ebook-dynamic-styles">[\s\S]*?<\/style>/gi, '');
+    
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
 
-    let capBoxBackground = 'rgba(255,255,255,0.95)';
+    // A Mágica da cor inteligente: Usa a cor do texto para criar um fundo com 8% de transparência
+    let capBoxBackground = 'color-mix(in srgb, var(--color-text) 8%, transparent)';
     let capBoxBorder = 'none';
     let capBoxTextColor = 'var(--color-primary)';
 
-    const ebookStyles = `<style>
+    const ebookStyles = `<style id="ebook-dynamic-styles">
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
 :root {
@@ -736,7 +819,7 @@ body {
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
 ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
-/* BLINDAGEM CONTRA VAZAMENTO LATERAL E OVERFLOW */
+
 #ebook-container * {
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -745,16 +828,11 @@ ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
   word-break: break-word !important;
 }
 
-#ebook-container img {
-  max-width: 100% !important;
-  height: auto !important;
-  object-fit: contain !important;
-}
 img.chapter-banner-img {
   width: 100% !important;
-  height: 360px !important;
-  min-height: 360px !important;
-  max-height: 360px !important;
+  height: 300px !important; /* Reduzido para sobrar mais espaço para o texto na pag 1 */
+  min-height: 300px !important;
+  max-height: 300px !important;
   object-fit: cover !important;
   border-radius: 8px !important;
   margin-bottom: 1.5rem !important;
@@ -780,23 +858,18 @@ img.chapter-banner-img {
   margin: 0 auto 20px auto;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden !important; /* <-- BLINDAGEM CRÍTICA */
+  overflow: hidden !important; 
   page-break-after: always;
   break-after: page;
   page-break-inside: avoid;
   break-inside: avoid;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
   counter-increment: ebook-page;
 }
 
 .chapter-text-page { padding-top: 16mm !important; }
 
-.legal-page {
-  display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-  padding: 40mm 25mm !important;
-}
+.legal-page { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
 .legal-page p { font-size: 1rem; line-height: 1.8; margin-bottom: 1.2rem; text-align: justify; }
 
@@ -811,182 +884,57 @@ img.chapter-banner-img {
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after { display: none !important; }
 
 .page-extra { padding: 32mm 20mm 25mm 20mm; }
-.page-extra img { max-width: 100%; height: auto; margin: 1rem auto; display: block; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-.page-extra .img-left { float: left; margin: 0 1.5rem 1rem 0; max-width: 45%; }
-.page-extra .img-center { display: block; margin: 0 auto 1.5rem auto; max-width: 70%; }
-.page-extra .img-top { display: block; margin: 0 auto 1rem auto; max-width: 80%; }
-.page-extra .img-horizontal { display: block; width: 100%; height: auto; max-height: 320px; object-fit: cover; border-radius: 8px; margin: 0 auto 1.5rem auto; }
-.page-extra .img-vertical { display: block; width: auto; height: 70%; max-height: 70vh; object-fit: contain; border-radius: 8px; margin: 0 auto 1.5rem auto; }
-.page-extra h2 { text-align: center; font-size: 2rem; margin-bottom: 1.5rem; color: var(--color-primary); }
-.page-extra p { text-align: justify; line-height: 1.6; margin-bottom: 0.8rem; }
-
-.receita-titulo {
-  font-size: 1.8rem !important;
-  font-weight: 900 !important;
-  color: var(--color-primary) !important;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 2rem !important;
-  margin-bottom: 1.5rem !important;
-}
-
-.receita-icon {
-  font-size: 40px;
-  color: var(--color-secondary);
-  margin-bottom: 10px;
-  display: block;
-  text-align: center;
-}
+.page-extra img { max-width: 100%; height: auto; margin: 1rem auto; display: block; border-radius: 8px; }
 
 h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
 .cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
-.cap-img-overlay {
-  position: relative !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 40px !important;
-  box-sizing: border-box !important;
-}
+.cap-img-overlay { position: relative !important; background-size: cover !important; background-position: center !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 40px !important; }
+.cap-img-overlay .cap-overlay-box, .cap-box-rounded { background-color: rgba(255, 255, 255, 0.88) !important; backdrop-filter: blur(6px); padding: 40px 30px !important; border-radius: 12px !important; max-width: 85% !important; width: 100% !important; text-align: center !important; margin: auto !important; }
+.cap-img-overlay .chapter-title-inline { margin: 0 !important; color: var(--color-primary) !important; font-size: 2.2rem !important; line-height: 1.3 !important; text-align: center !important; }
+.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; color: #ffffff; }
 
-.cap-img-overlay .cap-overlay-box,
-.cap-box-rounded {
-  background-color: rgba(255, 255, 255, 0.88) !important;
-  backdrop-filter: blur(6px);
-  padding: 40px 30px !important;
-  border-radius: 12px !important;
-  max-width: 85% !important;
-  width: 100% !important;
-  text-align: center !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
-  margin: auto !important;
-}
-
-.cap-img-overlay .chapter-title-inline {
-  margin: 0 !important;
-  color: var(--color-primary) !important;
-  font-size: 2.2rem !important;
-  line-height: 1.3 !important;
-  text-align: center !important;
-}
-
-.cap-img-overlay {
-  display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center;
-  background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;
-  color: #ffffff;
-}
-.cap-icon { font-size: 40px; color: var(--color-secondary); margin-bottom: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; position: relative; }
-
-.cap-box-rounded {
-  display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center;
-  background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;
-}
-.cap-box-inner {
-  background: ${capBoxBackground}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: ${capBoxBorder}; z-index: 10; position: relative; color: ${capBoxTextColor};
-}
+.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; }
+.cap-box-inner { background: ${capBoxBackground}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; border: ${capBoxBorder}; z-index: 10; position: relative; color: ${capBoxTextColor}; }
 .cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: ${capBoxTextColor}; text-shadow: none; }
-
 .cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
 
-.page-cover-img {
-  display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center;
-  background: url('${imagemCapaUrl}') center/cover no-repeat !important;
-  -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff;
-}
+.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; }
 .page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
 .page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
 
-/* ORDEM DO CAPÍTULO: IMAGEM PRIMEIRO, DEPOIS TÍTULO */
-.chapter-title-inline {
-  text-align: center;
-  font-size: 2.1rem;
-  margin-top: 0.5rem;   /* reduzido porque agora vem depois da imagem */
-  margin-bottom: 1.2rem;
-  color: var(--color-primary);
-  font-weight: 800;
-  line-height: 1.15;
-}
-
+.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0.5rem; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
 h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1em !important; color: var(--color-primary); line-height: 1.2; text-align: left; }
-.page-header {
-  position: absolute; top: 12mm; left: 18mm; right: 18mm;
-  display: flex; justify-content: space-between; align-items: flex-end;
-  font-size: 8pt; color: var(--color-primary); opacity: 0.8;
-  border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px;
-  font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px;
-}
+
+.page-header { position: absolute; top: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--color-primary); opacity: 0.8; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px; }
 .page-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%; }
 
-.page-footer {
-  position: absolute; bottom: 10mm; left: 18mm; right: 18mm;
-  font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8;
-  ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'}
-  ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''}
-}
-
-/* ========================================= */
-/* ALINHAMENTO DO NÚMERO DA PÁGINA À DIREITA */
-/* ========================================= */
+.page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
 .page-number { margin-left: auto !important; }
 .page-number::after { content: counter(ebook-page); }
-
-.page-number.circulo {
-  display: inline-flex; justify-content: center; align-items: center;
-  width: 26px; height: 26px; border-radius: 50%; margin-left: auto !important;
-  background-color: var(--color-primary); color: #ffffff !important;
-  font-size: 10px; font-weight: 800; margin-bottom: -3px;
-}
+.page-number.circulo { display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 26px; border-radius: 50%; margin-left: auto !important; background-color: var(--color-primary); color: #ffffff !important; font-size: 10px; font-weight: 800; margin-bottom: -3px; }
 .page-number.circulo::after { color: #ffffff !important; }
 
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
-
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-p {
-  font-size: ${tamanhoFonteBase} !important;
-  line-height: var(--line-spacing) !important;
-  margin-top: 0 !important;
-  margin-bottom: var(--p-spacing) !important;
-  text-align: justify !important;
-  text-indent: var(--text-indent) !important;
-  hyphens: auto; -webkit-hyphens: auto;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-}
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-word !important; }
 
+/* CORES INTELIGENTES: Lê a cor do texto para formar os fundos e as bordas para a cor primária */
 blockquote {
   page-break-inside: avoid; break-inside: avoid;
   font-style: italic; color: var(--color-text);
-  border-left: 3px solid var(--color-secondary);
-  background: rgba(0,0,0,0.03);
-  padding: 12px 18px;
-  margin: 1rem 0;
-  font-size: ${tamanhoFonteBase};
-  border-radius: 0 8px 8px 0;
-  max-width: 100%; overflow-wrap: break-word; word-wrap: break-word;
+  border-left: 4px solid var(--color-primary);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; max-width: 100%;
 }
 .highlight-box {
-  background: rgba(139,109,79,0.15);
-  padding: 12px 18px;
-  border-radius: 8px;
-  margin: 1rem 0;
-  font-weight: 500;
-  font-size: ${tamanhoFonteBase};
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 100%; overflow-wrap: break-word; word-wrap: break-word;
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  border-left: 4px solid var(--color-primary);
+  padding: 12px 18px; border-radius: 8px; margin: 1rem 0; font-weight: 500; font-size: ${tamanhoFonteBase}; display: flex; align-items: center; gap: 12px; max-width: 100%;
 }
 .highlight-box i { font-size: 1.8rem; color: var(--color-primary); flex-shrink: 0; }
 
@@ -1000,18 +948,20 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
+/* AJUSTE DO SUBTÓPICO NO ÍNDICE (Menor e mais juntinho) */
+.toc-subtopic {
+  font-size: 0.85em !important;
+  line-height: 1.1 !important;
+  padding-left: 20px !important;
+  opacity: 0.75;
+  margin-bottom: 2px !important;
+}
+
 .page-container.author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; page-break-inside: avoid; break-inside: avoid; }
 .author-section.layout-topo { flex-direction: column; text-align: center; }
 .author-section.layout-esquerda { flex-direction: row; text-align: justify; align-items: flex-start; }
-.author-photo {
-  flex-shrink: 0;
-  object-fit: cover;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-  border: 3px solid rgba(255,255,255,0.8);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.author-photo:hover { transform: scale(1.02); box-shadow: 0 12px 28px rgba(0,0,0,0.18); }
+.author-photo { flex-shrink: 0; object-fit: cover; box-shadow: 0 8px 20px rgba(0,0,0,0.12); border: 3px solid rgba(255,255,255,0.8); }
 .author-photo.circulo { border-radius: 50%; width: 150px; height: 150px; }
 .author-photo.retangulo { border-radius: 20px; width: 130px; height: 180px; }
 .author-bio { flex-grow: 1; min-width: 250px; }
@@ -1603,7 +1553,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA DE 3 PÁGINAS, BOX E QUOTE)
+  // FUNÇÃO DE INSTRUÇÕES BASE (UNSPLASH DE VOLTA)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1614,7 +1564,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas):
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-     - <img class="chapter-banner-img" src="https://image.pollinations.ai/prompt/[PALAVRA_EM_INGLES_AQUI]?width=1200&height=800&nologo=true" alt="Imagem do capítulo">
+     - <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES_AQUI]&sig=${numero}" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
      - <p>[Parágrafo 1]</p>
      - <p>[Parágrafo 2]</p>
@@ -1631,9 +1581,9 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL sobre o tema do capítulo]</blockquote>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
      - Adapte 100% o seu tom de escrita ao tema solicitado.
-     - CADA parágrafo (<p>) DEVE TER EXATAMENTE em média 57 palavras (cerca de 420 caracteres).
+     - CADA parágrafo (<p>) DEVE TER EXATAMENTE em média 57 palavras.
      - REGRA ABSOLUTA: NÃO escreva rascunhos ou cálculos matemáticos na resposta. Devolva apenas o código HTML.
-  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para a API gerar a foto.
+  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para a API Unsplash puxar a foto correta.
   `;
 
     return { regrasCompletas, numero };
