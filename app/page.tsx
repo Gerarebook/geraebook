@@ -225,11 +225,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Rodapé Contínuo)
-// ============================================================
-
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (Versão Automática e Sem Erros)
+// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Cores Perfeitas)
 // ============================================================
 
 function getScriptPreview(
@@ -249,11 +245,9 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // Pega o título do livro automaticamente direto da capa da página
       const capaH1 = container.querySelector('.page-cover-img h1, .page-cover-text h1, .page-cover-pura h1');
       let tituloDoLivro = capaH1 ? capaH1.textContent.toUpperCase() : "E-BOOK";
 
-      // Captura o modelo exato do rodapé atual para manter o nome do autor
       let modeloFooter = '<span class="page-number"></span>';
       const footerExistente = container.querySelector('.page-footer');
       if (footerExistente) {
@@ -443,7 +437,9 @@ function getScriptPreview(
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
             if (${ativarBgSegundaPagina}) {
-              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('\${finalBgUrl}')\`, 'important');
+              // CORREÇÃO: Transparência calculada EXATAMENTE na cor escolhida no painel!
+              let opac = parseFloat('${bgSegundaPaginaOpacidade}') * 100;
+              p.style.setProperty('background-image', \`linear-gradient(color-mix(in srgb, var(--color-bg) \${opac}%, transparent), color-mix(in srgb, var(--color-bg) \${opac}%, transparent)), url('\${finalBgUrl}')\`, 'important');
               p.style.setProperty('background-size', 'cover', 'important');
               p.style.setProperty('background-position', 'center', 'important');
             } else {
@@ -1618,7 +1614,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas):
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-     - <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES_AQUI]&sig=${numero}" alt="Imagem do capítulo">
+     - <img class="chapter-banner-img" src="https://image.pollinations.ai/prompt/[PALAVRA_EM_INGLES_AQUI]?width=1200&height=800&nologo=true" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
      - <p>[Parágrafo 1]</p>
      - <p>[Parágrafo 2]</p>
@@ -1637,7 +1633,7 @@ Mantenha a consistência visual com o resto do e-book.`;
      - Adapte 100% o seu tom de escrita ao tema solicitado.
      - CADA parágrafo (<p>) DEVE TER EXATAMENTE em média 57 palavras (cerca de 420 caracteres).
      - REGRA ABSOLUTA: NÃO escreva rascunhos ou cálculos matemáticos na resposta. Devolva apenas o código HTML.
-  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para a API da Unsplash puxar a foto correta.
+  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para a API gerar a foto.
   `;
 
     return { regrasCompletas, numero };
@@ -1675,10 +1671,10 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">O Início da Jornada</h3>
-        <p>[Parágrafo 1 - aprox 57 palavras]</p>
-        <p>[Parágrafo 2 - aprox 57 palavras]</p>
-        <p>[Parágrafo 3 - aprox 57 palavras]</p>
-        <p>[Parágrafo 4 - aprox 57 palavras]</p>
+        <p>[Parágrafo 1 - aprox 45 palavras]</p>
+        <p>[Parágrafo 2 - aprox 45 palavras]</p>
+        <p>[Parágrafo 3 - aprox 45 palavras]</p>
+        <p>[Parágrafo 4 - aprox 45 palavras]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
