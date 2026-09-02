@@ -244,6 +244,10 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (Paginador de Parágrafos 2x4)
 // ============================================================
 
+// ============================================================
+// SCRIPT INJETADO NO IFRAME (Paginador Lógico e Rodapé Contínuo)
+// ============================================================
+
 function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
@@ -260,6 +264,13 @@ function getScriptPreview(
 
       const container = document.getElementById('ebook-container');
       if (!container) return;
+
+      // Captura o modelo exato do rodapé atual para não perder o nome do autor
+      let modeloFooter = '<span>Conteúdo</span><span class="page-number"></span>';
+      const footerExistente = container.querySelector('.page-footer');
+      if (footerExistente) {
+        modeloFooter = footerExistente.innerHTML;
+      }
 
       const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura):not(.legal-page):not(.author-page):not(.page-extra)');
       
@@ -301,7 +312,7 @@ function getScriptPreview(
 
         const footer = document.createElement('div');
         footer.className = 'page-footer';
-        footer.innerHTML = '<span class="page-number"></span>';
+        footer.innerHTML = modeloFooter; // CLONE PERFEITO DO RODAPÉ
         novaPagina.appendChild(footer);
 
         container.appendChild(novaPagina);
@@ -310,8 +321,6 @@ function getScriptPreview(
 
       if (elementosIA.length > 0) {
         let atual = criarNovaPagina();
-        let pCount = 0;
-        let maxP = 2; // Começa com 2 parágrafos porque Capítulos/Intro começam com títulos
 
         for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
@@ -319,47 +328,31 @@ function getScriptPreview(
 
           if (atual.areaTexto.children.length > 0) {
             let ultimoInserido = atual.areaTexto.lastElementChild;
-            let isImgBanner = (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img'));
-            let isTituloPrincipal = (el.tagName === 'H2' && el.classList.contains('chapter-title-inline'));
-            let isSubtitulo = (el.tagName === 'H3' && el.classList.contains('subtopic-title'));
+            let isTituloPrincipal = (el.tagName === 'H2');
+            let isSubtitulo = (el.tagName === 'H3');
 
-            // Regras de Quebra de Página baseadas na Estrutura
-            if (isImgBanner) {
+            // Lógica Exata para 3 páginas: Quebra no H2, ou no H3 (se não for vizinho do H2/Img)
+            if (isTituloPrincipal) {
               deveQuebrar = true;
-            } else if (isTituloPrincipal) {
-              let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG');
-              if (!ultimoFoiImagem) deveQuebrar = true;
             } else if (isSubtitulo) {
               let ultimoFoiH2 = (ultimoInserido && ultimoInserido.tagName === 'H2');
-              let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG');
-              if (!ultimoFoiH2 && !ultimoFoiImagem) deveQuebrar = true;
-            } else if (el.tagName === 'P') {
-              // Quebra se atingir o limite exato de parágrafos daquela página (2 ou 4)
-              if (pCount >= maxP) deveQuebrar = true;
+              let ultimoFoiImg = (ultimoInserido && ultimoInserido.tagName === 'IMG');
+              if (!ultimoFoiH2 && !ultimoFoiImg) {
+                deveQuebrar = true;
+              }
             }
           }
 
           if (deveQuebrar) {
             atual = criarNovaPagina();
-            pCount = 0;
-            maxP = 4; // Páginas subsequentes ganham limite de 4 parágrafos
           }
 
           atual.areaTexto.appendChild(el);
 
-          // Atualiza as variáveis de controle após a inserção
-          if (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img')) maxP = 2;
-          if (el.tagName === 'H2' && el.classList.contains('chapter-title-inline')) maxP = 2;
-          if (el.tagName === 'P') pCount++;
-
-          // Salvaguarda Orgânica: Se um Box, Quote ou Parágrafo for gigante e estourar a altura
+          // Segurança: Se um parágrafo estourar a altura por acidente
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             atual = criarNovaPagina();
             atual.areaTexto.appendChild(el);
-            pCount = (el.tagName === 'P') ? 1 : 0;
-            maxP = 4;
-            if (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img')) maxP = 2;
-            if (el.tagName === 'H2' && el.classList.contains('chapter-title-inline')) maxP = 2;
           }
         }
       }
@@ -673,10 +666,10 @@ async function gerarEbookPDF(textoBruto: string) {
   function getPaletaObj() {
     if (paletaCores === 'manual') return { bg: corManualBg, text: corManualText, pri: corManualPri, sec: corManualSec, borda: corManualSec };
     switch (paletaCores) {
-      case 'moderno': return { bg: '#ffffff', text: '#111827', pri: '#2563eb', sec: '#3b82f6', borda: '#3b82f6' };
-      case 'sepia': return { bg: '#fdf6e3', text: '#4a4036', pri: '#8b6d4f', sec: '#c08770', borda: '#c08770' };
-      case 'dark': return { bg: '#1f2937', text: '#f3f4f6', pri: '#a78bfa', sec: '#8b5cf6', borda: '#8b5cf6' };
-      default: return { bg: '#ffffff', text: '#1e1914', pri: '#8b6d4f', sec: '#c08770', borda: '#c08770' };
+      case 'verde': return { bg: '#064e3b', text: '#ecfdf5', pri: '#34d399', sec: '#10b981', borda: '#34d399' };
+      case 'azul-marinho': return { bg: '#0f172a', text: '#f8fafc', pri: '#60a5fa', sec: '#3b82f6', borda: '#60a5fa' };
+      case 'preto': return { bg: '#0f1014', text: '#f3f4f6', pri: '#fbbf24', sec: '#f59e0b', borda: '#fbbf24' };
+      default: return { bg: '#0f1014', text: '#f3f4f6', pri: '#fbbf24', sec: '#f59e0b', borda: '#fbbf24' };
     }
   }
 
@@ -1621,7 +1614,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA DE BOX, QUOTE E PARÁGRAFOS)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA DE 3 PÁGINAS, BOX E QUOTE)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1630,16 +1623,16 @@ Mantenha a consistência visual com o resto do e-book.`;
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
-  2. ESTRUTURA RIGOROSA DO CAPÍTULO (SIGA EXATAMENTE ESTA ORDEM E QUANTIDADE):
-     - <img class="chapter-banner-img" src="URL_AQUI" alt="Descrição">
-     - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome]</h2>
+  2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas):
+     - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
+     - <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES_AQUI]&sig=${numero}" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
      - <p>[Parágrafo 1]</p>
      - <p>[Parágrafo 2]</p>
-     - <h3 class="subtopic-title">[Subtítulo 2]</h3>
-     - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA de acordo com o conteúdo abordado]</div>
+     - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
      - <p>[Parágrafo 3]</p>
      - <p>[Parágrafo 4]</p>
+     - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA de acordo com o conteúdo]</div>
      - <p>[Parágrafo 5]</p>
      - <p>[Parágrafo 6]</p>
      - <h3 class="subtopic-title">[Subtítulo Final]</h3>
@@ -1649,10 +1642,9 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL sobre o tema do capítulo]</blockquote>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
      - Adapte 100% o seu tom de escrita ao tema solicitado.
-     - CADA parágrafo (<p>) deve ter no máximo 350 caracteres.
-     - REGRA ABSOLUTA: FAÇA A CONTAGEM MENTALMENTE. Entregue APENAS o código HTML, sem nenhum rascunho ou texto fora do código.
-  4. IMAGENS EXCLUSIVAS: Use EXATAMENTE a estrutura abaixo com a tag &sig=${numero}:
-     <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES]&sig=${numero}" alt="Imagem do capítulo ${numero}">
+     - CADA parágrafo (<p>) DEVE TER EXATAMENTE em média 65 palavras (cerca de 450 caracteres).
+     - REGRA ABSOLUTA: NÃO escreva rascunhos ou cálculos matemáticos na resposta. Devolva apenas o código HTML.
+  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para a API da Unsplash puxar a foto correta.
   `;
 
     return { regrasCompletas, numero };
@@ -1690,13 +1682,15 @@ Mantenha a consistência visual com o resto do e-book.`;
         <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">O Início da Jornada</h3>
-        <p>[Parágrafo 1 - Aprox 350 caracteres]</p>
-        <p>[Parágrafo 2 - Aprox 350 caracteres]</p>
+        <p>[Parágrafo 1 - aprox 65 palavras]</p>
+        <p>[Parágrafo 2 - aprox 65 palavras]</p>
+        <p>[Parágrafo 3 - aprox 65 palavras]</p>
+        <p>[Parágrafo 4 - aprox 65 palavras]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
     REGRAS CRÍTICAS:
-    1. A INTRODUÇÃO DEVE TER EXATAMENTE 1 ÚNICA PÁGINA (Apenas Título, Subtítulo e EXATAMENTE 2 parágrafos).
+    1. A INTRODUÇÃO DEVE TER EXATAMENTE 4 PARÁGRAFOS.
     2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto.
     3. PARE AQUI! NÃO gere Capítulos!
     `;
@@ -2277,17 +2271,16 @@ Mantenha a consistência visual com o resto do e-book.`;
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="input-label text-[9px]">Paleta de Cores</label>
-                      <select
-                        value={paletaCores}
-                        onChange={(e: any) => setPaletaCores(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="classico">Clássico (Madeira/Café)</option>
-                        <option value="moderno">Moderno (Azul Executivo)</option>
-                        <option value="sepia">Sépia (Vintage)</option>
-                        <option value="dark">Dark (Noturno)</option>
-                        <option value="manual">Manual (Personalizado)</option>
-                      </select>
+                      <select 
+  value={paletaCores} 
+  onChange={(e: any) => setPaletaCores(e.target.value)} 
+  className="input-standard text-[10px]"
+>
+  <option value="preto">Preto + Amarelo/Laranja</option>
+  <option value="verde">Verde Escuro + Claro</option>
+  <option value="azul-marinho">Azul Marinho + Celeste</option>
+  <option value="manual">Manual (Personalizado)</option>
+</select>
                     </div>
                     <div>
                       <label className="input-label text-[9px]">Molde de Capítulos</label>
