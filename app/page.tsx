@@ -647,7 +647,7 @@ export default function Home() {
 
   // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
-  const [textoCabecalho, setTextoCabecalho] = useState('E-book');
+  const [textoCabecalho, setTextoCabecalho] = useState('');
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso'>('expandido');
