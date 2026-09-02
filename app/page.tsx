@@ -236,6 +236,10 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (Paginador com Quebra de Página Lógica)
 // ============================================================
 
+// ============================================================
+// SCRIPT INJETADO NO IFRAME (Paginador + Navegação Segura)
+// ============================================================
+
 function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
@@ -248,16 +252,13 @@ function getScriptPreview(
     let observer;
 
     function executarRefluxoCompleto() {
-      // 1. DESCONECTA O OBSERVER
       if (observer) observer.disconnect();
 
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // 2. LIMPEZA INTELIGENTE: Ignora capas e páginas especiais
       const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura):not(.legal-page):not(.author-page):not(.page-extra)');
       
-      // RESGATA O CONTEÚDO
       paginasExistentes.forEach(p => {
         const area = p.querySelector('.content-area') || p;
         const filhos = Array.from(area.children).filter(el => 
@@ -274,7 +275,8 @@ function getScriptPreview(
         el.tagName !== 'SCRIPT'
       );
 
-      const LIMITE_ALTURA_TEXTO = 880; 
+      // REDUZIDO DE 880 PARA 840 (Dá respiro para o rodapé não esmagar o texto)
+      const LIMITE_ALTURA_TEXTO = 840; 
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
@@ -306,36 +308,26 @@ function getScriptPreview(
       if (elementosIA.length > 0) {
         let atual = criarNovaPagina();
 
-        // Loop de Paginação
         for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
 
-          // ========================================================
-          // REGRA DE QUEBRA DE PÁGINA FORÇADA (Separa Índice, Intro e Capítulos)
-          // ========================================================
           if (atual.areaTexto.children.length > 0) {
             let ultimoInserido = atual.areaTexto.lastElementChild;
             let isImgBanner = (el.tagName === 'IMG' && el.classList.contains('chapter-banner-img'));
             let isTituloPrincipal = (el.tagName === 'H2' && el.classList.contains('chapter-title-inline'));
 
-            // Se o elemento for uma imagem de capítulo, força nova página
             if (isImgBanner) {
               atual = criarNovaPagina();
-            } 
-            // Se for um título H2 (Índice, Intro, Capítulos), força nova página,
-            // A MENOS que a imagem do capítulo já tenha feito a quebra logo acima.
-            else if (isTituloPrincipal) {
+            } else if (isTituloPrincipal) {
               let ultimoFoiImagem = (ultimoInserido && ultimoInserido.tagName === 'IMG' && ultimoInserido.classList.contains('chapter-banner-img'));
               if (!ultimoFoiImagem) {
                 atual = criarNovaPagina();
               }
             }
           }
-          // ========================================================
 
           atual.areaTexto.appendChild(el);
 
-          // Verifica se estourou a altura limite da página
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             if (el.tagName === 'P') {
               let textoOriginal = el.innerHTML;
@@ -374,7 +366,6 @@ function getScriptPreview(
         }
       }
 
-      // 3. LIMPEZA FINAL INTELIGENTE
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
         if (!area || area.children.length === 0) {
@@ -382,7 +373,6 @@ function getScriptPreview(
         }
       });
 
-      // 4. Sincronizar índice
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
         if (tocs.length > 1) {
@@ -464,7 +454,6 @@ function getScriptPreview(
 
       sincronizarIndice();
 
-      // Fundo da segunda página
       let chIndex = 0;
       let currentChapterImg = '';
       container.querySelectorAll('.page-container').forEach((p) => {
@@ -509,7 +498,6 @@ function getScriptPreview(
         }
       });
 
-      // 5. RECONECTA O OBSERVER
       setTimeout(() => {
         if (observer) {
            observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
@@ -525,6 +513,21 @@ function getScriptPreview(
         setTimeout(executarRefluxoCompleto, 500);
       });
     }
+
+    // ========================================================
+    // BLOQUEIO ANTI-INCEPTION (Impede o iframe de recarregar a página)
+    // ========================================================
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('a');
+      if (link && link.getAttribute('href') && link.getAttribute('href').startsWith('#')) {
+        e.preventDefault(); // Impede o navegador de tentar navegar
+        const targetId = link.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    });
 
     window.addEventListener('message', (e) => {
       if (e.data.type === 'TOGGLE_EDIT_MODE') {}
