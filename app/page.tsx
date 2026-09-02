@@ -877,13 +877,19 @@ ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 
 img.chapter-banner-img {
   width: 100% !important;
-  height: 220px !important;
+  height: 360px !important;
   object-fit: cover !important;
   border-radius: 8px !important;
   margin: 15px 0 !important;
   display: block !important;
 }
 
+h2.chapter-title-inline {
+  margin-top: 25px !important; 
+  margin-bottom: 15px !important;
+  font-family: var(--font-title);
+  font-size: 22px;
+}
 .page-container > h3.subtopic-title:first-of-type,
 .page-container > .page-header + h3.subtopic-title {
   margin-top: 0 !important;
@@ -1161,14 +1167,24 @@ ${ebookStyles}
     const ano = new Date().getFullYear();
     return `
     <div class="page-container legal-page">
-      <div class="page-header"><span>${livroTitulo || 'E-book'}</span><span>AVISO LEGAL</span></div>
-      <h2>Aviso e Direitos Autorais</h2>
-      <p>© ${ano} ${livroAutores || 'Autor'}. Todos os direitos reservados.</p>
-      <p>Este e-book está protegido por leis de direitos autorais. Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida de qualquer forma ou por qualquer meio, sem a devida autorização por escrito do autor, exceto em casos de breves citações em resenhas e artigos acadêmicos, desde que devidamente creditadas.</p>
-      <p>As informações contidas neste material são fornecidas apenas para fins educacionais e informativos. O autor não se responsabiliza por quaisquer consequências decorrentes do uso inadequado das informações aqui contidas.</p>
-      <p>Este e-book foi gerado com a plataforma E-bookPro e reflete o conteúdo original fornecido pelo autor.</p>
-      <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
-    </div>`;
+  <div class="page-header"><span></span><span>AVISOS LEGAIS</span></div>
+  <div class="content-area" style="display: flex; flex-direction: column; justify-content: center; height: 100%; text-align: justify; font-size: 13px; line-height: 1.6;">
+    
+    <h2 style="text-align: center; margin-bottom: 20px; font-family: var(--font-title); font-size: 18px;">Avisos Legais & Direitos Autorais</h2>
+    
+    <p><strong>© 2026 ${livroAutores || 'Autor'}. Todos os direitos reservados.</strong></p>
+    
+    <p style="margin-top: 12px;">Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito do autor, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
+    
+    <p style="margin-top: 15px;"><strong>Isenção de Responsabilidade (Disclaimer):</strong></p>
+    
+    <p>As informações contidas neste e-book são fornecidas estritamente para fins educacionais, informativos e de entretenimento. O autor e a editora não oferecem quaisquer garantias quanto à integridade, confiabilidade e exatidão dessas informações.</p>
+    
+    <p style="margin-top: 12px;">Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. O autor não será responsável por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado (jurídico, financeiro, médico ou técnico), consulte um profissional qualificado da área.</p>
+    
+  </div>
+  <div class="page-footer"><span></span><span class="page-number"></span></div>
+</div>`;
   }
 
   function obterBlocoAutorHtml() {
@@ -1615,9 +1631,9 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <p>[Parágrafo 1 - MÁXIMO 65 PALAVRAS (Curto, para caber na página da imagem)]</p>
      - <p>[Parágrafo 2 - MÁXIMO 65 PALAVRAS (Curto, para caber na página da imagem)]</p>
      - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     - <p>[Parágrafo 3 - Aprox 85 PALAVRAS]</p>
-     - <p>[Parágrafo 4 - Aprox 85 PALAVRAS]</p>
-     - <p>[Parágrafo 5 - Aprox 80 PALAVRAS]</p>
+     - <p>[Parágrafo 3 - Aprox 80 PALAVRAS]</p>
+     - <p>[Parágrafo 4 - Aprox 80 PALAVRAS]</p>
+     - <p>[Parágrafo 5 - Aprox 75 PALAVRAS]</p>
      - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA para fechar a segunda página]</div>
      - <h3 class="subtopic-title">[Subtítulo Final]</h3>
      - <p>[Parágrafo 6 - Aprox 85 PALAVRAS]</p>
