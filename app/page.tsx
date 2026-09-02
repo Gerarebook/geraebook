@@ -791,7 +791,7 @@ img.chapter-banner-img {
   counter-increment: ebook-page;
 }
 
-.chapter-text-page { padding-top: 22mm !important; }
+.chapter-text-page { padding-top: 16mm !important; }
 
 .legal-page {
   display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
