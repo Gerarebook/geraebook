@@ -878,6 +878,8 @@ ${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
 img.chapter-banner-img {
   width: 100% !important;
   height: 360px !important;
+  min-height: 360px !important; /* Blinda contra encolhimento */
+  max-height: 360px !important; /* Blinda contra esticamento */
   object-fit: cover !important;
   border-radius: 8px !important;
   margin: 15px 0 !important;
