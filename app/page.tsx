@@ -1614,12 +1614,12 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
      - <img class="chapter-banner-img" src="https://loremflickr.com/1200/800/[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     - <p>[Parágrafo 1 - MÁXIMO 55 PALAVRAS (Curto, para caber na página da imagem)]</p>
-     - <p>[Parágrafo 2 - MÁXIMO 55 PALAVRAS (Curto, para caber na página da imagem)]</p>
+     - <p>[Parágrafo 1 - MÁXIMO 62 PALAVRAS (Curto, para caber na página da imagem)]</p>
+     - <p>[Parágrafo 2 - MÁXIMO 62 PALAVRAS (Curto, para caber na página da imagem)]</p>
      - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     - <p>[Parágrafo 3 - Aprox 85 PALAVRAS]</p>
-     - <p>[Parágrafo 4 - Aprox 85 PALAVRAS]</p>
-     - <p>[Parágrafo 5 - Aprox 85 PALAVRAS]</p>
+     - <p>[Parágrafo 3 - Aprox 80 PALAVRAS]</p>
+     - <p>[Parágrafo 4 - Aprox 80 PALAVRAS]</p>
+     - <p>[Parágrafo 5 - Aprox 80 PALAVRAS]</p>
      - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA para fechar a segunda página]</div>
      - <h3 class="subtopic-title">[Subtítulo Final]</h3>
      - <p>[Parágrafo 6 - Aprox 85 PALAVRAS]</p>
