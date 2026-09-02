@@ -225,7 +225,7 @@ function executarRefluxoCompleto(
 }
 
 // ============================================================
-// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Blindado)
+// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Blindagem de Cores)
 // ============================================================
 
 function getScriptPreview(
@@ -241,6 +241,14 @@ function getScriptPreview(
     let isEditMode = false;
     let selectedEl = null;
 
+    // Tradutor de cores para evitar o erro do Input Type Color
+    function rgbToHex(rgb) {
+      if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return '#ffffff';
+      let m = rgb.match(/^rgb(?:a)?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+      if (!m) return '#000000';
+      return "#" + (1 << 24 | m[1] << 16 | m[2] << 8 | m[3]).toString(16).slice(1);
+    }
+
     function executarRefluxoCompleto() {
       if (observer) observer.disconnect();
 
@@ -253,7 +261,6 @@ function getScriptPreview(
       const metaHeader = document.getElementById('meta-header-text');
       let textoEsquerdo = metaHeader ? metaHeader.getAttribute('content').toUpperCase().trim() : '';
 
-      // BLINDAGEM DO CABEÇALHO: Força todos os cabeçalhos a obedecerem o painel em tempo real
       container.querySelectorAll('.page-header').forEach(h => {
          const spans = h.querySelectorAll('span');
          if (spans.length >= 1) {
@@ -558,6 +565,8 @@ function getScriptPreview(
          if (!el.id) el.id = 'el-' + Math.random().toString(36).substr(2, 9);
          
          const computed = window.getComputedStyle(el);
+         
+         // Aqui usamos o rgbToHex para blindar o input de cor!
          window.parent.postMessage({
             type: 'ELEMENT_SELECTED',
             id: el.id,
@@ -566,8 +575,8 @@ function getScriptPreview(
             src: el.src,
             bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
             isBgTarget: el.classList.contains('page-container'),
-            textColor: computed.color,
-            bgColor: computed.backgroundColor,
+            textColor: rgbToHex(computed.color),
+            bgColor: rgbToHex(computed.backgroundColor),
             fontSize: parseInt(computed.fontSize),
             fontWeight: computed.fontWeight,
             textAlign: computed.textAlign
@@ -1568,7 +1577,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (LAYOUT PERFEITO & UNSPLASH)
+  // FUNÇÃO DE INSTRUÇÕES BASE (LAYOUT PERFEITO & LOREM FLICKR)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
@@ -1578,7 +1587,7 @@ Mantenha a consistência visual com o resto do e-book.`;
   1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
   2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas completas e sem espaços vazios):
      - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-     - <img class="chapter-banner-img" src="https://images.unsplash.com/featured/1200x800/?[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
+     - <img class="chapter-banner-img" src="https://loremflickr.com/1200/800/[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
      - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
      - <p>[Parágrafo 1 - EXATOS 85 PALAVRAS (Longo, para preencher a primeira página)]</p>
      - <p>[Parágrafo 2 - EXATOS 85 PALAVRAS (Longo, para preencher a primeira página)]</p>
@@ -1594,7 +1603,7 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL para fechar a terceira página]</blockquote>
   3. REGRA DOS PARÁGRAFOS E TOM DE VOZ: 
      - Adapte 100% o seu tom de escrita. NÃO escreva rascunhos. Devolva apenas o HTML.
-  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao capítulo para o Unsplash puxar a foto correta (Sem usar aspas ou espaços na URL).
+  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para puxar a foto.
   `;
 
     return { regrasCompletas, numero };
@@ -2562,8 +2571,8 @@ Mantenha a consistência visual com o resto do e-book.`;
                           <label className="input-label mb-2">Edição Manual de Texto</label>
                           <textarea
                             rows={5}
-                            value={elementoSelecionado.text}
-                            onChange={(e) => atualizarElemento('text', e.target.value, true)}
+                            value={(elementoSelecionado.text || '').replace(/<br\s*\/?>/gi, '\n')}
+                            onChange={(e) => atualizarElemento('text', e.target.value.replace(/\n/g, '<br>'), true)}
                             className="input-standard resize-y shadow-inner text-sm leading-relaxed font-serif"
                           ></textarea>
 
