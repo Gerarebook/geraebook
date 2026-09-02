@@ -228,6 +228,10 @@ function executarRefluxoCompleto(
 // SCRIPT INJETADO NO IFRAME (com a função unificada e corrigida 100%)
 // ============================================================
 
+// ============================================================
+// SCRIPT INJETADO NO IFRAME (Paginador com Resgate de Conteúdo)
+// ============================================================
+
 function getScriptPreview(
   indexShowSubtopics: boolean,
   ativarBgSegundaPagina: boolean,
@@ -237,28 +241,40 @@ function getScriptPreview(
   return `
 <script>
   (function() {
-    let observer; // Declara o observer globalmente no iframe
+    let observer;
 
     function executarRefluxoCompleto() {
-      // 1. DESCONECTA O OBSERVER ANTES DE ALTERAR O DOM (Evita Loop Infinito)
+      // 1. DESCONECTA O OBSERVER ANTES DE ALTERAR O DOM
       if (observer) observer.disconnect();
 
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // Limpa páginas antigas
-      const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
-      paginasExistentes.forEach(p => p.remove());
+      // 2. LIMPEZA INTELIGENTE: Pega páginas antigas (Ignora capas e páginas especiais como Aviso e Autor)
+      const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura):not(.legal-page):not(.author-page):not(.page-extra)');
+      
+      // RESGATA O CONTEÚDO ANTES DE DELETAR A PÁGINA
+      paginasExistentes.forEach(p => {
+        const area = p.querySelector('.content-area') || p;
+        const filhos = Array.from(area.children).filter(el => 
+          !el.classList.contains('page-header') && 
+          !el.classList.contains('page-footer')
+        );
+        
+        // Joga os elementos resgatados (Títulos, Textos do Índice e Intro) de volta no fluxo
+        filhos.forEach(filho => container.insertBefore(filho, p));
+        
+        // Agora sim, remove a caixa velha com segurança
+        p.remove();
+      });
 
-      // Pega todos os elementos brutos
+      // Pega todos os elementos brutos soltos
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         el.tagName !== 'STYLE' &&
         el.tagName !== 'SCRIPT'
       );
 
-      // O GRANDE VILÃO DO TRAVAMENTO ESTAVA AQUI!
-      // Vamos medir APENAS a altura do conteúdo flexível (areaTexto) e não a página inteira.
       const LIMITE_ALTURA_TEXTO = 880; 
 
       function criarNovaPagina() {
@@ -288,61 +304,56 @@ function getScriptPreview(
         return { pagina: novaPagina, areaTexto: contentArea };
       }
 
-      if (elementosIA.length === 0) return;
+      if (elementosIA.length > 0) {
+        let atual = criarNovaPagina();
 
-      let atual = criarNovaPagina();
+        // Loop de Paginação
+        for (let i = 0; i < elementosIA.length; i++) {
+          let el = elementosIA[i];
+          atual.areaTexto.appendChild(el);
 
-      // Loop de Paginação Rigoroso
-      for (let i = 0; i < elementosIA.length; i++) {
-        let el = elementosIA[i];
-        atual.areaTexto.appendChild(el);
-
-        // CORREÇÃO VITAL: Mede 'areaTexto.scrollHeight' (que começa em 0) e não a página inteira
-        if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-          
-          if (el.tagName === 'P') {
-            let textoOriginal = el.innerHTML;
-            let palavras = textoOriginal.split(' ');
-            
-            el.innerHTML = ''; 
-            let pIndex = 0;
-
-            while (pIndex < palavras.length) {
-              el.innerHTML += palavras[pIndex] + ' ';
+          if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
+            if (el.tagName === 'P') {
+              let textoOriginal = el.innerHTML;
+              let palavras = textoOriginal.split(' ');
               
-              // Verifica palavra por palavra no content-area
-              if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-                if (pIndex === 0) {
-                  pIndex++; 
-                } else {
-                  let htmlAtual = el.innerHTML;
-                  el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
-                }
-                break;
-              }
-              pIndex++;
-            }
+              el.innerHTML = ''; 
+              let pIndex = 0;
 
-            let textoRestante = palavras.slice(pIndex).join(' ');
-            atual = criarNovaPagina();
-            
-            if (textoRestante.trim() !== '') {
-               let novoParagrafo = document.createElement('p');
-               novoParagrafo.innerHTML = textoRestante;
-               elementosIA.splice(i + 1, 0, novoParagrafo);
+              while (pIndex < palavras.length) {
+                el.innerHTML += palavras[pIndex] + ' ';
+                if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
+                  if (pIndex === 0) {
+                    pIndex++; 
+                  } else {
+                    let htmlAtual = el.innerHTML;
+                    el.innerHTML = htmlAtual.substring(0, htmlAtual.lastIndexOf(palavras[pIndex] + ' '));
+                  }
+                  break;
+                }
+                pIndex++;
+              }
+
+              let textoRestante = palavras.slice(pIndex).join(' ');
+              atual = criarNovaPagina();
+              
+              if (textoRestante.trim() !== '') {
+                 let novoParagrafo = document.createElement('p');
+                 novoParagrafo.innerHTML = textoRestante;
+                 elementosIA.splice(i + 1, 0, novoParagrafo);
+              }
+            } else {
+              atual = criarNovaPagina();
+              atual.areaTexto.appendChild(el);
             }
-          } 
-          else {
-            atual = criarNovaPagina();
-            atual.areaTexto.appendChild(el);
           }
         }
       }
 
-      // Limpeza Final
-      container.querySelectorAll('.page-container').forEach(page => {
-        const conteudo = page.querySelectorAll('.content-area > p, .content-area > h1, .content-area > h2, .content-area > h3, .content-area > img, .content-area > ul, .content-area > blockquote, .toc-container');
-        if (conteudo.length === 0) {
+      // 3. LIMPEZA FINAL INTELIGENTE (Só apaga páginas de texto que realmente ficaram vazias)
+      container.querySelectorAll('.chapter-text-page').forEach(page => {
+        const area = page.querySelector('.content-area');
+        if (!area || area.children.length === 0) {
           page.remove();
         }
       });
@@ -474,7 +485,7 @@ function getScriptPreview(
         }
       });
 
-      // 3. RECONECTA O OBSERVER COM DELAY
+      // RECONECTA O OBSERVER
       setTimeout(() => {
         if (observer) {
            observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
@@ -492,7 +503,7 @@ function getScriptPreview(
       });
     }
 
-    // Escuta mensagens do parent
+    // Escuta mensagens
     window.addEventListener('message', (e) => {
       if (e.data.type === 'TOGGLE_EDIT_MODE') {}
       if (e.data.type === 'REORGANIZE_PAGES' || e.data.type === 'INSERT_PAGE' || e.data.type === 'UPDATE_ELEMENT' || e.data.type === 'REPLACE_ELEMENT_HTML') {
@@ -500,13 +511,12 @@ function getScriptPreview(
       }
     });
 
-    // 4. INICIA O OBSERVER GLOBALMENTE
+    // INICIA O OBSERVER
     observer = new MutationObserver(() => {
       clearTimeout(window._reflowTimeout);
       window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
     });
     
-    // Escuta inicial
     const containerParaObservar = document.getElementById('ebook-container');
     if (containerParaObservar) {
       observer.observe(containerParaObservar, { childList: true, subtree: true });
