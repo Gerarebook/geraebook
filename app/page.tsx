@@ -246,7 +246,7 @@ function getScriptPreview(
       if (!container) return;
 
       // 1. Captura o título do livro para exibir corretamente no cabeçalho direito
-      let tituloDoLivro = "${livroTitulo || 'E-book'}".toUpperCase();
+      let tituloDoLivro = (${JSON.stringify(livroTitulo || 'E-book')}).toUpperCase();
 
       // 2. Captura o modelo exato do rodapé atual para manter o nome do autor
       let modeloFooter = '<span class="page-number"></span>';
