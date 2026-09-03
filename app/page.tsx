@@ -1825,14 +1825,20 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
-  async function finalizarEbookEtapas() {
-    if (!htmlAtual || !htmlAtual.includes('page-container')) {
-      (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
-      return;
-    }
+async function finalizarEbookEtapas() {
+  if (!htmlAtual || !htmlAtual.includes('page-container')) {
+    (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
+    return;
+  }
 
-    const instrucao = `Você vai FINALIZAR a escrita do e-book.
-    DIRETRIZES:
+  // Trava de Segurança: Impede de gerar a conclusão duas vezes
+  if (htmlAtual.includes('id="conclusao"')) {
+      (window as any).showNotification('O e-book já está finalizado! Use os botões normais para adicionar capítulos.', 'error');
+      return; 
+  }
+
+  const instrucao = `Você vai FINALIZAR a escrita do e-book.
+  DIRETRIZES:
     1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS tags HTML soltas (H1, H3, P). NÃO crie <div class="page-container">, NÃO crie cabeçalhos e NÃO crie rodapés.
     2. MOLDE DE CONCLUSÃO:
     <h1 id="conclusao" class="chapter-title-exclusive">Conclusão</h1>
@@ -2011,8 +2017,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       localStorage.setItem('ebook_draft_html', htmlFinal);
       setRecarregarIframe(true);
     }
-  }, [fontFamily, tamanhoFonteBase, tipoBorda, espacamentoLinhas, espacamentoParagrafo, recuoParagrafo, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, estiloRodape, alinhamentoCapitulo, corBoxCapitulo, autorPosicao, autorFormato, indexShowSubtopics, textoCabecalho]);
-
+  }, [tipoBorda, paletaCores, corManualPri, corManualSec, corManualText, corManualBg]); // TRAVADO: Apenas Borda e Cores reagem em tempo real!
   const isTextElement = elementoSelecionado
     ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
         elementoSelecionado.tagName.toLowerCase()
@@ -2798,12 +2803,7 @@ Mantenha a consistência visual com o resto do e-book.`;
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
           <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => uploadInputRef.current?.click()}
-                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
-              >
-                <i className="fas fa-file-upload"></i> Importar HTML
-              </button>
+              
               <button
                 onClick={toggleBackground}
                 className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
