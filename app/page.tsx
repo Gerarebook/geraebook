@@ -405,13 +405,17 @@ function getScriptPreview(
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        // BUSCA UNIVERSAL DE TÍTULOS (Captura qualquer H1, H2 ou H3 do livro sem falhar)
-        const titulos = container.querySelectorAll('h1, h2, h3');
+        // BUSCA UNIVERSAL DE TÍTULOS
+        const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title, h1, h2, h3');
+        
+        // SEGURANÇA: Se o DOM ainda estiver carregando, tenta novamente em 100ms
+        if (titulos.length === 0 && container.innerHTML.length > 100) {
+          setTimeout(sincronizarIndice, 100);
+          return;
+        }
+
         const titulosVistos = new Set();
         mainToc.innerHTML = '';
-        
-        let currentPageArea = mainToc.closest('.content-area');
-        let currentToc = mainToc;
 
         titulos.forEach((titleEl) => {
           if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) return;
@@ -430,10 +434,10 @@ function getScriptPreview(
           
           if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
             a.classList.add('toc-main-chapter');
-            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
+            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
-            if (!${indexShowSubtopics}) return; // Trava do subtópico apenas na criação
+            if (!indexShowSubtopics) return; 
             a.classList.add('toc-subtopic');
           }
 
@@ -449,23 +453,10 @@ function getScriptPreview(
           a.appendChild(spanDots);
           a.appendChild(spanPage);
           
-          currentToc.appendChild(a);
-
-          if (currentPageArea && currentPageArea.scrollHeight > 750) {
-             let novaPag = criarNovaPagina();
-             let novoToc = document.createElement('div');
-             novoToc.className = 'toc-container';
-             novaPag.areaTexto.appendChild(novoToc);
-             
-             currentPageArea.closest('.page-container').insertAdjacentElement('afterend', novaPag.pagina);
-             
-             currentToc = novoToc;
-             currentPageArea = novaPag.areaTexto;
-          }
-          currentToc.appendChild(a);
-          }
+          mainToc.appendChild(a);
         });
 
+        // Atualização dos números das páginas no Índice
         const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
         const pageArray = Array.from(allPages);
         document.querySelectorAll('.toc-item').forEach(item => {
