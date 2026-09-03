@@ -103,88 +103,74 @@ function executarRefluxoCompleto(
 
   // --- 6. Sincronizar Índice ---
   function sincronizarIndice() {
-    // Remover índices duplicados e deixar apenas o primeiro
-    const tocs = container.querySelectorAll('.toc-container');
-    if (tocs.length > 1) {
-      for (let i = 1; i < tocs.length; i++) {
-        tocs[i].closest('.page-container')?.remove();
-      }
-    }
-    const mainToc = tocs[0];
-    if (!mainToc) return;
-
-    // Coletar títulos
-    const selector = indexShowSubtopics
-      ? 'h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title'
-      : 'h1.chapter-title-exclusive, h2.chapter-title-inline';
-    const titulos = container.querySelectorAll(selector);
-    const titulosVistos = new Set();
-
-    mainToc.innerHTML = '';
-
-    titulos.forEach((titleEl) => {
-      // Ignorar títulos de capa, índice, etc.
-      if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
-      let texto = titleEl.textContent?.trim() || '';
-      if (/índice|sumário/i.test(texto)) return;
-
-      // Normalizar para evitar duplicatas
-      let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
-      if (titulosVistos.has(chave)) return;
-      titulosVistos.add(chave);
-
-      if (!titleEl.id) {
-        titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
-      }
-
-      const a = document.createElement('a');
-      a.className = 'toc-item';
-      if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
-        a.classList.add('toc-main-chapter');
-        a.style.fontWeight = indexShowSubtopics ? '700' : '400';
-        a.style.color = 'var(--color-primary)';
-      } else if (titleEl.tagName === 'H3') {
-        a.classList.add('toc-subtopic');
-        a.style.paddingLeft = '20px';
-        a.style.fontSize = '0.9em';
-        a.style.opacity = '0.85';
-        a.style.fontWeight = '400';
-        if (!indexShowSubtopics) {
-          a.style.display = 'none';
+        const tocs = container.querySelectorAll('.toc-container');
+        if (tocs.length > 1) {
+          for (let i = 1; i < tocs.length; i++) tocs[i].closest('.page-container')?.remove();
         }
+        const mainToc = tocs[0];
+        if (!mainToc) return;
+
+        // LEITURA UNIVERSAL DE TÍTULOS (Captura H1, H2 e H3 sem falhar)
+        const titulos = container.querySelectorAll('h1, h2, h3');
+        const titulosVistos = new Set();
+        mainToc.innerHTML = '';
+
+        titulos.forEach((titleEl) => {
+          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) return;
+          
+          let texto = titleEl.textContent?.trim() || '';
+          if (/índice|sumário/i.test(texto)) return;
+
+          let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
+          if (titulosVistos.has(chave)) return;
+          titulosVistos.add(chave);
+
+          if (!titleEl.id) titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+
+          const a = document.createElement('a');
+          a.className = 'toc-item';
+          
+          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+            a.classList.add('toc-main-chapter');
+            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
+            a.style.color = 'var(--color-primary)';
+          } else if (titleEl.tagName === 'H3') {
+            if (!indexShowSubtopics) return; 
+            a.classList.add('toc-subtopic');
+          }
+
+          a.href = '#' + titleEl.id;
+          const spanTitle = document.createElement('span');
+          spanTitle.innerText = texto;
+          const spanDots = document.createElement('span');
+          spanDots.className = 'toc-dots';
+          const spanPage = document.createElement('span');
+          spanPage.className = 'toc-page-num';
+
+          a.appendChild(spanTitle);
+          a.appendChild(spanDots);
+          a.appendChild(spanPage);
+          
+          mainToc.appendChild(a);
+        });
+
+        // Atualização dos números das páginas no Índice
+        const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+        const pageArray = Array.from(allPages);
+        document.querySelectorAll('.toc-item').forEach(item => {
+          const href = item.getAttribute('href');
+          if (!href || !href.startsWith('#')) return;
+          const target = document.getElementById(href.substring(1));
+          if (target) {
+            const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
+            if (page) {
+              const idx = pageArray.indexOf(page) + 1;
+              const numSpan = item.querySelector('.toc-page-num');
+              if (numSpan) numSpan.innerText = String(idx);
+            }
+          }
+        });
       }
-
-      a.href = '#' + titleEl.id;
-      const spanTitle = document.createElement('span');
-      spanTitle.innerText = texto;
-      const spanDots = document.createElement('span');
-      spanDots.className = 'toc-dots';
-      const spanPage = document.createElement('span');
-      spanPage.className = 'toc-page-num';
-
-      a.appendChild(spanTitle);
-      a.appendChild(spanDots);
-      a.appendChild(spanPage);
-      mainToc.appendChild(a);
-    });
-
-    // Atualizar números das páginas
-    const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-    const pageArray = Array.from(allPages);
-    document.querySelectorAll('.toc-item').forEach(item => {
-      const href = item.getAttribute('href');
-      if (!href || !href.startsWith('#')) return;
-      const target = document.getElementById(href.substring(1));
-      if (target) {
-        const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-        if (page) {
-          const idx = pageArray.indexOf(page) + 1;
-          const numSpan = item.querySelector('.toc-page-num');
-          if (numSpan) numSpan.innerText = String(idx);
-        }
-      }
-    });
-  }
 
   sincronizarIndice();
 
