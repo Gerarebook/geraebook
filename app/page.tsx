@@ -64,7 +64,7 @@ function executarRefluxoCompleto(
         
         return { pagina: novaPagina, areaTexto: contentArea };
       }
-
+      
   let paginaAtual = criarNovaPagina();
 
   // --- 4. Distribuir elementos pelas páginas ---
