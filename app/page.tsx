@@ -593,15 +593,7 @@ function getScriptPreview(
             setTimeout(executarRefluxoCompleto, 100);
          }
       }
-    });
-
-    // ATALHO CTRL+Z FUNCIONANDO DENTRO DO EBOOK
-    document.addEventListener('keydown', function(e) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        window.parent.postMessage({ type: 'CTRL_Z' }, '*');
-      }
-    });
+    });  
 
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
@@ -1911,21 +1903,7 @@ Mantenha a consistência visual com o resto do e-book.`;
       setStatusApis({ texto: 'Aguardando', processing: false });
     }
   }
-
-  // ============================================================
-  // EFEITOS (CARREGAR DADOS, SINCRONIZAR, ATUALIZAR)
-  // ============================================================
-  // Ativar Ctrl+Z no teclado global
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        desfazerCodigo();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
