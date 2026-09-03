@@ -465,8 +465,7 @@ function getScriptPreview(
           
           currentToc.appendChild(a);
 
-          if (currentPageArea && currentPageArea.scrollHeight > 830) {
-             currentToc.removeChild(a);
+          if (currentPageArea && currentPageArea.scrollHeight > 750) {
              let novaPag = criarNovaPagina();
              let novoToc = document.createElement('div');
              novoToc.className = 'toc-container';
@@ -476,7 +475,8 @@ function getScriptPreview(
              
              currentToc = novoToc;
              currentPageArea = novaPag.areaTexto;
-             currentToc.appendChild(a);
+          }
+          currentToc.appendChild(a);
           }
         });
 
@@ -1616,7 +1616,14 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   function baixarArquivo(html: string, titulo: string) {
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    // Garante que o arquivo baixado leve consigo todo o motor de estilo e scripts visuais atualizados
+    const htmlCompleto = moldarApresentacaoHtml(html);
+    const scriptInjetado = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+    
+    // Injeta o motor rodando no arquivo final para manter o índice e paginação idênticos ao painel
+    const htmlProntoParaImpressao = htmlCompleto.replace('</body>', `<script>${scriptInjetado.replace(/<script>|<\/script>/g, '')}</script>\n</body>`);
+
+    const blob = new Blob([htmlProntoParaImpressao], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1625,6 +1632,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    (window as any).showNotification('E-book baixado com formatação perfeita!', 'success');
   }
 
   function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
