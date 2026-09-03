@@ -115,7 +115,8 @@ function executarRefluxoCompleto(
         const mainToc = tocs[0];
         mainToc.innerHTML = '';
 
-        const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title, h2, h3');
+        // CAPTURA UNIVERSAL DE TÍTULOS PARA O ÍNDICE
+        const titulos = container.querySelectorAll('h1, h2, h3');
         const titulosVistos = new Set();
 
         titulos.forEach((titleEl) => {
@@ -511,8 +512,8 @@ function getScriptPreview(
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
             if (${ativarBgSegundaPagina}) {
-              let opac = parseFloat('${bgSegundaPaginaOpacidade}') * 100;
-              p.style.setProperty('background-image', \`linear-gradient(color-mix(in srgb, var(--color-bg) \${opac}%, transparent), color-mix(in srgb, var(--color-bg) \${opac}%, transparent)), url('\${finalBgUrl}')\`, 'important');
+              let opac = '${bgSegundaPaginaOpacidade}';
+              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, \${opac}), rgba(255,255,255, \${opac})), url('\${finalBgUrl}')\`, 'important');
               p.style.setProperty('background-size', 'cover', 'important');
               p.style.setProperty('background-position', 'center', 'important');
             } else {
