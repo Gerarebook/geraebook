@@ -271,16 +271,20 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      const capaH1 = container.querySelector('.page-cover-img h1, .page-cover-text h1, .page-cover-pura h1');
-      let tituloDoLivro = capaH1 ? capaH1.textContent.toUpperCase() : "";
+      // --- CORREÇÃO: Lê o título da meta tag (Passo 3) ---
+      const metaTitle = document.getElementById('meta-book-title');
+      let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
       const metaHeader = document.getElementById('meta-header-text');
-      let textoEsquerdo = metaHeader ? metaHeader.getAttribute('content').toUpperCase().trim() : '';
+      let textoEsquerdo = metaHeader && metaHeader.getAttribute('content') ? metaHeader.getAttribute('content').toUpperCase().trim() : '';
 
       container.querySelectorAll('.page-header').forEach(h => {
          const spans = h.querySelectorAll('span');
          if (spans.length >= 1) {
              spans[0].textContent = textoEsquerdo; 
+         }
+         if (spans.length >= 2) {
+             spans[1].textContent = tituloDoLivro;
          }
       });
 
@@ -310,6 +314,7 @@ function getScriptPreview(
 
       const LIMITE_ALTURA_TEXTO = 890; 
 
+      // --- NOVA FUNÇÃO criarNovaPagina com inserção antes do autor (Passo 4) ---
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
         novaPagina.className = 'page-container chapter-text-page';
@@ -333,42 +338,47 @@ function getScriptPreview(
         footer.innerHTML = modeloFooter; 
         novaPagina.appendChild(footer);
 
-        container.appendChild(novaPagina);
+        const authorPage = container.querySelector('.author-page');
+        if (authorPage) {
+            container.insertBefore(novaPagina, authorPage);
+        } else {
+            container.appendChild(novaPagina);
+        }
         return { pagina: novaPagina, areaTexto: contentArea };
       }
 
+      // --- LÓGICA DE PAGINAÇÃO ROBUSTA (Passo 4) ---
       if (elementosIA.length > 0) {
         let atual = criarNovaPagina();
 
         for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
-          let deveQuebrar = false;
 
-          if (atual.areaTexto.children.length > 0) {
-            let ultimoInserido = atual.areaTexto.lastElementChild;
-            let isTituloPrincipal = (el.tagName === 'H2');
-            let isSubtitulo = (el.tagName === 'H3');
-
-            if (isTituloPrincipal) {
-              deveQuebrar = true;
-            } else if (isSubtitulo) {
-              let ultimoFoiH2 = (ultimoInserido && ultimoInserido.tagName === 'H2');
-              let ultimoFoiImg = (ultimoInserido && ultimoInserido.tagName === 'IMG');
-              if (!ultimoFoiH2 && !ultimoFoiImg) {
-                deveQuebrar = true;
-              }
-            }
-          }
-
-          if (deveQuebrar) {
-            atual = criarNovaPagina();
-          }
-
+          // Insere o elemento na página atual
           atual.areaTexto.appendChild(el);
 
+          // Verifica se estourou a altura
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-            atual = criarNovaPagina();
-            atual.areaTexto.appendChild(el);
+            // Remove o elemento da página atual (pois será movido para a nova)
+            atual.areaTexto.removeChild(el);
+
+            // Cria nova página
+            const novaPagina = criarNovaPagina();
+
+            // Anti-órfão: se o último elemento da página anterior é um título (H2/H3), move-o junto
+            const paginaAnterior = atual.pagina;
+            const areaAnterior = atual.areaTexto;
+            const ultimoElemento = areaAnterior.lastElementChild;
+            let moveOrfao = false;
+            if (ultimoElemento && (ultimoElemento.tagName === 'H2' || ultimoElemento.tagName === 'H3')) {
+              moveOrfao = true;
+              areaAnterior.removeChild(ultimoElemento);
+              novaPagina.areaTexto.appendChild(ultimoElemento);
+            }
+
+            // Adiciona o elemento atual na nova página
+            novaPagina.areaTexto.appendChild(el);
+            atual = novaPagina;
           }
         }
       }
@@ -906,11 +916,12 @@ ${indexShowSubtopics ? '' : '.toc-subtopic { display: none !important; }'}
   word-break: break-word !important;
 }
 
+/* ========== PASSO 2: ALTURA DA IMAGEM REDUZIDA E TÍTULO MENOR ========== */
 img.chapter-banner-img {
   width: 100% !important;
-  height: 360px !important;
-  min-height: 360px !important; /* Blinda contra encolhimento */
-  max-height: 360px !important; /* Blinda contra esticamento */
+  height: 330px !important;
+  min-height: 330px !important;
+  max-height: 330px !important;
   object-fit: cover !important;
   border-radius: 8px !important;
   margin: 15px 0 !important;
@@ -921,7 +932,7 @@ h2.chapter-title-inline {
   margin-top: 25px !important; 
   margin-bottom: 15px !important;
   font-family: var(--font-heading) !important;
-  font-size: 2.1rem !important;
+  font-size: 1.8rem !important;
 }
 .page-container > h3.subtopic-title:first-of-type,
 .page-container > .page-header + h3.subtopic-title {
@@ -951,7 +962,7 @@ h2.chapter-title-inline {
   counter-increment: ebook-page;
 }
 
-.chapter-text-page { padding-top: 16mm !important; }
+.chapter-text-page { padding-top: 28mm !important; }
 
 .legal-page { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
@@ -1087,10 +1098,10 @@ li { margin-bottom: 0.4rem; page-break-inside: avoid; }
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta id="meta-header-text" content="${textoCabecalho}">
-  <script src="https://cdn.tailwindcss.com"></script>
+<meta id="meta-header-text" content="${textoCabecalho}">
+<meta id="meta-book-title" content="${livroTitulo}"> <!-- NOVA LINHA AQUI -->
+<script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <title>${livroTitulo || 'Meu E-book Profissional'}</title>
