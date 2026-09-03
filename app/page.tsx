@@ -720,7 +720,7 @@ export default function Home() {
   const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
-  const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('circulo');
+  const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('retangulo');
 
   // Fundo da 2ª página
   const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
@@ -995,7 +995,20 @@ h2.chapter-title-inline {
   border: ${tipoBorda === 'single' ? '1px solid var(--color-border)' : tipoBorda === 'medium' ? '2px solid var(--color-border)' : tipoBorda === 'double-thin' ? '3px double var(--color-border)' : 'none'};
 }
 .page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after { display: none !important; }
+.page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after { display: none !important; }
 
+/* BLINDAGEM MÁXIMA: Garante que a capa e a primeira página NUNCA terão rodapé ou cabeçalho */
+#ebook-container > .page-container:first-child .page-header,
+#ebook-container > .page-container:first-child .page-footer,
+.page-cover-img .page-header, .page-cover-img .page-footer,
+.page-cover-pura .page-header, .page-cover-pura .page-footer,
+.cap-box-rounded .page-header, .cap-box-rounded .page-footer {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.page-extra { padding: 32mm 20mm 25mm 20mm; }
 .page-extra { padding: 32mm 20mm 25mm 20mm; }
 .page-extra img { max-width: 100%; height: auto; margin: 1rem auto; display: block; border-radius: 8px; }
 
@@ -2012,12 +2025,12 @@ Mantenha a consistência visual com o resto do e-book.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Recarregar iframe quando necessário
+  // Recarregar iframe quando necessário (Gatilho do Índice removido para não quebrar a página)
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
-  }, [recarregarIframe, htmlAtual, indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
+  }, [recarregarIframe, htmlAtual, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
 
   // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
