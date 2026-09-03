@@ -419,8 +419,8 @@ function getScriptPreview(
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        // LÊ APENAS TÍTULOS OFICIAIS (Ignora o nome do autor e textos soltos)
-        const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title');
+        // BUSCA UNIVERSAL DE TÍTULOS (Captura qualquer H1, H2 ou H3 do livro sem falhar)
+        const titulos = container.querySelectorAll('h1, h2, h3');
         const titulosVistos = new Set();
         mainToc.innerHTML = '';
         
@@ -937,13 +937,14 @@ ${indexShowSubtopics ? '' : '.toc-subtopic { display: none !important; }'}
 /* ========== PASSO 2: ALTURA DA IMAGEM REDUZIDA E TÍTULO MENOR ========== */
 img.chapter-banner-img {
   width: 100% !important;
-  height: 330px !important;
-  min-height: 330px !important;
-  max-height: 330px !important;
+  height: 200px !important;
+  min-height: 200px !important;
+  max-height: 200px !important;
   object-fit: cover !important;
-  border-radius: 8px !important;
-  margin: 15px 0 !important;
+  border-radius: 6px !important;
+  margin: 10px 0 !important;
   display: block !important;
+  flex-shrink: 0 !important;
 }
 
 h2.chapter-title-inline {
