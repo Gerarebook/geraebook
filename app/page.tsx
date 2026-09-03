@@ -32,24 +32,38 @@ function executarRefluxoCompleto(
 
   // --- 3. Função para criar uma nova página ---
   function criarNovaPagina() {
-    const novaPagina = document.createElement('div');
-    novaPagina.className = 'page-container chapter-text-page';
-    novaPagina.style.overflow = 'hidden';
-    novaPagina.style.breakAfter = 'page';
+        const novaPagina = document.createElement('div');
+        novaPagina.className = 'page-container chapter-text-page';
+        novaPagina.style.overflow = 'hidden';
+        novaPagina.style.breakAfter = 'page';
 
-    const header = document.createElement('div');
-    header.className = 'page-header';
-    header.innerHTML = '<span>E-book</span><span>Conteúdo</span>';
-    novaPagina.appendChild(header);
+        const header = document.createElement('div');
+        header.className = 'page-header';
+        header.innerHTML = '<span>' + textoEsquerdo + '</span><span>' + tituloDoLivro + '</span>';
+        novaPagina.appendChild(header);
 
-    const footer = document.createElement('div');
-    footer.className = 'page-footer';
-    footer.innerHTML = '<span class="page-number"></span>';
-    novaPagina.appendChild(footer);
+        const contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        contentArea.style.display = 'flex';
+        contentArea.style.flexDirection = 'column';
+        contentArea.style.width = '100%'; 
+        novaPagina.appendChild(contentArea);
 
-    container.appendChild(novaPagina);
-    return novaPagina;
-  }
+        const footer = document.createElement('div');
+        footer.className = 'page-footer';
+        footer.innerHTML = modeloFooter; 
+        novaPagina.appendChild(footer);
+
+        // CORREÇÃO: Garante que a página do autor sempre fique no final!
+        const authorPage = container.querySelector('.author-page');
+        if (authorPage) {
+            container.insertBefore(novaPagina, authorPage);
+        } else {
+            container.appendChild(novaPagina);
+        }
+        
+        return { pagina: novaPagina, areaTexto: contentArea };
+      }
 
   let paginaAtual = criarNovaPagina();
 
@@ -372,17 +386,19 @@ function getScriptPreview(
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        // CORREÇÃO: Pega TODOS os subtítulos sempre. O CSS vai decidir se mostra ou esconde!
         const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title');
         const titulosVistos = new Set();
         mainToc.innerHTML = '';
+        
+        let currentPageArea = mainToc.closest('.content-area');
+        let currentToc = mainToc;
 
         titulos.forEach((titleEl) => {
           if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
           let texto = titleEl.textContent?.trim() || '';
           if (/índice|sumário/i.test(texto)) return;
 
-          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
+          let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
           if (titulosVistos.has(chave)) return;
           titulosVistos.add(chave);
 
@@ -396,7 +412,6 @@ function getScriptPreview(
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
             a.classList.add('toc-subtopic');
-            // Removemos o display:none do JS. O CSS faz isso sozinho de forma limpa.
           }
 
           a.href = '#' + titleEl.id;
@@ -410,7 +425,23 @@ function getScriptPreview(
           a.appendChild(spanTitle);
           a.appendChild(spanDots);
           a.appendChild(spanPage);
-          mainToc.appendChild(a);
+          
+          currentToc.appendChild(a);
+
+          // CORREÇÃO: Cria nova página de índice automaticamente se encher!
+          if (currentPageArea && currentPageArea.scrollHeight > 890) {
+             currentToc.removeChild(a);
+             let novaPag = criarNovaPagina();
+             let novoToc = document.createElement('div');
+             novoToc.className = 'toc-container';
+             novaPag.areaTexto.appendChild(novoToc);
+             
+             currentPageArea.closest('.page-container').insertAdjacentElement('afterend', novaPag.pagina);
+             
+             currentToc = novoToc;
+             currentPageArea = novaPag.areaTexto;
+             currentToc.appendChild(a);
+          }
         });
 
         const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
@@ -865,7 +896,7 @@ body {
 }
 
 #ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
-${!indexShowSubtopics ? '.toc-subtopic { display: none !important; }' : ''}
+${indexShowSubtopics ? '' : '.toc-subtopic { display: none !important; }'}
 
 #ebook-container * {
   max-width: 100% !important;
@@ -889,8 +920,8 @@ img.chapter-banner-img {
 h2.chapter-title-inline {
   margin-top: 25px !important; 
   margin-bottom: 15px !important;
-  font-family: var(--font-title);
-  font-size: 22px;
+  font-family: var(--font-heading) !important;
+  font-size: 2.1rem !important;
 }
 .page-container > h3.subtopic-title:first-of-type,
 .page-container > .page-header + h3.subtopic-title {
