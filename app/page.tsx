@@ -364,7 +364,9 @@ function getScriptPreview(
           if (atual.areaTexto.children.length > 0) {
             if (el.tagName === 'H1' || el.tagName === 'H2') {
               deveQuebrar = true; 
-            } else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 130)) {
+            } 
+            // A MÁGICA DOS SUBTÍTULOS: Se a página passou da metade, joga o subtítulo pra próxima!
+            else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 280)) {
               deveQuebrar = true; 
             }
           }
@@ -377,10 +379,10 @@ function getScriptPreview(
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             atual.areaTexto.removeChild(el); 
             
-            // Lógica Anti-Órfão Perfeita
+            // Lógica Anti-Órfão Turbinada (Protege H2, H3 e QUOTES)
             let orfao = atual.areaTexto.lastElementChild;
             let moveOrfao = false;
-            if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3')) {
+            if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'BLOCKQUOTE')) {
                 moveOrfao = true;
                 atual.areaTexto.removeChild(orfao);
             }
@@ -966,7 +968,7 @@ h2.chapter-title-inline {
   counter-increment: ebook-page;
 }
 
-.chapter-text-page { padding-top: 28mm !important; }
+.chapter-text-page { padding-top: 15mm !important; }
 
 .legal-page { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
@@ -1427,22 +1429,24 @@ ${ebookStyles}
 
   function desfazerCodigo() {
     setHistoricoCodigo((prev) => {
-      if (prev.length === 0) {
-        (window as any).showNotification('Nenhuma alteração para desfazer.', 'error');
-        return prev;
+      // Se não tem histórico ou só tem 1, volta o livro para o zero absoluto
+      if (prev.length <= 1) {
+        setHtmlAtual('');
+        localStorage.removeItem('ebook_draft_html');
+        setRecarregarIframe(p => !p); // OBRIGA o Iframe a reiniciar do zero
+        return [];
       }
-      const novoHistorico = [...prev];
-      const estadoAnterior = novoHistorico.pop();
 
-      if (estadoAnterior) {
+      const novoHistorico = [...prev];
+      novoHistorico.pop(); // Joga fora o estado atual (bagunçado)
+      const estadoAnterior = novoHistorico[novoHistorico.length - 1]; // Pega o estado anterior real
+
+      if (estadoAnterior !== undefined) {
         setHtmlAtual(estadoAnterior);
         localStorage.setItem('ebook_draft_html', estadoAnterior);
-        setRecarregarIframe(false); // Impede o iframe de piscar/quebrar
-        if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-          previewFrameRef.current.contentWindow.postMessage({ type: 'UNDO_HTML', html: estadoAnterior }, '*');
-        }
+        setRecarregarIframe(p => !p); // OBRIGA o Iframe a recarregar do zero com o texto antigo limpo
       }
-      (window as any).showNotification('Ação desfeita com sucesso.', 'success');
+      
       return novoHistorico;
     });
   }
@@ -1993,13 +1997,12 @@ Mantenha a consistência visual com o resto do e-book.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Recarregar iframe quando necessário (Gatilho do Índice removido para não quebrar a página)
+  // Recarregar iframe travado APENAS para nova geração ou botão desfazer
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
-  }, [recarregarIframe, htmlAtual, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
-
+  }, [htmlAtual, recarregarIframe]); // TRAVADO: Removemos o gatilho de recuo e botões de fundo daqui!
   // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
