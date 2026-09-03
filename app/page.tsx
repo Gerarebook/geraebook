@@ -353,11 +353,28 @@ function getScriptPreview(
 
         for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
+          let deveQuebrar = false;
 
-          // Insere o elemento na página atual
+          // 1. Verificação PROATIVA (Antes de inserir)
+          if (atual.areaTexto.children.length > 0) {
+            // Títulos principais SEMPRE começam em página nova
+            if (el.tagName === 'H1' || el.tagName === 'H2') {
+              deveQuebrar = true; 
+            } 
+            // Subtítulos não podem ficar grudados no fim da página
+            else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 120)) {
+              deveQuebrar = true; 
+            }
+          }
+
+          if (deveQuebrar) {
+            atual = criarNovaPagina();
+          }
+
+          // 2. Insere o elemento na página atual
           atual.areaTexto.appendChild(el);
 
-          // Verifica se estourou a altura
+          // 3. Verificação REATIVA (Se um parágrafo ou imagem gigante estourar o limite)
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             // Remove o elemento da página atual (pois será movido para a nova)
             atual.areaTexto.removeChild(el);
@@ -365,20 +382,16 @@ function getScriptPreview(
             // Cria nova página
             const novaPagina = criarNovaPagina();
 
-            // Anti-órfão: se o último elemento da página anterior é um título (H2/H3), move-o junto
-            const paginaAnterior = atual.pagina;
-            const areaAnterior = atual.areaTexto;
-            const ultimoElemento = areaAnterior.lastElementChild;
-            let moveOrfao = false;
-            if (ultimoElemento && (ultimoElemento.tagName === 'H2' || ultimoElemento.tagName === 'H3')) {
-              moveOrfao = true;
-              areaAnterior.removeChild(ultimoElemento);
-              novaPagina.areaTexto.appendChild(ultimoElemento);
+            // Anti-órfão: se o último elemento da página anterior é um título, move-o junto
+            const orfao = atual.areaTexto.lastElementChild;
+            if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3')) {
+              atual.areaTexto.removeChild(orfao);
+              novaPagina.areaTexto.appendChild(orfao);
             }
 
             // Adiciona o elemento atual na nova página
             novaPagina.areaTexto.appendChild(el);
-            atual = novaPagina;
+            atual = novaPagina; // Atualiza a referência da página atual
           }
         }
       }
@@ -396,7 +409,8 @@ function getScriptPreview(
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title');
+        // Pega TODOS os títulos H2 e H3 do livro sem depender de classes específicas
+        const titulos = container.querySelectorAll('h2, h3');
         const titulosVistos = new Set();
         mainToc.innerHTML = '';
         
@@ -404,7 +418,9 @@ function getScriptPreview(
         let currentToc = mainToc;
 
         titulos.forEach((titleEl) => {
-          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura')) return;
+          // Ignora páginas que não devem ir pro índice (Capas e Avisos Legais)
+          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) return;
+          
           let texto = titleEl.textContent?.trim() || '';
           if (/índice|sumário/i.test(texto)) return;
 
@@ -416,11 +432,14 @@ function getScriptPreview(
 
           const a = document.createElement('a');
           a.className = 'toc-item';
-          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+          
+          if (titleEl.tagName === 'H2') {
             a.classList.add('toc-main-chapter');
             a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
+            // TRAVA DE CRIAÇÃO: Se o checkbox não estava marcado, bloqueia a criação do subtópico no índice
+            if (!${indexShowSubtopics}) return;
             a.classList.add('toc-subtopic');
           }
 
@@ -438,8 +457,7 @@ function getScriptPreview(
           
           currentToc.appendChild(a);
 
-          // CORREÇÃO: Cria nova página de índice automaticamente se encher!
-          if (currentPageArea && currentPageArea.scrollHeight > 890) {
+          if (currentPageArea && currentPageArea.scrollHeight > 850) {
              currentToc.removeChild(a);
              let novaPag = criarNovaPagina();
              let novoToc = document.createElement('div');
@@ -1229,7 +1247,7 @@ ${ebookStyles}
   <div class="page-header"><span></span><span>AVISOS LEGAIS</span></div>
   <div class="content-area" style="display: flex; flex-direction: column; justify-content: center; height: 100%; text-align: justify; font-size: 13px; line-height: 1.6;">
     
-    <h2 style="text-align: center; margin-bottom: 20px; font-family: var(--font-title); font-size: 18px;">Avisos Legais & Direitos Autorais</h2>
+    <h2 class="chapter-title-inline" style="text-align: center; margin-bottom: 20px;">Avisos Legais & Direitos Autorais</h2>
     
     <p><strong>© 2026 ${livroAutores || 'Autor'}. Todos os direitos reservados.</strong></p>
     
@@ -1692,7 +1710,7 @@ Mantenha a consistência visual com o resto do e-book.`;
      - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
      - <p>[Parágrafo 3 - Aprox 80 PALAVRAS]</p>
      - <p>[Parágrafo 4 - Aprox 80 PALAVRAS]</p>
-     - <p>[Parágrafo 5 - Aprox 75 PALAVRAS]</p>
+     - <p>[Parágrafo 5 - Aprox 80 PALAVRAS]</p>
      - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA para fechar a segunda página]</div>
      - <h3 class="subtopic-title">[Subtítulo Final]</h3>
      - <p>[Parágrafo 6 - Aprox 85 PALAVRAS]</p>
