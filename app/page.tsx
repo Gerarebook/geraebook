@@ -405,8 +405,8 @@ function getScriptPreview(
         const mainToc = tocs[0];
         if (!mainToc) return;
 
-        // Pega TODOS os títulos H2 e H3 do livro sem depender de classes específicas
-        const titulos = container.querySelectorAll('h2, h3');
+        // LÊ APENAS TÍTULOS OFICIAIS (Ignora o nome do autor e textos soltos)
+        const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title');
         const titulosVistos = new Set();
         mainToc.innerHTML = '';
         
@@ -414,7 +414,6 @@ function getScriptPreview(
         let currentToc = mainToc;
 
         titulos.forEach((titleEl) => {
-          // Ignora páginas que não devem ir pro índice (Capas e Avisos Legais)
           if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) return;
           
           let texto = titleEl.textContent?.trim() || '';
@@ -429,13 +428,12 @@ function getScriptPreview(
           const a = document.createElement('a');
           a.className = 'toc-item';
           
-          if (titleEl.tagName === 'H2') {
+          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
             a.classList.add('toc-main-chapter');
             a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
-            // TRAVA DE CRIAÇÃO: Se o checkbox não estava marcado, bloqueia a criação do subtópico no índice
-            if (!${indexShowSubtopics}) return;
+            if (!${indexShowSubtopics}) return; // Trava do subtópico apenas na criação
             a.classList.add('toc-subtopic');
           }
 
@@ -453,7 +451,7 @@ function getScriptPreview(
           
           currentToc.appendChild(a);
 
-          if (currentPageArea && currentPageArea.scrollHeight > 850) {
+          if (currentPageArea && currentPageArea.scrollHeight > 830) {
              currentToc.removeChild(a);
              let novaPag = criarNovaPagina();
              let novoToc = document.createElement('div');
@@ -1839,16 +1837,13 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
     DIRETRIZES:
-    1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS o bloco HTML da conclusão. Não crie novos capítulos, capas ou introduções. E NÃO insira imagens na conclusão.
+    1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS tags HTML soltas (H1, H3, P). NÃO crie <div class="page-container">, NÃO crie cabeçalhos e NÃO crie rodapés.
     2. MOLDE DE CONCLUSÃO:
-    <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>CONCLUSÃO</span></div>
-        <h2 id="conclusao" class="chapter-title-inline">Conclusão</h2>
-        <h3 class="subtopic-title">Fechamento</h3>
-        <p>[Conclusão...]</p>
-        <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
-    </div>
-    O PROMPT ACABA AQUI. Termine apenas fechando a div de Conclusão. O sistema cuidará de adicionar o Autor nativamente.
+    <h1 id="conclusao" class="chapter-title-exclusive">Conclusão</h1>
+    <h3 class="subtopic-title">Considerações Finais</h3>
+    <p>[Escreva aqui a conclusão detalhada do e-book em cerca de 3 parágrafos...]</p>
+    
+    O PROMPT ACABA AQUI. Devolva apenas essas tags HTML soltas e preenchidas. O sistema cuidará de adicionar o Autor nativamente.
     `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
