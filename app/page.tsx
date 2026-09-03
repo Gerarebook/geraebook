@@ -317,8 +317,25 @@ function getScriptPreview(
         el.tagName !== 'STYLE' &&
         el.tagName !== 'SCRIPT'
       );
+el.tagName !== 'STYLE' &&
+      el.tagName !== 'SCRIPT'
+    );
 
-      const LIMITE_ALTURA_TEXTO = 830; // Ajuste fino milimétrico para folhas A4
+    // BLINDAGEM ABSOLUTA DA CONCLUSÃO NO FINAL DA FILA
+    const indexConclusao = elementosIA.findIndex(el => el.id === 'conclusao' || (el.tagName === 'H1' && el.textContent.toLowerCase().includes('conclusão')));
+    if (indexConclusao !== -1) {
+        // Procura o primeiro H2 (que indica um novo capítulo) lançado DEPOIS da conclusão
+        const indexNovoCapitulo = elementosIA.findIndex((el, i) => i > indexConclusao && el.tagName === 'H2');
+        
+        if (indexNovoCapitulo !== -1) {
+            // Extrai a conclusão e todos os seus parágrafos do meio do livro
+            const partesConclusao = elementosIA.splice(indexConclusao, indexNovoCapitulo - indexConclusao);
+            // Empurra a conclusão para o final definitivo do array de texto!
+            elementosIA.push(...partesConclusao);
+        }
+    }
+
+    const LIMITE_ALTURA_TEXTO = 830; // Ajuste fino milimétrico para folhas A4
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
@@ -1249,15 +1266,15 @@ ${ebookStyles}
     
     <h2 class="chapter-title-inline" style="text-align: center; margin-bottom: 20px;">Avisos Legais & Direitos Autorais</h2>
     
-    <p><strong>© 2026 ${livroAutores || 'Autor'}. Todos os direitos reservados.</strong></p>
+    <p><strong>© Todos os direitos reservados.</strong></p>
     
-    <p style="margin-top: 10px;">Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito do autor, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
+    <p style="margin-top: 10px;">Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
     
     <p style="margin-top: 10px;"><strong>Isenção de Responsabilidade (Disclaimer):</strong></p>
     
-    <p>As informações contidas neste e-book são fornecidas estritamente para fins educacionais, informativos e de entretenimento. O autor e a editora não oferecem quaisquer garantias quanto à integridade, confiabilidade e exatidão dessas informações.</p>
+    <p>As informações contidas neste e-book são fornecidas estritamente para fins educacionais, informativos e de entretenimento. Não são oferecidas quaisquer garantias quanto à integridade, confiabilidade e exatidão dessas informações.</p>
     
-    <p style="margin-top: 10px;">Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. O autor não será responsável por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado, consulte um profissional qualificado da área.</p>
+    <p style="margin-top: 10px;">Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. Não haverá responsabilização por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado, consulte um profissional qualificado da área.</p>
     
   </div>
   <div class="page-footer"><span></span><span class="page-number"></span></div>
