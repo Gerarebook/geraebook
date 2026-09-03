@@ -294,27 +294,32 @@ function getScriptPreview(
         modeloFooter = footerExistente.innerHTML;
       }
 
-      const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura):not(.legal-page):not(.author-page):not(.page-extra)');
-      
-      paginasExistentes.forEach(p => {
+      // A MÁGICA DA BLINDAGEM: Desempacota APENAS as páginas de texto comuns.
+      // Capa, Avisos Legais, Conclusão e Autor ficam INTACTOS e PROTEGIDOS no DOM!
+      const textPages = container.querySelectorAll('.chapter-text-page');
+      textPages.forEach(p => {
         const area = p.querySelector('.content-area') || p;
-        const filhos = Array.from(area.children).filter(el => 
-          !el.classList.contains('page-header') && 
-          !el.classList.contains('page-footer')
-        );
-        filhos.forEach(filho => container.insertBefore(filho, p));
+        while (area.firstChild) {
+          container.insertBefore(area.firstChild, p);
+        }
         p.remove();
       });
 
+      // Coleta os elementos soltos para repaginar com JS Puro
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
+        !el.classList.contains('page-cover-img') &&
+        !el.classList.contains('page-cover-pura') &&
+        !el.classList.contains('page-cover-text') &&
+        !el.classList.contains('legal-page') &&
+        !el.classList.contains('author-page') &&
+        !el.classList.contains('page-extra') &&
         el.tagName !== 'STYLE' &&
         el.tagName !== 'SCRIPT'
       );
 
-      const LIMITE_ALTURA_TEXTO = 890; 
+      const LIMITE_ALTURA_TEXTO = 830; // Ajuste fino milimétrico para folhas A4
 
-      // --- NOVA FUNÇÃO criarNovaPagina com inserção antes do autor (Passo 4) ---
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
         novaPagina.className = 'page-container chapter-text-page';
@@ -338,16 +343,16 @@ function getScriptPreview(
         footer.innerHTML = modeloFooter; 
         novaPagina.appendChild(footer);
 
-        const authorPage = container.querySelector('.author-page');
-        if (authorPage) {
-            container.insertBefore(novaPagina, authorPage);
+        // Insere sempre ANTES da página do autor, garantindo que o autor seja sempre a última
+        const endPage = container.querySelector('.author-page');
+        if (endPage) {
+            container.insertBefore(novaPagina, endPage);
         } else {
             container.appendChild(novaPagina);
         }
         return { pagina: novaPagina, areaTexto: contentArea };
       }
 
-      // --- LÓGICA DE PAGINAÇÃO ROBUSTA (Passo 4) ---
       if (elementosIA.length > 0) {
         let atual = criarNovaPagina();
 
@@ -355,43 +360,34 @@ function getScriptPreview(
           let el = elementosIA[i];
           let deveQuebrar = false;
 
-          // 1. Verificação PROATIVA (Antes de inserir)
+          // 1. Regra Proativa: H1 e H2 exigem página nova imediata
           if (atual.areaTexto.children.length > 0) {
-            // Títulos principais SEMPRE começam em página nova
             if (el.tagName === 'H1' || el.tagName === 'H2') {
               deveQuebrar = true; 
-            } 
-            // Subtítulos não podem ficar grudados no fim da página
-            else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 120)) {
+            } else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 130)) {
               deveQuebrar = true; 
             }
           }
 
-          if (deveQuebrar) {
-            atual = criarNovaPagina();
-          }
+          if (deveQuebrar) atual = criarNovaPagina();
 
-          // 2. Insere o elemento na página atual
           atual.areaTexto.appendChild(el);
 
-          // 3. Verificação REATIVA (Se um parágrafo ou imagem gigante estourar o limite)
+          // 2. Regra Reativa: Se o parágrafo ou imagem estourar o limite da folha
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-            // Remove o elemento da página atual (pois será movido para a nova)
-            atual.areaTexto.removeChild(el);
-
-            // Cria nova página
-            const novaPagina = criarNovaPagina();
-
-            // Anti-órfão: se o último elemento da página anterior é um título, move-o junto
-            const orfao = atual.areaTexto.lastElementChild;
+            atual.areaTexto.removeChild(el); 
+            
+            // Lógica Anti-Órfão Perfeita
+            let orfao = atual.areaTexto.lastElementChild;
+            let moveOrfao = false;
             if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3')) {
-              atual.areaTexto.removeChild(orfao);
-              novaPagina.areaTexto.appendChild(orfao);
+                moveOrfao = true;
+                atual.areaTexto.removeChild(orfao);
             }
-
-            // Adiciona o elemento atual na nova página
-            novaPagina.areaTexto.appendChild(el);
-            atual = novaPagina; // Atualiza a referência da página atual
+            
+            atual = criarNovaPagina();
+            if (moveOrfao) atual.areaTexto.appendChild(orfao);
+            atual.areaTexto.appendChild(el);
           }
         }
       }
@@ -1254,23 +1250,22 @@ ${ebookStyles}
   // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
   // ============================================================
   function gerarPaginaAviso() {
-    const ano = new Date().getFullYear();
     return `
     <div class="page-container legal-page">
   <div class="page-header"><span></span><span>AVISOS LEGAIS</span></div>
-  <div class="content-area" style="display: flex; flex-direction: column; justify-content: center; height: 100%; text-align: justify; font-size: 13px; line-height: 1.6;">
+  <div class="content-area" style="display: flex; flex-direction: column; justify-content: center; height: 100%; text-align: justify; font-size: 11px; line-height: 1.5; padding: 0 10px;">
     
     <h2 class="chapter-title-inline" style="text-align: center; margin-bottom: 20px;">Avisos Legais & Direitos Autorais</h2>
     
     <p><strong>© 2026 ${livroAutores || 'Autor'}. Todos os direitos reservados.</strong></p>
     
-    <p style="margin-top: 12px;">Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito do autor, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
+    <p style="margin-top: 10px;">Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito do autor, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
     
-    <p style="margin-top: 15px;"><strong>Isenção de Responsabilidade (Disclaimer):</strong></p>
+    <p style="margin-top: 10px;"><strong>Isenção de Responsabilidade (Disclaimer):</strong></p>
     
     <p>As informações contidas neste e-book são fornecidas estritamente para fins educacionais, informativos e de entretenimento. O autor e a editora não oferecem quaisquer garantias quanto à integridade, confiabilidade e exatidão dessas informações.</p>
     
-    <p style="margin-top: 12px;">Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. O autor não será responsável por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado (jurídico, financeiro, médico ou técnico), consulte um profissional qualificado da área.</p>
+    <p style="margin-top: 10px;">Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. O autor não será responsável por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado, consulte um profissional qualificado da área.</p>
     
   </div>
   <div class="page-footer"><span></span><span class="page-number"></span></div>
