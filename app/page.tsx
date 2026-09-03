@@ -306,6 +306,7 @@ function getScriptPreview(
       });
 
       // Coleta os elementos soltos para repaginar com JS Puro
+     // Coleta os elementos soltos para repaginar com JS Puro
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
@@ -317,25 +318,19 @@ function getScriptPreview(
         el.tagName !== 'STYLE' &&
         el.tagName !== 'SCRIPT'
       );
-el.tagName !== 'STYLE' &&
-      el.tagName !== 'SCRIPT'
-    );
 
-    // BLINDAGEM ABSOLUTA DA CONCLUSÃO NO FINAL DA FILA
-    const indexConclusao = elementosIA.findIndex(el => el.id === 'conclusao' || (el.tagName === 'H1' && el.textContent.toLowerCase().includes('conclusão')));
-    if (indexConclusao !== -1) {
-        // Procura o primeiro H2 (que indica um novo capítulo) lançado DEPOIS da conclusão
-        const indexNovoCapitulo = elementosIA.findIndex((el, i) => i > indexConclusao && el.tagName === 'H2');
-        
-        if (indexNovoCapitulo !== -1) {
-            // Extrai a conclusão e todos os seus parágrafos do meio do livro
-            const partesConclusao = elementosIA.splice(indexConclusao, indexNovoCapitulo - indexConclusao);
-            // Empurra a conclusão para o final definitivo do array de texto!
-            elementosIA.push(...partesConclusao);
-        }
-    }
+      // BLINDAGEM ABSOLUTA DA CONCLUSÃO NO FINAL DA FILA (Anti-Crash)
+      const indexConclusao = elementosIA.findIndex(el => el.id === 'conclusao' || (el.tagName === 'H1' && (el.textContent || '').toLowerCase().includes('conclusão')));
+      
+      if (indexConclusao !== -1) {
+          const indexNovoCapitulo = elementosIA.findIndex((el, i) => i > indexConclusao && el.tagName === 'H2');
+          if (indexNovoCapitulo !== -1) {
+              const partesConclusao = elementosIA.splice(indexConclusao, indexNovoCapitulo - indexConclusao);
+              elementosIA.push(...partesConclusao);
+          }
+      }
 
-    const LIMITE_ALTURA_TEXTO = 830; // Ajuste fino milimétrico para folhas A4
+      const LIMITE_ALTURA_TEXTO = 830; // Ajuste fino milimétrico para folhas A4
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
