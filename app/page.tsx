@@ -269,7 +269,6 @@ function getScriptPreview(
       if (!container) return;
 
       // --- MÁGICA UNSPLASH EM TEMPO REAL ---
-      // Lê o atributo gerado pela IA e injeta a foto instantaneamente no preview
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          if (overlay.dataset.unsplash && (!overlay.style.backgroundImage || overlay.style.backgroundImage === 'none')) {
             const keyword = encodeURIComponent(overlay.dataset.unsplash);
@@ -295,7 +294,7 @@ function getScriptPreview(
         modeloFooter = footerExistente.innerHTML;
       }
 
-      // A BLINDAGEM SUPREMA: Desempacota TODA e qualquer página que não seja fixa!
+      // A BLINDAGEM SUPREMA: Desempacota as páginas normais
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
         if (p.classList.contains('page-cover-img') || 
@@ -322,7 +321,6 @@ function getScriptPreview(
           if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
       });
 
-      // Coleta os elementos soltos para repaginar com JS Puro
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
@@ -387,16 +385,14 @@ function getScriptPreview(
           let deveQuebrar = false;
 
           if (atual.areaTexto.children.length > 0) {
-            // Regra 1: Títulos antigos e a NOVA CAPA exigem página nova
             if (el.tagName === 'H1' || el.tagName === 'H2' || el.classList.contains('cap-img-overlay')) {
               deveQuebrar = true; 
             } 
-            // Regra 2: Se a página atual JÁ TEM a capa, expulsa o texto seguinte para a página 2
             else if (atual.areaTexto.querySelector('.cap-img-overlay') || atual.areaTexto.classList.contains('cap-img-overlay')) {
               deveQuebrar = true;
             }
-            // Regra 3: Subtítulos no final da página vão pra próxima
-            else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 280)) {
+            // NOVA REGRA DE OURO: Subtópicos (H3) SEMPRE quebram para o TOPO da próxima página
+            else if (el.tagName === 'H3') {
               deveQuebrar = true; 
             }
           }
@@ -406,7 +402,6 @@ function getScriptPreview(
           atual.areaTexto.appendChild(el);
 
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-            // Ignora o estouro de altura se for a capa de imagem (ela cuida de si mesma no CSS)
             if (!el.classList.contains('cap-img-overlay')) {
               atual.areaTexto.removeChild(el); 
               
@@ -443,7 +438,6 @@ function getScriptPreview(
         const mainToc = tocs[0];
         mainToc.innerHTML = '';
 
-        // O Índice agora também enxerga o h1 que está dentro do novo box de capa
         const titulos = container.querySelectorAll('h1, h2, h3');
         const titulosVistos = new Set();
 
@@ -522,7 +516,6 @@ function getScriptPreview(
         const h2Inline = p.querySelector('h2.chapter-title-inline');
         const imgEl = p.querySelector('.chapter-banner-img');
 
-        // Lógica atualizada para capturar a imagem do fundo ou do data-unsplash da capa nova
         if (capaOverlay || h2Inline || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-pura')) {
           chIndex = 1;
           currentChapterImg = '';
@@ -540,7 +533,6 @@ function getScriptPreview(
           chIndex++;
         }
 
-        // Aplica a imagem de fundo na SEGUNDA página (conteúdo 1)
         if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
           p.classList.add('chapter-page-2');
           let customUrl = '${bgSegundaPaginaUrl}'.trim();
@@ -634,15 +626,16 @@ function getScriptPreview(
       }
     });  
 
+    // ADICIONADO .cap-img-overlay nos seletores para o clique e foco do painel funcionarem na nova capa
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay');
       if (el && el !== selectedEl) el.style.outline = '2px dashed rgba(99,102,241,0.5)';
     });
     
     document.addEventListener('mouseout', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay');
       if (el && el !== selectedEl) el.style.outline = '';
     });
     
@@ -663,7 +656,7 @@ function getScriptPreview(
       
       e.preventDefault(); 
       e.stopPropagation();
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay');
       
       if (el) {
          if (selectedEl) selectedEl.style.outline = '';
@@ -681,7 +674,8 @@ function getScriptPreview(
             text: el.innerHTML,
             src: el.src,
             bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
-            isBgTarget: el.classList.contains('page-container'),
+            // A capa agora é reconhecida como um alvo válido para alterar o fundo no painel
+            isBgTarget: el.classList.contains('page-container') || el.classList.contains('cap-img-overlay'),
             textColor: rgbToHex(computed.color),
             bgColor: rgbToHex(computed.backgroundColor),
             fontSize: parseInt(computed.fontSize),
@@ -1005,7 +999,7 @@ h2.chapter-title-inline {
   counter-increment: ebook-page;
 }
 
-.chapter-text-page { padding-top: 15mm !important; }
+.chapter-text-page { padding-top: 28mm !important; }
 
 .legal-page { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
