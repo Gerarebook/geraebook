@@ -286,12 +286,46 @@ function getScriptPreview(
         modeloFooter = footerExistente.innerHTML;
       }
 
-      const textPages = container.querySelectorAll('.chapter-text-page');
-      textPages.forEach(p => {
+      let modeloFooter = '<span class="page-number"></span>';
+      const footerExistente = container.querySelector('.page-footer');
+      if (footerExistente) {
+        modeloFooter = footerExistente.innerHTML;
+      }
+
+      // A BLINDAGEM SUPREMA: Desempacota TODA e qualquer página que não seja fixa!
+      // Destrói containers falsos criados pela IA e garante paginação 100% fluida.
+      const todasPaginas = container.querySelectorAll('.page-container');
+      todasPaginas.forEach(p => {
+        // Se for Capa, Aviso Legal, Índice ou Autor, PROTEGE e não mexe!
+        if (p.classList.contains('page-cover-img') || 
+            p.classList.contains('page-cover-pura') || 
+            p.classList.contains('page-cover-text') || 
+            p.classList.contains('legal-page') || 
+            p.querySelector('.toc-container') || 
+            p.classList.contains('author-page')) {
+            return; 
+        }
+        
+        // Se for página de texto (Intro ou Capítulos), ARRANCA O CONTEÚDO PARA FORA!
         const area = p.querySelector('.content-area') || p;
-        while (area.firstChild) container.insertBefore(area.firstChild, p);
+        
+        // Extermina cabeçalhos e rodapés velhos criados pela IA para não duplicar
+        p.querySelectorAll('.page-header, .page-footer').forEach(l => l.remove());
+
+        while (area.firstChild) {
+            container.insertBefore(area.firstChild, p);
+        }
         p.remove();
       });
+
+      // EXTERMINADOR DE LIXO DA IA (Remove linhas fantasmas e parágrafos vazios que causam páginas em branco)
+      container.querySelectorAll('hr').forEach(hr => hr.remove());
+      container.querySelectorAll('p').forEach(p => {
+          if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
+      });
+
+      // Coleta os elementos soltos para repaginar com JS Puro
+      const elementosIA = Array.from(container.children).filter(el =>
 
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
