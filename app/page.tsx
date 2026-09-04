@@ -2760,13 +2760,21 @@ async function finalizarEbookEtapas() {
                     {elementoSelecionado.tagName !== 'img' && (
                       <div className="panel-section grid grid-cols-2 gap-4 border-t border-slate-100 mt-3">
                         <div>
-                          <label className="input-label mb-2 text-[9px]">Cor Fundo (Box)</label>
-                          <input
-                            type="color"
-                            value={elementoSelecionado.bgColor || '#ffffff'}
-                            onChange={(e) => atualizarElemento('bgColor', e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border-none"
-                          />
+                          <label className="input-label mb-2 text-[9px] flex justify-between">Cor Fundo (Box) <span className="text-slate-400">Opacidade</span></label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={elementoSelecionado.bgColor?.length === 7 ? elementoSelecionado.bgColor : '#f5f5f5'}
+                              onChange={(e) => atualizarElemento('bgColor', e.target.value)}
+                              className="w-10 h-8 rounded cursor-pointer border-none flex-shrink-0"
+                            />
+                            <input
+                              type="range"
+                              min="0" max="1" step="0.05" defaultValue="0.92"
+                              onChange={(e) => atualizarElemento('bgOpacity', e.target.value)}
+                              className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="input-label mb-0 text-[9px] flex justify-between">Tamanho Fonte <span className="text-indigo-600 font-bold">{elementoSelecionado.fontSize || 16}px</span></label>
