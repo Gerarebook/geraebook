@@ -264,13 +264,10 @@ function getScriptPreview(
     function executarRefluxoCompleto() {
       if (observer) observer.disconnect();
       
-      // SALVA A POSIÇÃO DA TELA PARA NÃO PULAR!
       const currentScrollY = window.scrollY;
-
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // --- CORREÇÃO: Lê o título da meta tag (Passo 3) ---
       const metaTitle = document.getElementById('meta-book-title');
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
@@ -279,12 +276,8 @@ function getScriptPreview(
 
       container.querySelectorAll('.page-header').forEach(h => {
          const spans = h.querySelectorAll('span');
-         if (spans.length >= 1) {
-             spans[0].textContent = textoEsquerdo; 
-         }
-         if (spans.length >= 2) {
-             spans[1].textContent = tituloDoLivro;
-         }
+         if (spans.length >= 1) spans[0].textContent = textoEsquerdo; 
+         if (spans.length >= 2) spans[1].textContent = tituloDoLivro;
       });
 
       let modeloFooter = '<span class="page-number"></span>';
@@ -293,19 +286,13 @@ function getScriptPreview(
         modeloFooter = footerExistente.innerHTML;
       }
 
-      // A MÁGICA DA BLINDAGEM: Desempacota APENAS as páginas de texto comuns.
-      // Capa, Avisos Legais, Conclusão e Autor ficam INTACTOS e PROTEGIDOS no DOM!
       const textPages = container.querySelectorAll('.chapter-text-page');
       textPages.forEach(p => {
         const area = p.querySelector('.content-area') || p;
-        while (area.firstChild) {
-          container.insertBefore(area.firstChild, p);
-        }
+        while (area.firstChild) container.insertBefore(area.firstChild, p);
         p.remove();
       });
 
-      // Coleta os elementos soltos para repaginar com JS Puro
-     // Coleta os elementos soltos para repaginar com JS Puro
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
@@ -318,7 +305,6 @@ function getScriptPreview(
         el.tagName !== 'SCRIPT'
       );
 
-      // BLINDAGEM ABSOLUTA DA CONCLUSÃO NO FINAL DA FILA (Anti-Crash)
       const indexConclusao = elementosIA.findIndex(el => el.id === 'conclusao' || (el.tagName === 'H1' && (el.textContent || '').toLowerCase().includes('conclusão')));
       
       if (indexConclusao !== -1) {
@@ -329,7 +315,7 @@ function getScriptPreview(
           }
       }
 
-      const LIMITE_ALTURA_TEXTO = 830; // Ajuste fino milimétrico para folhas A4
+      const LIMITE_ALTURA_TEXTO = 830; 
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
@@ -354,7 +340,6 @@ function getScriptPreview(
         footer.innerHTML = modeloFooter; 
         novaPagina.appendChild(footer);
 
-        // Insere sempre ANTES da página do autor, garantindo que o autor seja sempre a última
         const endPage = container.querySelector('.author-page');
         if (endPage) {
             container.insertBefore(novaPagina, endPage);
@@ -371,12 +356,10 @@ function getScriptPreview(
           let el = elementosIA[i];
           let deveQuebrar = false;
 
-          // 1. Regra Proativa: H1 e H2 exigem página nova imediata
           if (atual.areaTexto.children.length > 0) {
             if (el.tagName === 'H1' || el.tagName === 'H2') {
               deveQuebrar = true; 
             } 
-            // A MÁGICA DOS SUBTÍTULOS: Se a página passou da metade, joga o subtítulo pra próxima!
             else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 280)) {
               deveQuebrar = true; 
             }
@@ -386,11 +369,9 @@ function getScriptPreview(
 
           atual.areaTexto.appendChild(el);
 
-          // 2. Regra Reativa: Se o parágrafo ou imagem estourar o limite da folha
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             atual.areaTexto.removeChild(el); 
             
-            // Lógica Anti-Órfão Turbinada (Protege H2, H3 e QUOTES)
             let orfao = atual.areaTexto.lastElementChild;
             let moveOrfao = false;
             if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'BLOCKQUOTE')) {
@@ -412,53 +393,58 @@ function getScriptPreview(
 
       function sincronizarIndice() {
         const tocs = container.querySelectorAll('.toc-container');
+        if (tocs.length === 0) return;
+        
         if (tocs.length > 1) {
-          for (let i = 1; i < tocs.length; i++) tocs[i].closest('.page-container')?.remove();
+          for (let i = 1; i < tocs.length; i++) {
+            const p = tocs[i].closest('.page-container');
+            if (p) p.remove();
+          }
         }
         const mainToc = tocs[0];
-        if (!mainToc) return;
-
-        // BUSCA UNIVERSAL DE TÍTULOS
-        const titulos = container.querySelectorAll('h1.chapter-title-exclusive, h2.chapter-title-inline, h3.subtopic-title, h1, h2, h3');
-        
-        // SEGURANÇA: Se o DOM ainda estiver carregando, tenta novamente em 100ms
-        if (titulos.length === 0 && container.innerHTML.length > 100) {
-          setTimeout(sincronizarIndice, 100);
-          return;
-        }
-
-        const titulosVistos = new Set();
         mainToc.innerHTML = '';
+
+        const titulos = container.querySelectorAll('h1, h2, h3');
+        const titulosVistos = new Set();
 
         titulos.forEach((titleEl) => {
           if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) return;
           
           let texto = titleEl.textContent?.trim() || '';
-          if (/índice|sumário/i.test(texto)) return;
+          if (!texto || /índice|sumário/i.test(texto)) return;
 
-          let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
+          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
           if (titulosVistos.has(chave)) return;
           titulosVistos.add(chave);
 
-          if (!titleEl.id) titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+          if (!titleEl.id) {
+            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+          }
 
           const a = document.createElement('a');
           a.className = 'toc-item';
           
-          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+          const isMain = titleEl.tagName === 'H1' || titleEl.tagName === 'H2';
+          if (isMain) {
             a.classList.add('toc-main-chapter');
-            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
+            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
             a.style.color = 'var(--color-primary)';
           } else if (titleEl.tagName === 'H3') {
-            if (!indexShowSubtopics) return; 
+            if (!${indexShowSubtopics}) return;
             a.classList.add('toc-subtopic');
+            a.style.paddingLeft = '20px';
+            a.style.fontSize = '0.9em';
+            a.style.opacity = '0.85';
           }
 
           a.href = '#' + titleEl.id;
+          
           const spanTitle = document.createElement('span');
           spanTitle.innerText = texto;
+          
           const spanDots = document.createElement('span');
           spanDots.className = 'toc-dots';
+          
           const spanPage = document.createElement('span');
           spanPage.className = 'toc-page-num';
 
@@ -469,10 +455,10 @@ function getScriptPreview(
           mainToc.appendChild(a);
         });
 
-        // Atualização dos números das páginas no Índice
         const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
         const pageArray = Array.from(allPages);
-        document.querySelectorAll('.toc-item').forEach(item => {
+        
+        mainToc.querySelectorAll('.toc-item').forEach(item => {
           const href = item.getAttribute('href');
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
@@ -494,7 +480,7 @@ function getScriptPreview(
       container.querySelectorAll('.page-container').forEach((p) => {
         const imgEl = p.querySelector('.chapter-banner-img');
 
-        if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
+        if (p.querySelector('h2') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
           chIndex = 1;
           if (imgEl) {
             currentChapterImg = imgEl.src;
@@ -508,7 +494,9 @@ function getScriptPreview(
 
         if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
           p.classList.add('chapter-page-2');
-          let finalBgUrl = '${bgSegundaPaginaUrl}'.trim() !== '' ? '${bgSegundaPaginaUrl}' : currentChapterImg;
+          let customUrl = '${bgSegundaPaginaUrl}'.trim();
+          let finalBgUrl = customUrl !== '' ? customUrl : currentChapterImg;
+          
           if (finalBgUrl && finalBgUrl.trim() !== '') {
             p.dataset.bgUrl = finalBgUrl;
             if (${ativarBgSegundaPagina}) {
@@ -538,7 +526,6 @@ function getScriptPreview(
          selectedEl.style.outline = '3px solid #4f46e5';
       }
 
-      // RESTAURA A POSIÇÃO IMEDIATAMENTE APÓS A RECONSTRUÇÃO
       window.scrollTo(0, currentScrollY);
 
       setTimeout(() => {
@@ -555,7 +542,6 @@ function getScriptPreview(
          }
       }
       
-      // SISTEMA DE DESFAZER COM INJEÇÃO SUAVE
       if (e.data.type === 'UNDO_HTML') {
          const scrollY = window.scrollY;
          document.getElementById('ebook-container').innerHTML = e.data.html;
