@@ -268,11 +268,13 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // --- MÁGICA UNSPLASH EM TEMPO REAL ---
+      // --- MÁGICA UNSPLASH BLINDADA (Força o carregamento ignorando cache do navegador) ---
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
-         if (overlay.dataset.unsplash && (!overlay.style.backgroundImage || overlay.style.backgroundImage === 'none')) {
-            const keyword = encodeURIComponent(overlay.dataset.unsplash);
-            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/?\${keyword}')\`, 'important');
+         let bg = overlay.style.backgroundImage || '';
+         if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
+            const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
+            const cacheBuster = Math.random().toString(36).substring(7);
+            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword}&\${cacheBuster}')\`, 'important');
          }
       });
 
@@ -294,7 +296,6 @@ function getScriptPreview(
         modeloFooter = footerExistente.innerHTML;
       }
 
-      // A BLINDAGEM SUPREMA: Desempacota as páginas normais
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
         if (p.classList.contains('page-cover-img') || 
@@ -315,7 +316,6 @@ function getScriptPreview(
         p.remove();
       });
 
-      // EXTERMINADOR DE LIXO DA IA
       container.querySelectorAll('hr').forEach(hr => hr.remove());
       container.querySelectorAll('p').forEach(p => {
           if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
@@ -361,6 +361,8 @@ function getScriptPreview(
         contentArea.style.display = 'flex';
         contentArea.style.flexDirection = 'column';
         contentArea.style.width = '100%'; 
+        // CORREÇÃO DEFINITIVA DA MARGEM: Força o texto para baixo de forma bruta, ignorando o CSS!
+        contentArea.style.marginTop = '8mm'; 
         novaPagina.appendChild(contentArea);
 
         const footer = document.createElement('div');
@@ -391,8 +393,9 @@ function getScriptPreview(
             else if (atual.areaTexto.querySelector('.cap-img-overlay') || atual.areaTexto.classList.contains('cap-img-overlay')) {
               deveQuebrar = true;
             }
-            // NOVA REGRA DE OURO: Subtópicos (H3) SEMPRE quebram para o TOPO da próxima página
-            else if (el.tagName === 'H3') {
+            // REGRA CIENTÍFICA DO SUBTÓPICO: O H3 quebra para o topo da página, 
+            // MAS SÓ QUEBRA se a página atual já tiver textos ou conteúdos lidos! (Isso resolve a Introdução e mantem o H3 no topo)
+            else if (el.tagName === 'H3' && atual.areaTexto.querySelectorAll('p, blockquote, ul, .highlight-box, img').length > 0) {
               deveQuebrar = true; 
             }
           }
@@ -626,7 +629,7 @@ function getScriptPreview(
       }
     });  
 
-    // ADICIONADO .cap-img-overlay nos seletores para o clique e foco do painel funcionarem na nova capa
+    // ADICIONAMOS A CLASSE .cap-img-overlay PARA O PAINEL LER O CLIQUE DA CAPA NOVA!
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
       const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay');
@@ -674,7 +677,7 @@ function getScriptPreview(
             text: el.innerHTML,
             src: el.src,
             bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
-            // A capa agora é reconhecida como um alvo válido para alterar o fundo no painel
+            // AQUI É A MÁGICA: O painel agora vai tratar o clique na capa como "Alvo de Fundo" para o Unsplash e Upload!
             isBgTarget: el.classList.contains('page-container') || el.classList.contains('cap-img-overlay'),
             textColor: rgbToHex(computed.color),
             bgColor: rgbToHex(computed.backgroundColor),
