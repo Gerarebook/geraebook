@@ -268,12 +268,13 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
+      // CORREÇÃO DO UNSPLASH: Burlar o cache usando sintaxe aceita pela API
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          let bg = overlay.style.backgroundImage || '';
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
             const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
             const cacheBuster = Math.random().toString(36).substring(7);
-            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword}&\${cacheBuster}')\`, 'important');
+            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},sig\${cacheBuster}')\`, 'important');
          }
       });
 
@@ -320,6 +321,16 @@ function getScriptPreview(
           if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
       });
 
+      // SALVA VIDAS: Se a IA gerar um texto solto sem <p>, envolve em <p> para não quebrar a margem!
+      Array.from(container.childNodes).forEach(node => {
+          if (node.nodeType === 3 && node.textContent.trim() !== '') {
+              const p = document.createElement('p');
+              p.textContent = node.textContent;
+              container.insertBefore(p, node);
+              node.remove();
+          }
+      });
+
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
@@ -360,7 +371,6 @@ function getScriptPreview(
         contentArea.style.display = 'flex';
         contentArea.style.flexDirection = 'column';
         contentArea.style.width = '100%'; 
-        contentArea.style.marginTop = '2mm'; 
         novaPagina.appendChild(contentArea);
 
         const footer = document.createElement('div');
@@ -402,7 +412,6 @@ function getScriptPreview(
 
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             if (!el.classList.contains('cap-img-overlay')) {
-              // QUEBRA SEGURA: Só move se houver mais de um elemento na página! (Evita estourar margens)
               if (atual.areaTexto.children.length > 1) {
                   atual.areaTexto.removeChild(el); 
                   let orfao = atual.areaTexto.lastElementChild;
@@ -417,6 +426,7 @@ function getScriptPreview(
               }
             }
           }
+        }
       }
 
       container.querySelectorAll('.chapter-text-page').forEach(page => {
@@ -600,7 +610,6 @@ function getScriptPreview(
             if (e.data.rawBgImage !== undefined) target.style.setProperty('background-image', e.data.rawBgImage, 'important');
             if (e.data.textColor !== undefined) target.style.setProperty('color', e.data.textColor, 'important');
             
-            // --- CONVERSOR MÁGICO DE COR SÓLIDA PARA TRANSPARENTE (RGBA) ---
             if (e.data.bgColor !== undefined) {
                 target.dataset.rawHex = e.data.bgColor;
                 let op = target.dataset.bgOp || (target.classList.contains('cap-overlay-box') ? '0.92' : '1');
@@ -647,7 +656,6 @@ function getScriptPreview(
       }
     });  
 
-    // AGORA A CAIXA PODE SER CLICADA PARA EDITAR
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
       const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay, .cap-overlay-box');
@@ -935,6 +943,7 @@ async function gerarEbookPDF(textoBruto: string) {
     
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
+    const opacidadeSegura = Math.round(parseFloat(boxOpacity || '0.92') * 100);
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -950,7 +959,7 @@ async function gerarEbookPDF(textoBruto: string) {
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
   --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#f3f4f6'} ${parseFloat(boxOpacity || '0.92')*100}%, transparent);
+  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#f3f4f6'} ${opacidadeSegura}%, transparent);
 }
 
 body {
@@ -978,11 +987,10 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
-/* MARGEM DO TOPO CORRIGIDA */
 .chapter-text-page { padding-top: 20mm !important; }
 
-/* AVISO LEGAL CORRIGIDO PARA NÃO BATER NO RODAPÉ */
-.legal-page { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 25mm 25mm !important; }
+/* AVISO LEGAL: Agora justificado no topo, impedindo de atropelar a linha do rodapé */
+.legal-page { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 35mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
 .legal-page p { font-size: 1rem; line-height: 1.8; margin-bottom: 1.2rem; text-align: justify; }
 
@@ -997,7 +1005,6 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   display: none !important; opacity: 0 !important; visibility: hidden !important;
 }
 
-/* NOVA CAPA DE CAPÍTULO PREMIUM GLOBAL */
 .cap-img-overlay { 
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
   background-size: cover !important; background-position: center !important; background-color: var(--color-bg);
@@ -1022,7 +1029,6 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; text-align: center; }
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-/* RECUO E ESPAÇAMENTO BLINDADOS */
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; }
 
 blockquote { font-style: italic; color: var(--color-text); border-left: 4px solid var(--color-primary); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
@@ -1136,10 +1142,20 @@ ${ebookStyles}
     const bodyMatch = cleanNovo.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) cleanNovo = bodyMatch[1];
     cleanNovo = cleanNovo.replace(/<!DOCTYPE[^>]*>/gi, '').replace(/<\/?html[^>]*>/gi, '').trim();
-    const containerMatch = cleanNovo.match(/<div id="ebook-container">([\s\S]*?)<\/div>\s*$/i);
-    if (containerMatch) cleanNovo = containerMatch[1];
 
-    // INJEÇÃO BLINDADA: Acha a última div de fechamento exata e insere com segurança
+    try {
+        // INJEÇÃO ULTRA BLINDADA: Usa o navegador para juntar os códigos sem quebrar nada
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlBase, 'text/html');
+        const container = doc.getElementById('ebook-container');
+        if (container) {
+            container.insertAdjacentHTML('beforeend', cleanNovo);
+            return '<!DOCTYPE html>\n<html lang="pt-BR">\n' + doc.documentElement.innerHTML + '\n</html>';
+        }
+    } catch (e) {
+        console.error('Erro na injeção segura, usando fallback');
+    }
+
     const lastDivIndex = htmlBase.lastIndexOf('</div>');
     if (lastDivIndex !== -1) {
       return htmlBase.substring(0, lastDivIndex) + '\n' + cleanNovo + '\n' + htmlBase.substring(lastDivIndex);
