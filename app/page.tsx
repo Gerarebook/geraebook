@@ -764,7 +764,7 @@ export default function Home() {
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  const [boxColorHex, setBoxColorHex] = useState('#f3f4f6');
+  const [boxColorHex, setBoxColorHex] = useState('#e2e8f0');
   const [boxOpacity, setBoxOpacity] = useState('0.92');
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
@@ -946,7 +946,7 @@ async function gerarEbookPDF(textoBruto: string) {
     const opacidadeSegura = Math.round(parseFloat(boxOpacity || '0.92') * 100);
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap');
 
 :root {
   --color-bg: ${paleta.bg};
@@ -958,8 +958,8 @@ async function gerarEbookPDF(textoBruto: string) {
   --font-body: ${['Arial', 'Verdana', 'Poppins', 'Lato'].includes(fontFamily) ? `'${fontFamily}', sans-serif` : `'${fontFamily}', serif`};
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
-  --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#f3f4f6'} ${opacidadeSegura}%, transparent);
+  --text-indent: ${recuoParagrafo === '0px' ? '0px' : recuoParagrafo};
+  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#e2e8f0'} ${opacidadeSegura}%, transparent);
 }
 
 body {
@@ -977,6 +977,13 @@ ${indexShowSubtopics ? '' : '.toc-subtopic { display: none !important; }'}
 
 img.chapter-banner-img { width: 100% !important; height: 300px !important; object-fit: cover !important; border-radius: 8px !important; margin: 15px 0 !important; display: block !important; }
 h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !important; font-family: var(--font-heading) !important; font-size: 1.8rem !important; }
+
+/* O SUBTÍTULO NOVO: Maior, elegante e com linha embaixo */
+h3.subtopic-title { 
+  font-weight: 800; font-size: 1.6rem !important; margin-top: 2rem; margin-bottom: 1em !important; 
+  color: var(--color-primary); line-height: 1.2; text-align: left; 
+  border-bottom: 2px solid var(--color-primary); padding-bottom: 0.3rem; display: inline-block;
+}
 .page-container > h3.subtopic-title:first-of-type, .page-container > .page-header + h3.subtopic-title { margin-top: 0 !important; }
 
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
@@ -989,7 +996,6 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 
 .chapter-text-page { padding-top: 20mm !important; }
 
-/* AVISO LEGAL: Agora justificado no topo, impedindo de atropelar a linha do rodapé */
 .legal-page { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 35mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
 .legal-page p { font-size: 1rem; line-height: 1.8; margin-bottom: 1.2rem; text-align: justify; }
@@ -1005,21 +1011,26 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   display: none !important; opacity: 0 !important; visibility: hidden !important;
 }
 
+/* A CAPA PREMIUM RESTAURADA */
 .cap-img-overlay { 
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
   background-size: cover !important; background-position: center !important; background-color: var(--color-bg);
   display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
   padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
 }
-.cap-img-overlay::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)); z-index: 31; }
+.cap-img-overlay::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,0.65)); z-index: 31; }
 .cap-img-overlay .cap-overlay-box { 
-  background: var(--cap-box-bg) !important; backdrop-filter: blur(10px); padding: 50px 40px !important; border-radius: 12px !important; 
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4); width: 100% !important; max-width: 85% !important; text-align: center !important; z-index: 32; position: relative;
+  background: var(--cap-box-bg) !important; backdrop-filter: blur(8px); padding: 50px 40px !important; border-radius: 12px !important; 
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+  width: 100% !important; max-width: 85% !important; text-align: center !important; z-index: 32; position: relative;
 }
-.cap-img-overlay h1.chapter-title-exclusive { margin: 0 !important; color: var(--color-primary) !important; font-size: 2.8rem !important; line-height: 1.2 !important; font-weight: 800; font-family: var(--font-heading); }
+.cap-img-overlay h1.chapter-title-exclusive { 
+  margin: 0 !important; color: var(--color-primary) !important; font-size: 3.2rem !important; 
+  line-height: 1.1 !important; font-weight: 900; letter-spacing: -1px; text-transform: uppercase;
+  font-family: var(--font-heading); text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
 
 .page-cover-img { background: url('${imagemCapaUrl}') center/cover no-repeat !important; color: #ffffff; }
-
 .page-header { position: absolute; top: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--color-primary); opacity: 0.8; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px; }
 .page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
 .page-number { margin-left: auto !important; }
@@ -1029,6 +1040,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; text-align: center; }
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
+/* RECUO BLINDADO: Apenas 0px ou o recuo escolhido */
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; }
 
 blockquote { font-style: italic; color: var(--color-text); border-left: 4px solid var(--color-primary); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
@@ -1063,7 +1075,7 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta id="meta-header-text" content="${textoCabecalho}">
-<meta id="meta-book-title" content="${livroTitulo}"> <!-- NOVA LINHA AQUI -->
+<meta id="meta-book-title" content="${livroTitulo}">
 <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -1378,24 +1390,18 @@ ${ebookStyles}
 
   function desfazerCodigo() {
     setHistoricoCodigo((prev) => {
-      // Se não tem histórico ou só tem 1, volta o livro para o zero absoluto
-      if (prev.length <= 1) {
-        setHtmlAtual('');
-        localStorage.removeItem('ebook_draft_html');
-        setRecarregarIframe(p => !p); // OBRIGA o Iframe a reiniciar do zero
-        return [];
+      if (prev.length === 0) {
+        (window as any).showNotification('Não há mais ações para desfazer.', 'info');
+        return prev;
       }
-
       const novoHistorico = [...prev];
-      novoHistorico.pop(); // Joga fora o estado atual (bagunçado)
-      const estadoAnterior = novoHistorico[novoHistorico.length - 1]; // Pega o estado anterior real
-
-      if (estadoAnterior !== undefined) {
-        setHtmlAtual(estadoAnterior);
-        localStorage.setItem('ebook_draft_html', estadoAnterior);
-        setRecarregarIframe(p => !p); // OBRIGA o Iframe a recarregar do zero com o texto antigo limpo
-      }
+      const estadoAnterior = novoHistorico.pop(); // Pega exatamente o estado anterior (1 passo atrás)
       
+      setHtmlAtual(estadoAnterior);
+      localStorage.setItem('ebook_draft_html', estadoAnterior);
+      setRecarregarIframe(true); // Força o iframe a recarregar limpo
+      
+      (window as any).showNotification('Ação desfeita com sucesso.', 'success');
       return novoHistorico;
     });
   }
@@ -1992,7 +1998,7 @@ async function finalizarEbookEtapas() {
     }
   }, [
     fontFamily, tamanhoFonteBase, tipoBorda, paletaCores, corManualPri, 
-    corManualSec, corManualText, corManualBg, estiloRodape, recuoParagrafo, 
+    corManualSec, corManualText, corManualBg, estiloRodape, 
     alinhamentoCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, 
     bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, indexShowSubtopics,
     boxColorHex, boxOpacity
