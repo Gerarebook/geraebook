@@ -16,7 +16,8 @@ const REQUISICOES_POR_MODELO_GRATIS = 2;
 const MODELOS_GEMINI_GRATIS = [
     "gemini-3.7-flash",
     "gemini-3.6-flash",
-    "gemini-3.5-flash",           
+    "gemini-3.5-flash",
+    "gemini-2.5-flash"           
 ];
 
 // 2. Modelos de Texto Super Econômicos para a sua API Paga (2 Modelos)
