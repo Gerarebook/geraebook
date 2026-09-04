@@ -4,6 +4,7 @@
 import { supabase } from '@/lib/supabase';
 import React, { useEffect, useState, useRef } from 'react';
 import { jsPDF } from 'jspdf';
+
 // ============================================================
 // FUNÇÕES AUXILIARES DE PAGINAÇÃO E ÍNDICE (UNIFICADAS)
 // ============================================================
@@ -274,6 +275,7 @@ function getScriptPreview(
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
             const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
             const cacheBuster = Math.random().toString(36).substring(7);
+            // Usa a API de featured com parâmetro de cache
             overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},sig\${cacheBuster}')\`, 'important');
          }
       });
@@ -318,6 +320,10 @@ function getScriptPreview(
 
       container.querySelectorAll('hr').forEach(hr => hr.remove());
       container.querySelectorAll('p').forEach(p => {
+          // REMOVER FALSO RECUO: espaços iniciais e &nbsp;
+          if (p.innerHTML) {
+            p.innerHTML = p.innerHTML.replace(/^(&nbsp;|\\s)+/g, '');
+          }
           if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
       });
 
@@ -394,13 +400,17 @@ function getScriptPreview(
           let el = elementosIA[i];
           let deveQuebrar = false;
 
+          // REGRA DE QUEBRA DE PÁGINA:
           if (atual.areaTexto.children.length > 0) {
+            // H1, H2 ou capa de capítulo forçam quebra
             if (el.tagName === 'H1' || el.tagName === 'H2' || el.classList.contains('cap-img-overlay')) {
               deveQuebrar = true; 
             } 
+            // Se a página atual já tem uma capa de capítulo, qualquer elemento seguinte quebra
             else if (atual.areaTexto.querySelector('.cap-img-overlay') || atual.areaTexto.classList.contains('cap-img-overlay')) {
               deveQuebrar = true;
             }
+            // H3 quebra apenas se já houver outros elementos de texto na página
             else if (el.tagName === 'H3' && atual.areaTexto.querySelectorAll('p, blockquote, ul, .highlight-box, img').length > 0) {
               deveQuebrar = true; 
             }
@@ -410,7 +420,9 @@ function getScriptPreview(
 
           atual.areaTexto.appendChild(el);
 
+          // Verifica estouro de altura e cria nova página se necessário
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
+            // Não quebra se for uma capa de capítulo (imagem)
             if (!el.classList.contains('cap-img-overlay')) {
               if (atual.areaTexto.children.length > 1) {
                   atual.areaTexto.removeChild(el); 
@@ -764,7 +776,7 @@ export default function Home() {
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  const [boxColorHex, setBoxColorHex] = useState('#e2e8f0');
+  const [boxColorHex, setBoxColorHex] = useState('#f3f4f6');
   const [boxOpacity, setBoxOpacity] = useState('0.92');
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
@@ -817,7 +829,7 @@ async function gerarEbookPDF(textoBruto: string) {
     const lines = textoBruto.split('\n');
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim(); // <--- É esta linha que define a variável 'line'
+      let line = lines[i].trim();
       if (line === '') {
           yPos += lineHeight;
           if (yPos > pageBottom) { doc.addPage(); yPos = margin; }
@@ -879,7 +891,6 @@ async function gerarEbookPDF(textoBruto: string) {
   // ============================================================
 
   function getPaletaObj() {
-    // Modo Personalizado: Títulos (pri), subtítulos (sec) e bordas acompanham a cor exata do texto escolhido.
     if (paletaCores === 'manual') {
       return { bg: corManualBg, text: corManualText, pri: corManualText, sec: corManualText, borda: corManualText };
     }
@@ -939,14 +950,15 @@ async function gerarEbookPDF(textoBruto: string) {
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
     clean = clean.replace(/<style id="ebook-dynamic-styles">[\s\S]*?<\/style>/gi, '');
-    clean = clean.replace(/<p>(\s|&nbsp;)+/gi, '<p>'); // MATA O FALSO RECUO DA IA!
+    // REMOVE FALSO RECUO (espaços iniciais e &nbsp;)
+    clean = clean.replace(/<p>(\s|&nbsp;)+/gi, '<p>');
     
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
     const opacidadeSegura = Math.round(parseFloat(boxOpacity || '0.92') * 100);
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
 :root {
   --color-bg: ${paleta.bg};
@@ -958,8 +970,8 @@ async function gerarEbookPDF(textoBruto: string) {
   --font-body: ${['Arial', 'Verdana', 'Poppins', 'Lato'].includes(fontFamily) ? `'${fontFamily}', sans-serif` : `'${fontFamily}', serif`};
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
-  --text-indent: ${recuoParagrafo === '0px' ? '0px' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#e2e8f0'} ${opacidadeSegura}%, transparent);
+  --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
+  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#f3f4f6'} ${opacidadeSegura}%, transparent);
 }
 
 body {
@@ -977,13 +989,6 @@ ${indexShowSubtopics ? '' : '.toc-subtopic { display: none !important; }'}
 
 img.chapter-banner-img { width: 100% !important; height: 300px !important; object-fit: cover !important; border-radius: 8px !important; margin: 15px 0 !important; display: block !important; }
 h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !important; font-family: var(--font-heading) !important; font-size: 1.8rem !important; }
-
-/* O SUBTÍTULO NOVO: Maior, elegante e com linha embaixo */
-h3.subtopic-title { 
-  font-weight: 800; font-size: 1.6rem !important; margin-top: 2rem; margin-bottom: 1em !important; 
-  color: var(--color-primary); line-height: 1.2; text-align: left; 
-  border-bottom: 2px solid var(--color-primary); padding-bottom: 0.3rem; display: inline-block;
-}
 .page-container > h3.subtopic-title:first-of-type, .page-container > .page-header + h3.subtopic-title { margin-top: 0 !important; }
 
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
@@ -996,6 +1001,7 @@ h3.subtopic-title {
 
 .chapter-text-page { padding-top: 20mm !important; }
 
+/* AVISO LEGAL: justificado ao topo com padding-top 35mm */
 .legal-page { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 35mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
 .legal-page p { font-size: 1rem; line-height: 1.8; margin-bottom: 1.2rem; text-align: justify; }
@@ -1011,26 +1017,51 @@ h3.subtopic-title {
   display: none !important; opacity: 0 !important; visibility: hidden !important;
 }
 
-/* A CAPA PREMIUM RESTAURADA */
+/* CAPA DO LIVRO: centralização perfeita */
+.page-cover-img {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center;
+  background: url('${imagemCapaUrl}') center/cover no-repeat !important;
+  color: #ffffff;
+}
+.page-cover-img h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem 0;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.page-cover-img p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+/* CAPA DO CAPÍTULO - fundo 100% fotográfico, box flutuante com cor neutra e backdrop */
 .cap-img-overlay { 
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
   background-size: cover !important; background-position: center !important; background-color: var(--color-bg);
   display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
   padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
 }
-.cap-img-overlay::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,0.65)); z-index: 31; }
+.cap-img-overlay::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)); z-index: 31; }
 .cap-img-overlay .cap-overlay-box { 
-  background: var(--cap-box-bg) !important; backdrop-filter: blur(8px); padding: 50px 40px !important; border-radius: 12px !important; 
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
-  width: 100% !important; max-width: 85% !important; text-align: center !important; z-index: 32; position: relative;
+  background: var(--cap-box-bg) !important; backdrop-filter: blur(10px); padding: 50px 40px !important; border-radius: 12px !important; 
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4); width: 100% !important; max-width: 85% !important; text-align: center !important; z-index: 32; position: relative;
 }
-.cap-img-overlay h1.chapter-title-exclusive { 
-  margin: 0 !important; color: var(--color-primary) !important; font-size: 3.2rem !important; 
-  line-height: 1.1 !important; font-weight: 900; letter-spacing: -1px; text-transform: uppercase;
-  font-family: var(--font-heading); text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+.cap-img-overlay h1.chapter-title-exclusive {
+  margin: 0 !important;
+  color: var(--color-primary) !important;
+  font-size: 2.2rem !important;
+  line-height: 1.2 !important;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  /* REMOVER uppercase forçado */
+  text-transform: none !important;
 }
 
-.page-cover-img { background: url('${imagemCapaUrl}') center/cover no-repeat !important; color: #ffffff; }
 .page-header { position: absolute; top: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--color-primary); opacity: 0.8; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px; }
 .page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
 .page-number { margin-left: auto !important; }
@@ -1040,7 +1071,15 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; text-align: center; }
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-/* RECUO BLINDADO: Apenas 0px ou o recuo escolhido */
+/* SUBTÍTULOS (H3) - sem border-bottom */
+h3 {
+  font-size: 1.4rem !important;
+  font-weight: 600;
+  margin-top: 1.2rem;
+  margin-bottom: 0.8rem;
+  border-bottom: none !important;
+}
+
 p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; }
 
 blockquote { font-style: italic; color: var(--color-text); border-left: 4px solid var(--color-primary); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
@@ -1112,20 +1151,13 @@ ${ebookStyles}
   // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
   // ============================================================
   function ajustarParagrafos(html: string): string {
-    // Cria um parser simples para ajustar o comprimento dos parágrafos
-    // sem quebrar a estrutura HTML.
-    // Estratégia: se um parágrafo tiver menos de 300 caracteres, não faz nada;
-    // se tiver mais de 600, tenta quebrar em dois parágrafos.
-    // Isso garante uma consistência visual sem depender da IA.
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     const paragrafos = tempDiv.querySelectorAll('p');
     paragrafos.forEach(p => {
       let texto = p.textContent || '';
-      // Remove espaços extras
       texto = texto.replace(/\s+/g, ' ').trim();
       if (texto.length > 600) {
-        // Tenta quebrar na última frase antes de 450 caracteres
         const mid = Math.min(450, texto.length);
         let breakPos = texto.lastIndexOf('. ', mid);
         if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
@@ -1133,7 +1165,6 @@ ${ebookStyles}
         if (breakPos !== -1) {
           const p1 = texto.substring(0, breakPos + 1);
           const p2 = texto.substring(breakPos + 2);
-          // Substitui o conteúdo do parágrafo atual e insere um novo após ele
           p.textContent = p1;
           const novoP = document.createElement('p');
           novoP.textContent = p2;
@@ -1156,7 +1187,6 @@ ${ebookStyles}
     cleanNovo = cleanNovo.replace(/<!DOCTYPE[^>]*>/gi, '').replace(/<\/?html[^>]*>/gi, '').trim();
 
     try {
-        // INJEÇÃO ULTRA BLINDADA: Usa o navegador para juntar os códigos sem quebrar nada
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlBase, 'text/html');
         const container = doc.getElementById('ebook-container');
@@ -1168,6 +1198,7 @@ ${ebookStyles}
         console.error('Erro na injeção segura, usando fallback');
     }
 
+    // Fallback: insere antes do último </div> (que é o fechamento do container)
     const lastDivIndex = htmlBase.lastIndexOf('</div>');
     if (lastDivIndex !== -1) {
       return htmlBase.substring(0, lastDivIndex) + '\n' + cleanNovo + '\n' + htmlBase.substring(lastDivIndex);
@@ -1177,7 +1208,7 @@ ${ebookStyles}
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
     let novoConteudo = purificarHTML(htmlCru);
-    novoConteudo = ajustarParagrafos(novoConteudo); // <-- pós-processamento
+    novoConteudo = ajustarParagrafos(novoConteudo);
 
     let htmlFinal = '';
     if (isInjetar) {
@@ -1206,7 +1237,7 @@ ${ebookStyles}
     return `
     <div class="page-container legal-page">
   <div class="page-header"><span></span><span>AVISOS LEGAIS</span></div>
-  <div class="content-area" style="display: flex; flex-direction: column; justify-content: center; height: 100%; text-align: justify; font-size: 11px; line-height: 1.5; padding: 0 10px;">
+  <div class="content-area" style="display: flex; flex-direction: column; justify-content: flex-start; height: 100%; text-align: justify; font-size: 11px; line-height: 1.5; padding: 0 10px;">
     
     <h2 class="chapter-title-inline" style="text-align: center; margin-bottom: 20px;">Avisos Legais & Direitos Autorais</h2>
     
@@ -1388,20 +1419,33 @@ ${ebookStyles}
     (window as any).showNotification('Elemento transformado!', 'success');
   }
 
+  // ============================================================
+  // BOTÃO DESFAZER - CORRIGIDO
+  // ============================================================
   function desfazerCodigo() {
     setHistoricoCodigo((prev) => {
-      if (prev.length === 0) {
-        (window as any).showNotification('Não há mais ações para desfazer.', 'info');
-        return prev;
+      if (prev.length <= 1) {
+        // Se só tem o estado inicial ou nenhum, reseta para branco
+        setHtmlAtual('');
+        localStorage.removeItem('ebook_draft_html');
+        setRecarregarIframe(p => !p);
+        return [];
       }
+
       const novoHistorico = [...prev];
-      const estadoAnterior = novoHistorico.pop(); // Pega exatamente o estado anterior (1 passo atrás)
+      novoHistorico.pop(); // remove o estado atual (o último)
+      const estadoAnterior = novoHistorico[novoHistorico.length - 1]; // pega o penúltimo
+
+      if (estadoAnterior !== undefined) {
+        setHtmlAtual(estadoAnterior);
+        localStorage.setItem('ebook_draft_html', estadoAnterior);
+        setRecarregarIframe(p => !p);
+      } else {
+        setHtmlAtual('');
+        localStorage.removeItem('ebook_draft_html');
+        setRecarregarIframe(p => !p);
+      }
       
-      setHtmlAtual(estadoAnterior);
-      localStorage.setItem('ebook_draft_html', estadoAnterior);
-      setRecarregarIframe(true); // Força o iframe a recarregar limpo
-      
-      (window as any).showNotification('Ação desfeita com sucesso.', 'success');
       return novoHistorico;
     });
   }
@@ -1559,11 +1603,9 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
   function baixarArquivo(html: string, titulo: string) {
-    // Garante que o arquivo baixado leve consigo todo o motor de estilo e scripts visuais atualizados
     const htmlCompleto = moldarApresentacaoHtml(html);
     const scriptInjetado = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     
-    // Injeta o motor rodando no arquivo final para manter o índice e paginação idênticos ao painel
     const htmlProntoParaImpressao = htmlCompleto.replace('</body>', `<script>${scriptInjetado.replace(/<script>|<\/script>/g, '')}</script>\n</body>`);
 
     const blob = new Blob([htmlProntoParaImpressao], { type: 'text/html;charset=utf-8' });
@@ -1982,13 +2024,14 @@ async function finalizarEbookEtapas() {
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Recarregar iframe travado APENAS para nova geração ou botão desfazer
+  // Recarregar iframe apenas quando necessário (desfazer ou novas gerações)
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
     }
-  }, [htmlAtual, recarregarIframe]); // TRAVADO: Removemos o gatilho de recuo e botões de fundo daqui!
-  // Reaplicar estilos ao mudar configurações visuais
+  }, [htmlAtual, recarregarIframe]);
+
+  // Reaplicar estilos ao mudar configurações visuais (exceto recuo, que é removido do gatilho)
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
@@ -2002,8 +2045,10 @@ async function finalizarEbookEtapas() {
     alinhamentoCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, 
     bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, indexShowSubtopics,
     boxColorHex, boxOpacity
+    // recuoParagrafo removido para evitar reflow desnecessário
   ]);
-    const isTextElement = elementoSelecionado
+
+  const isTextElement = elementoSelecionado
     ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
         elementoSelecionado.tagName.toLowerCase()
       )
