@@ -268,7 +268,6 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // --- MÁGICA UNSPLASH BLINDADA (Força o carregamento ignorando cache do navegador) ---
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          let bg = overlay.style.backgroundImage || '';
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
@@ -361,8 +360,7 @@ function getScriptPreview(
         contentArea.style.display = 'flex';
         contentArea.style.flexDirection = 'column';
         contentArea.style.width = '100%'; 
-        // CORREÇÃO DEFINITIVA DA MARGEM: Força o texto para baixo de forma bruta, ignorando o CSS!
-        contentArea.style.marginTop = '8mm'; 
+        contentArea.style.marginTop = '2mm'; 
         novaPagina.appendChild(contentArea);
 
         const footer = document.createElement('div');
@@ -393,8 +391,6 @@ function getScriptPreview(
             else if (atual.areaTexto.querySelector('.cap-img-overlay') || atual.areaTexto.classList.contains('cap-img-overlay')) {
               deveQuebrar = true;
             }
-            // REGRA CIENTÍFICA DO SUBTÓPICO: O H3 quebra para o topo da página, 
-            // MAS SÓ QUEBRA se a página atual já tiver textos ou conteúdos lidos! (Isso resolve a Introdução e mantem o H3 no topo)
             else if (el.tagName === 'H3' && atual.areaTexto.querySelectorAll('p, blockquote, ul, .highlight-box, img').length > 0) {
               deveQuebrar = true; 
             }
@@ -603,7 +599,29 @@ function getScriptPreview(
             if (e.data.bgImage !== undefined) target.style.setProperty('background-image', \`url(\${e.data.bgImage})\`, 'important');
             if (e.data.rawBgImage !== undefined) target.style.setProperty('background-image', e.data.rawBgImage, 'important');
             if (e.data.textColor !== undefined) target.style.setProperty('color', e.data.textColor, 'important');
-            if (e.data.bgColor !== undefined) target.style.setProperty('background-color', e.data.bgColor, 'important');
+            
+            // --- CONVERSOR MÁGICO DE COR SÓLIDA PARA TRANSPARENTE (RGBA) ---
+            if (e.data.bgColor !== undefined) {
+                target.dataset.rawHex = e.data.bgColor;
+                let op = target.dataset.bgOp || (target.classList.contains('cap-overlay-box') ? '0.92' : '1');
+                let hex = e.data.bgColor.replace('#','');
+                if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
+                let r = parseInt(hex.substring(0,2), 16) || 255;
+                let g = parseInt(hex.substring(2,4), 16) || 255;
+                let b = parseInt(hex.substring(4,6), 16) || 255;
+                target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${op})\`, 'important');
+            }
+            if (e.data.bgOpacity !== undefined) {
+                target.dataset.bgOp = e.data.bgOpacity;
+                let hex = target.dataset.rawHex || rgbToHex(window.getComputedStyle(target).backgroundColor) || '#f5f5f5';
+                hex = hex.replace('#','');
+                if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
+                let r = parseInt(hex.substring(0,2), 16) || 245;
+                let g = parseInt(hex.substring(2,4), 16) || 245;
+                let b = parseInt(hex.substring(4,6), 16) || 245;
+                target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${e.data.bgOpacity})\`, 'important');
+            }
+            
             if (e.data.fontSize !== undefined) target.style.setProperty('font-size', e.data.fontSize + 'px', 'important');
             if (e.data.fontWeight !== undefined) target.style.setProperty('font-weight', e.data.fontWeight, 'important');
             if (e.data.textAlign !== undefined) target.className = target.className.replace(/text-(left|center|right|justify)/, '') + ' ' + e.data.textAlign;
@@ -629,16 +647,16 @@ function getScriptPreview(
       }
     });  
 
-    // ADICIONAMOS A CLASSE .cap-img-overlay PARA O PAINEL LER O CLIQUE DA CAPA NOVA!
+    // AGORA A CAIXA PODE SER CLICADA PARA EDITAR
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay, .cap-overlay-box');
       if (el && el !== selectedEl) el.style.outline = '2px dashed rgba(99,102,241,0.5)';
     });
     
     document.addEventListener('mouseout', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay, .cap-overlay-box');
       if (el && el !== selectedEl) el.style.outline = '';
     });
     
@@ -659,7 +677,7 @@ function getScriptPreview(
       
       e.preventDefault(); 
       e.stopPropagation();
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay, .cap-overlay-box');
       
       if (el) {
          if (selectedEl) selectedEl.style.outline = '';
@@ -677,7 +695,6 @@ function getScriptPreview(
             text: el.innerHTML,
             src: el.src,
             bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
-            // AQUI É A MÁGICA: O painel agora vai tratar o clique na capa como "Alvo de Fundo" para o Unsplash e Upload!
             isBgTarget: el.classList.contains('page-container') || el.classList.contains('cap-img-overlay'),
             textColor: rgbToHex(computed.color),
             bgColor: rgbToHex(computed.backgroundColor),
