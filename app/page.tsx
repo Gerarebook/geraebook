@@ -286,17 +286,9 @@ function getScriptPreview(
         modeloFooter = footerExistente.innerHTML;
       }
 
-      let modeloFooter = '<span class="page-number"></span>';
-      const footerExistente = container.querySelector('.page-footer');
-      if (footerExistente) {
-        modeloFooter = footerExistente.innerHTML;
-      }
-
       // A BLINDAGEM SUPREMA: Desempacota TODA e qualquer página que não seja fixa!
-      // Destrói containers falsos criados pela IA e garante paginação 100% fluida.
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
-        // Se for Capa, Aviso Legal, Índice ou Autor, PROTEGE e não mexe!
         if (p.classList.contains('page-cover-img') || 
             p.classList.contains('page-cover-pura') || 
             p.classList.contains('page-cover-text') || 
@@ -306,10 +298,7 @@ function getScriptPreview(
             return; 
         }
         
-        // Se for página de texto (Intro ou Capítulos), ARRANCA O CONTEÚDO PARA FORA!
         const area = p.querySelector('.content-area') || p;
-        
-        // Extermina cabeçalhos e rodapés velhos criados pela IA para não duplicar
         p.querySelectorAll('.page-header, .page-footer').forEach(l => l.remove());
 
         while (area.firstChild) {
@@ -318,15 +307,13 @@ function getScriptPreview(
         p.remove();
       });
 
-      // EXTERMINADOR DE LIXO DA IA (Remove linhas fantasmas e parágrafos vazios que causam páginas em branco)
+      // EXTERMINADOR DE LIXO DA IA
       container.querySelectorAll('hr').forEach(hr => hr.remove());
       container.querySelectorAll('p').forEach(p => {
           if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
       });
 
       // Coleta os elementos soltos para repaginar com JS Puro
-      const elementosIA = Array.from(container.children).filter(el =>
-
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
@@ -507,7 +494,8 @@ function getScriptPreview(
         });
       }
 
-      sincronizarIndice();
+      // Sincroniza com segurança garantindo que o DOM carregou
+      setTimeout(() => sincronizarIndice(), 100);
 
       let chIndex = 0;
       let currentChapterImg = '';
