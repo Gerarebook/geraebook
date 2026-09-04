@@ -158,7 +158,7 @@ function executarRefluxoCompleto(
             if (!indexShowSubtopics) return;
             a.classList.add('toc-subtopic');
             a.style.paddingLeft = '20px';
-            a.style.fontSize = '0.75em'; // CORREÇÃO: menor e mais compacto
+            a.style.fontSize = '0.75em';
             a.style.lineHeight = '1';
             a.style.opacity = '0.85';
           }
@@ -361,7 +361,6 @@ function getScriptPreview(
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg === '')) {
             const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
             const cacheBuster = Math.random().toString(36).substring(7);
-            // CORREÇÃO: Fallback com abstract,texture se a palavra-chave falhar
             overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},abstract,texture,sig\${cacheBuster}')\`, 'important');
          }
       });
@@ -445,7 +444,8 @@ function getScriptPreview(
           }
       }
 
-      const LIMITE_ALTURA_TEXTO = 830; 
+      // CORREÇÃO: Aumentar limite para 940
+      const LIMITE_ALTURA_TEXTO = 940; 
 
       function criarNovaPagina() {
         const novaPagina = document.createElement('div');
@@ -497,7 +497,7 @@ function getScriptPreview(
               deveQuebrar = true;
             }
             // H3 quebra apenas se já houver outros elementos de texto na página
-            else if (el.tagName === 'H3' && atual.areaTexto.querySelectorAll('p, blockquote, ul, .highlight-box, img').length > 0) {
+            else if (el.tagName === 'H3' && atual.areaTexto.querySelectorAll('p, blockquote, ul, .highlight-box, .concept-box, img').length > 0) {
               deveQuebrar = true; 
             }
           }
@@ -755,12 +755,16 @@ function getScriptPreview(
          }
       }
       
+      // CORREÇÃO: Manter scroll ao desfazer
       if (e.data.type === 'UNDO_HTML') {
          const scrollY = window.scrollY;
          document.getElementById('ebook-container').innerHTML = e.data.html;
+         // Aguarda o reflow e restaura a posição
          setTimeout(() => {
             executarRefluxoCompleto();
-            window.scrollTo(0, scrollY);
+            requestAnimationFrame(() => {
+               window.scrollTo(0, scrollY);
+            });
          }, 50);
       }
 
@@ -830,13 +834,13 @@ function getScriptPreview(
 
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay, .cap-overlay-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box');
       if (el && el !== selectedEl) el.style.outline = '2px dashed rgba(99,102,241,0.5)';
     });
     
     document.addEventListener('mouseout', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay, .cap-overlay-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box');
       if (el && el !== selectedEl) el.style.outline = '';
     });
     
@@ -857,7 +861,7 @@ function getScriptPreview(
       
       e.preventDefault(); 
       e.stopPropagation();
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .cap-img-overlay, .cap-overlay-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box');
       
       if (el) {
          if (selectedEl) selectedEl.style.outline = '';
@@ -938,8 +942,8 @@ export default function Home() {
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  // CORREÇÃO: Box preto translúcido (estado inicial)
-  const [boxColorHex, setBoxColorHex] = useState('#000000');
+  // CORREÇÃO: Box azul (blue-900) em vez de preto
+  const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
   const [boxOpacity, setBoxOpacity] = useState('0.70');
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
@@ -1071,14 +1075,19 @@ export default function Home() {
     }
   }
 
+  // CORREÇÃO: purificarHTML preservando atributos essenciais
   function purificarHTML(rawHtml: string) {
     let clean = rawHtml;
+    // Remove markdown, mas preserva conteúdo
     const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
     if (markdownMatch) clean = markdownMatch[1];
     clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
 
+    // Remove apenas scripts e estilos injetados que são lixo
     clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
     clean = clean.replace(/<style id="builder-core-styles">[\s\S]*?<\/style>/gi, '');
+    
+    // Remove atributos de edição, mas preserva data-* e style
     clean = clean.replace(/\bbuilder-editing\b/gi, '');
     clean = clean
       .replace(/cursor:\s*pointer;?/gi, '')
@@ -1088,22 +1097,31 @@ export default function Home() {
       .replace(/outline-offset:\s*-3px;?/gi, '')
       .replace(/data-old-outline="[^"]*"/gi, '')
       .replace(/\s*style="\s*"/gi, '');
+    
+    // Preserva classes válidas
     clean = clean.replace(/ class="\s*"/gi, '');
 
+    // Remove tags <br> e parágrafos vazios
     clean = clean.replace(/<br\s*\/?>/gi, '');
     clean = clean.replace(/<p>[\s\n\r&nbsp;]*<\/p>/gi, '');
 
+    // Limpa placeholders de numeração (preserva estrutura)
     clean = clean.replace(/<span class="toc-page-num">[^<]*<\/span>/gi, '<span class="toc-page-num"></span>');
     clean = clean.replace(/<span class="page-number( circulo)?">[^<]*<\/span>/gi, '<span class="page-number$1"></span>');
 
+    // Corrige estrutura de índice
     clean = clean.replace(/<p>\s*<a class="toc-item"/gi, '<a class="toc-item"');
     clean = clean.replace(/<\/a>\s*<\/p>/gi, '</a>');
     clean = clean.replace(/<p>\s*<div class="toc-container"/gi, '<div class="toc-container"');
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
-    // Limpa estilos invasivos
-    clean = clean.replace(/<p\s+[^>]*>/gi, '<p>');
+    // Não remove <p> com style ou data-*; apenas limpa atributos vazios
+    clean = clean.replace(/<p\s+[^>]*>/gi, (match) => {
+      // Mantém style, data-*, class
+      if (/style\s*=|data-|class\s*=/i.test(match)) return match;
+      return '<p>';
+    });
 
     return clean.trim();
   }
@@ -1136,7 +1154,7 @@ export default function Home() {
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
   --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#000000'} ${opacidadeSegura}%, transparent);
+  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#1e3a8a'} ${opacidadeSegura}%, transparent);
 }
 
 body {
@@ -1210,7 +1228,9 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 /* CAPA DO CAPÍTULO - fundo 100% fotográfico, box flutuante com cor neutra e backdrop */
 .cap-img-overlay { 
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
-  background-size: cover !important; background-position: center !important; background-color: var(--color-bg);
+  background-size: cover !important; background-position: center !important;
+  /* CORREÇÃO: fundo degradê azul como fallback */
+  background-image: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;
   display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
   padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
 }
@@ -1263,6 +1283,26 @@ p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) 
 
 blockquote { font-style: italic; color: var(--color-text); border-left: 4px solid var(--color-primary); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
 .highlight-box { background: color-mix(in srgb, var(--color-text) 8%, transparent); border-left: 4px solid var(--color-primary); padding: 12px 18px; border-radius: 8px; margin: 1rem 0; font-weight: 500; font-size: ${tamanhoFonteBase}; display: flex; align-items: center; gap: 12px; }
+
+/* CORREÇÃO: Nova classe concept-box */
+.concept-box {
+  background: #eff6ff; /* azul muito claro */
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin: 1.5rem 0 1rem 0;
+  text-align: center;
+  font-weight: 500;
+  font-size: ${tamanhoFonteBase};
+  color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.concept-box i {
+  display: block;
+  font-size: 2rem !important;
+  margin-bottom: 0.5rem;
+  color: var(--color-primary);
+}
 
 img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; margin: 1rem auto; display: block; object-fit: cover; }
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
@@ -1923,25 +1963,28 @@ Mantenha a consistência visual com o resto do e-book.`;
         </div>
      </div>
 
-     <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) - Reduzido para caber com highlight-box -->
+     <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) -->
      <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
      <p>[Parágrafo 1 - Aprox 50 palavras]</p>
      <p>[Parágrafo 2 - Aprox 50 palavras]</p>
      <p>[Parágrafo 3 - Aprox 50 palavras]</p>
      <p>[Parágrafo 4 - Aprox 50 palavras]</p>
+     <div class="concept-box"><i class="fas fa-lightbulb"></i> [Insira aqui uma IDEIA CENTRAL ou CONCEITO-CHAVE para concluir a página]</div>
 
-     <!-- PÁGINA 3: O Aprofundamento (Meio) - Reduzido para caber com highlight-box -->
+     <!-- PÁGINA 3: O Aprofundamento (Meio) -->
      <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
      <p>[Parágrafo 5 - Aprox 60 palavras]</p>
      <p>[Parágrafo 6 - Aprox 60 palavras]</p>
      <p>[Parágrafo 7 - Aprox 60 palavras]</p>
-     <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA PRÁTICA para fechar a página]</div>
+     <p>[Parágrafo 8 - Aprox 60 palavras]</p>
+     <div class="highlight-box"><i class="fas fa-highlighter"></i> [Insira aqui um TEXTO RELEVANTE ou DICA PRÁTICA para fechar a página]</div>
 
      <!-- PÁGINA 4: A Concretização (Fim do Capítulo) -->
      <h3 class="subtopic-title">[Subtítulo Final]</h3>
-     <p>[Parágrafo 8 - Aprox 70 palavras]</p>
      <p>[Parágrafo 9 - Aprox 70 palavras]</p>
      <p>[Parágrafo 10 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 11 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 12 - Aprox 70 palavras]</p>
      <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL impactante para fechar a última página]</blockquote>
 
   4. REGRA DE SEGURANÇA (LEIA COM ATENÇÃO): 
@@ -2532,7 +2575,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                         className="input-standard resize-y"
                         placeholder="Descreva os capítulos ou cole seu texto aqui..."
                       ></textarea>
-                      {/* CORREÇÃO: Checkbox desabilitado após início do livro */}
                       <label className="flex items-center gap-2 mt-4 mb-2 text-xs font-bold text-slate-700 cursor-pointer">
                         <input
                           type="checkbox"
@@ -2770,7 +2812,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                         </button>
                       </div>
 
-                      {/* CORREÇÃO: Botão Desfazer dentro do inspetor */}
                       <button
                         onClick={desfazerCodigo}
                         className="w-full mb-4 bg-yellow-50 hover:bg-yellow-100 border border-yellow-300 text-yellow-700 font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2"
@@ -2842,7 +2883,6 @@ Mantenha a consistência visual com o resto do e-book.`;
                               >
                                 <i className="fas fa-times-circle mr-1"></i> Remover Imagem de Fundo
                               </button>
-                              {/* CORREÇÃO: Botão Aplicar cor a todas as páginas */}
                               {elementoSelecionado.isBgTarget && (
                                 <button
                                   onClick={aplicarCorGlobal}
@@ -2992,7 +3032,7 @@ Mantenha a consistência visual com o resto do e-book.`;
               </button>
             </div>
             <div className="flex items-center gap-3">
-              {/* CORREÇÃO: Botão Desfazer removido do header */}
+              {/* Botão Desfazer removido do header */}
               <button
                 onClick={() => (window as any).baixarPdf()}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md shadow-indigo-200 transition flex items-center gap-2"
