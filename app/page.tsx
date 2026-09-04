@@ -268,6 +268,15 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
+      // --- MÁGICA UNSPLASH EM TEMPO REAL ---
+      // Lê o atributo gerado pela IA e injeta a foto instantaneamente no preview
+      container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
+         if (overlay.dataset.unsplash && (!overlay.style.backgroundImage || overlay.style.backgroundImage === 'none')) {
+            const keyword = encodeURIComponent(overlay.dataset.unsplash);
+            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/?\${keyword}')\`, 'important');
+         }
+      });
+
       const metaTitle = document.getElementById('meta-book-title');
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
@@ -329,7 +338,7 @@ function getScriptPreview(
       const indexConclusao = elementosIA.findIndex(el => el.id === 'conclusao' || (el.tagName === 'H1' && (el.textContent || '').toLowerCase().includes('conclusão')));
       
       if (indexConclusao !== -1) {
-          const indexNovoCapitulo = elementosIA.findIndex((el, i) => i > indexConclusao && el.tagName === 'H2');
+          const indexNovoCapitulo = elementosIA.findIndex((el, i) => i > indexConclusao && (el.tagName === 'H2' || el.classList.contains('cap-img-overlay')));
           if (indexNovoCapitulo !== -1) {
               const partesConclusao = elementosIA.splice(indexConclusao, indexNovoCapitulo - indexConclusao);
               elementosIA.push(...partesConclusao);
@@ -378,9 +387,15 @@ function getScriptPreview(
           let deveQuebrar = false;
 
           if (atual.areaTexto.children.length > 0) {
-            if (el.tagName === 'H1' || el.tagName === 'H2') {
+            // Regra 1: Títulos antigos e a NOVA CAPA exigem página nova
+            if (el.tagName === 'H1' || el.tagName === 'H2' || el.classList.contains('cap-img-overlay')) {
               deveQuebrar = true; 
             } 
+            // Regra 2: Se a página atual JÁ TEM a capa, expulsa o texto seguinte para a página 2
+            else if (atual.areaTexto.querySelector('.cap-img-overlay') || atual.areaTexto.classList.contains('cap-img-overlay')) {
+              deveQuebrar = true;
+            }
+            // Regra 3: Subtítulos no final da página vão pra próxima
             else if (el.tagName === 'H3' && atual.areaTexto.scrollHeight > (LIMITE_ALTURA_TEXTO - 280)) {
               deveQuebrar = true; 
             }
@@ -391,18 +406,21 @@ function getScriptPreview(
           atual.areaTexto.appendChild(el);
 
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-            atual.areaTexto.removeChild(el); 
-            
-            let orfao = atual.areaTexto.lastElementChild;
-            let moveOrfao = false;
-            if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'BLOCKQUOTE')) {
-                moveOrfao = true;
-                atual.areaTexto.removeChild(orfao);
+            // Ignora o estouro de altura se for a capa de imagem (ela cuida de si mesma no CSS)
+            if (!el.classList.contains('cap-img-overlay')) {
+              atual.areaTexto.removeChild(el); 
+              
+              let orfao = atual.areaTexto.lastElementChild;
+              let moveOrfao = false;
+              if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'BLOCKQUOTE')) {
+                  moveOrfao = true;
+                  atual.areaTexto.removeChild(orfao);
+              }
+              
+              atual = criarNovaPagina();
+              if (moveOrfao) atual.areaTexto.appendChild(orfao);
+              atual.areaTexto.appendChild(el);
             }
-            
-            atual = criarNovaPagina();
-            if (moveOrfao) atual.areaTexto.appendChild(orfao);
-            atual.areaTexto.appendChild(el);
           }
         }
       }
@@ -425,6 +443,7 @@ function getScriptPreview(
         const mainToc = tocs[0];
         mainToc.innerHTML = '';
 
+        // O Índice agora também enxerga o h1 que está dentro do novo box de capa
         const titulos = container.querySelectorAll('h1, h2, h3');
         const titulosVistos = new Set();
 
@@ -494,17 +513,24 @@ function getScriptPreview(
         });
       }
 
-      // Sincroniza com segurança garantindo que o DOM carregou
       setTimeout(() => sincronizarIndice(), 100);
 
       let chIndex = 0;
       let currentChapterImg = '';
       container.querySelectorAll('.page-container').forEach((p) => {
+        const capaOverlay = p.querySelector('.cap-img-overlay');
+        const h2Inline = p.querySelector('h2.chapter-title-inline');
         const imgEl = p.querySelector('.chapter-banner-img');
 
-        if (p.querySelector('h2') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
+        // Lógica atualizada para capturar a imagem do fundo ou do data-unsplash da capa nova
+        if (capaOverlay || h2Inline || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-pura')) {
           chIndex = 1;
-          if (imgEl) {
+          currentChapterImg = '';
+          
+          if (capaOverlay && capaOverlay.style.backgroundImage && capaOverlay.style.backgroundImage !== 'none') {
+            const match = capaOverlay.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
+            if (match) currentChapterImg = match[1];
+          } else if (imgEl) {
             currentChapterImg = imgEl.src;
           } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
             const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
@@ -514,6 +540,7 @@ function getScriptPreview(
           chIndex++;
         }
 
+        // Aplica a imagem de fundo na SEGUNDA página (conteúdo 1)
         if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
           p.classList.add('chapter-page-2');
           let customUrl = '${bgSegundaPaginaUrl}'.trim();
@@ -1010,19 +1037,56 @@ h2.chapter-title-inline {
 .page-extra { padding: 32mm 20mm 25mm 20mm; }
 .page-extra img { max-width: 100%; height: auto; margin: 1rem auto; display: block; border-radius: 8px; }
 
-h1.chapter-title-exclusive { font-size: 2.8rem; margin-top: 15px; z-index: 10; position: relative; text-align: center; width: 100%; }
-.cap-img-overlay h1.chapter-title-exclusive { color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+/* NOVA CAPA DE CAPÍTULO PREMIUM (IMAGEM 100% E BOX FLUTUANTE) */
+.cap-img-overlay { 
+  position: absolute !important; /* Cobre a página toda ignorando o padding */
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-size: cover !important; 
+  background-position: center !important; 
+  background-color: var(--color-bg); /* Fundo padrão vindo do painel */
+  display: flex !important; 
+  flex-direction: column !important;
+  justify-content: ${alinhamentoCapitulo} !important; /* Responde ao Painel (Topo, Meio, Base) */
+  align-items: center !important; 
+  padding: 15% 10% !important; 
+  z-index: 30; /* Esconde cabeçalhos e rodapés embaixo dela */
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.cap-img-overlay::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)); /* Leve escurecida estilosa na foto */
+  z-index: 31;
+}
+.cap-img-overlay .cap-overlay-box { 
+  background-color: var(--color-bg) !important; /* Puxa a cor exata que o usuário escolheu no painel */
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent) !important; /* 8% de transparência elegante */
+  backdrop-filter: blur(10px);
+  padding: 50px 40px !important; 
+  border-radius: 12px !important; 
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  width: 100% !important; 
+  max-width: 85% !important;
+  text-align: center !important; 
+  z-index: 32; /* Fica acima de tudo na página */
+  position: relative;
+}
+.cap-img-overlay h1.chapter-title-exclusive { 
+  margin: 0 !important; 
+  color: var(--color-primary) !important; /* Puxa a cor do texto do painel */
+  font-size: 2.8rem !important; 
+  line-height: 1.2 !important; 
+  text-shadow: none !important; 
+  font-weight: 800;
+  font-family: var(--font-heading);
+}
 
-.cap-img-overlay { position: relative !important; background-size: cover !important; background-position: center !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 40px !important; }
-.cap-img-overlay .cap-overlay-box, .cap-box-rounded { background-color: rgba(255, 255, 255, 0.88) !important; backdrop-filter: blur(6px); padding: 40px 30px !important; border-radius: 12px !important; max-width: 85% !important; width: 100% !important; text-align: center !important; margin: auto !important; }
-.cap-img-overlay .chapter-title-inline { margin: 0 !important; color: var(--color-primary) !important; font-size: 2.2rem !important; line-height: 1.3 !important; text-align: center !important; }
-.cap-img-overlay { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; color: #ffffff; }
-
+/* Mantendo compatibilidade legada silenciosa para e-books antigos salvos na biblioteca */
 .cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; }
 .cap-box-inner { background: ${capBoxBackground}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; border: ${capBoxBorder}; z-index: 10; position: relative; color: ${capBoxTextColor}; }
 .cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: ${capBoxTextColor}; text-shadow: none; }
 .cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
-
 .page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; }
 .page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 .page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; }
@@ -1713,34 +1777,50 @@ Mantenha a consistência visual com o resto do e-book.`;
   }
 
 // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (BLINDADA CONTRA RASCUNHOS DA IA)
+  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA DE 4 PÁGINAS PREMIUM)
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
 
     const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
-  1. GERE APENAS HTML PURO. PROIBIDO gerar a tag <div class="page-container">, cabeçalhos ou rodapés.
-  2. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 3 páginas completas e sem espaços vazios):
-     - <h2 class="chapter-title-inline">Capítulo ${numero}: [Nome do Capítulo]</h2>
-     - <img class="chapter-banner-img" src="https://loremflickr.com/1200/800/[PALAVRA_EM_INGLES_AQUI]" alt="Imagem do capítulo">
-     - <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     - <p>[Parágrafo 1 - MÁXIMO 65 PALAVRAS (Curto, para caber na página da imagem)]</p>
-     - <p>[Parágrafo 2 - MÁXIMO 65 PALAVRAS (Curto, para caber na página da imagem)]</p>
-     - <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     - <p>[Parágrafo 3 - Aprox 80 PALAVRAS]</p>
-     - <p>[Parágrafo 4 - Aprox 80 PALAVRAS]</p>
-     - <p>[Parágrafo 5 - Aprox 80 PALAVRAS]</p>
-     - <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA para fechar a segunda página]</div>
-     - <h3 class="subtopic-title">[Subtítulo Final]</h3>
-     - <p>[Parágrafo 6 - Aprox 85 PALAVRAS]</p>
-     - <p>[Parágrafo 7 - Aprox 85 PALAVRAS]</p>
-     - <p>[Parágrafo 8 - Aprox 85 PALAVRAS]</p>
-     - <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL para fechar a terceira página]</blockquote>
-  3. REGRA DE SEGURANÇA E TOM DE VOZ (LEIA COM ATENÇÃO): 
-     - PROIBIÇÃO ABSOLUTA: Você está ESTRITAMENTE PROIBIDO de mostrar o seu processo de pensamento, rascunhos, contagem de palavras (como "Word count check" ou "Goal: 85 words").
-     - DEVOLVA APENAS AS TAGS HTML E O CONTEÚDO FINAL. NÃO escreva NENHUM texto fora das tags HTML.
-  4. IMAGENS EXCLUSIVAS: Substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para puxar a foto.
+  1. GERE APENAS HTML PURO. 
+  2. VOCÊ ESTÁ ESTRITAMENTE PROIBIDO de gerar qualquer tag <div class="page-container">, <div class="page-header"> ou <div class="page-footer">. O nosso sistema injeta isso automaticamente. Envie apenas o conteúdo.
+  
+  3. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 4 páginas completas):
+  
+     <!-- PÁGINA 1: A Capa do Capítulo (Imagem 100% de fundo com o Título no Box) -->
+     <div class="cap-img-overlay" data-unsplash="[PALAVRA_EM_INGLES_AQUI]">
+        <div class="cap-overlay-box">
+           <h1 class="chapter-title-exclusive">Capítulo ${numero}: [Nome do Capítulo]</h1>
+        </div>
+     </div>
+
+     <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) -->
+     <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
+     <p>[Parágrafo 1 - Aprox 70 palavras (Atenção: evite textos muito curtos)]</p>
+     <p>[Parágrafo 2 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 3 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 4 - Aprox 70 palavras]</p>
+
+     <!-- PÁGINA 3: O Aprofundamento (Meio) -->
+     <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
+     <p>[Parágrafo 5 - Aprox 80 palavras]</p>
+     <p>[Parágrafo 6 - Aprox 80 palavras]</p>
+     <p>[Parágrafo 7 - Aprox 80 palavras]</p>
+     <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA PRÁTICA para fechar a página]</div>
+
+     <!-- PÁGINA 4: A Concretização (Fim do Capítulo) -->
+     <h3 class="subtopic-title">[Subtítulo Final]</h3>
+     <p>[Parágrafo 8 - Aprox 85 palavras]</p>
+     <p>[Parágrafo 9 - Aprox 85 palavras]</p>
+     <p>[Parágrafo 10 - Aprox 85 palavras]</p>
+     <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL impactante para fechar a última página]</blockquote>
+
+  4. REGRA DE SEGURANÇA (LEIA COM ATENÇÃO): 
+     - PROIBIÇÃO ABSOLUTA: NÃO mostre o seu processo de pensamento, rascunhos, ou contagem de palavras (como "Word count check").
+     - DEVOLVA APENAS AS TAGS HTML. NÃO escreva NENHUM texto solto fora das tags.
+  5. IMAGENS DINÂMICAS: Na tag <div class="cap-img-overlay">, substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para o sistema buscar a foto depois. Exemplo: data-unsplash="business".
   `;
 
     return { regrasCompletas, numero };
@@ -2343,110 +2423,7 @@ async function finalizarEbookEtapas() {
 
                 <div className="panel-section">
                   <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="input-label text-[9px]">Fonte Títulos / Corpo</label>
-                      <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="input-standard text-[10px]">
-                        <option value="Lato">Lato & Playfair</option>
-                        <option value="Poppins">Poppins</option>
-                        <option value="Merriweather">Merriweather</option>
-                        <option value="Lora">Lora</option>
-                        <option value="EB Garamond">Garamond</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Arial">Arial</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="input-label text-[9px]">Tamanho Base</label>
-                      <select
-                        value={tamanhoFonteBase}
-                        onChange={(e) => setTamanhoFonteBase(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="12pt">12pt (Compacto)</option>
-                        <option value="13pt">13pt (Padrão)</option>
-                        <option value="14pt">14pt (Confortável)</option>
-                        <option value="15pt">15pt (Grande)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                 <div className="mb-4">
-                    <label className="input-label text-[9px] mb-2">🎨 Cores do E-book</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setPaletaCores('branco-preto')}
-                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'branco-preto' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                      >
-                        <div className="flex gap-1.5 mb-1.5">
-                          <span className="w-4 h-4 rounded-full border border-slate-300 bg-white"></span>
-                          <span className="w-4 h-4 rounded-full bg-slate-900"></span>
-                        </div>
-                        Branco + Preto
-                      </button>
-
-                      <button
-                        onClick={() => setPaletaCores('branco-dourado')}
-                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'branco-dourado' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                      >
-                        <div className="flex gap-1.5 mb-1.5">
-                          <span className="w-4 h-4 rounded-full border border-slate-300 bg-white"></span>
-                          <span className="w-4 h-4 rounded-full bg-yellow-600"></span>
-                        </div>
-                        Branco + Dourado
-                      </button>
-
-                      <button
-                        onClick={() => setPaletaCores('branco-verde')}
-                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'branco-verde' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                      >
-                        <div className="flex gap-1.5 mb-1.5">
-                          <span className="w-4 h-4 rounded-full border border-slate-300 bg-white"></span>
-                          <span className="w-4 h-4 rounded-full bg-emerald-600"></span>
-                        </div>
-                        Branco + Verde
-                      </button>
-
-                      <button
-                        onClick={() => setPaletaCores('manual')}
-                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-[9px] font-bold transition-all ${paletaCores === 'manual' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                      >
-                        <i className={`fas fa-palette text-lg mb-1 ${paletaCores === 'manual' ? 'text-indigo-600' : 'text-slate-400'}`}></i>
-                        Personalizar
-                      </button>
-                    </div>
-                  </div>
-
-                  {paletaCores === 'manual' && (
-                    <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 mb-4 animate-[fadeIn_0.3s_ease]">
-                      <p className="text-[9px] font-bold text-indigo-700 mb-3 leading-relaxed flex gap-1.5">
-                        <i className="fas fa-info-circle mt-0.5 text-indigo-500"></i>
-                        Dica: Defina as duas cores abaixo. A numeração, os títulos e as bordas seguirão automaticamente a "Cor do Texto" que você escolher!
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="input-label text-[9px] text-indigo-900">Fundo da Página</label>
-                          <input
-                            type="color"
-                            value={corManualBg}
-                            onChange={(e) => setCorManualBg(e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border-none p-0 bg-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="input-label text-[9px] text-indigo-900">Cor do Texto</label>
-                          <input
-                            type="color"
-                            value={corManualText}
-                            onChange={(e) => setCorManualText(e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border-none p-0 bg-transparent"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                 <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="input-label text-[9px]">Rodapé da Página</label>
                       <select
@@ -2467,11 +2444,8 @@ async function finalizarEbookEtapas() {
                         onChange={(e) => setRecuoParagrafo(e.target.value)}
                         className="input-standard text-[10px]"
                       >
-                        <option value="0px">0px (sem recuo)</option>
-                        <option value="10px">10px</option>
-                        <option value="20px">20px (padrão)</option>
-                        <option value="30px">30px</option>
-                        <option value="40px">40px</option>
+                        <option value="0px">Sem recuo (0px)</option>
+                        <option value="40px">Recuo Premium (40px)</option>
                       </select>
                     </div>
                   </div>
@@ -2489,16 +2463,15 @@ async function finalizarEbookEtapas() {
                       </select>
                     </div>
                     <div>
-                      <label className="input-label text-[9px]">Espaçamento entre Parágrafos</label>
+                      <label className="input-label text-[9px]">Alinhamento do Título (Capa Cap.)</label>
                       <select
-                        value={espacamentoParagrafo}
-                        onChange={(e) => setEspacamentoParagrafo(e.target.value)}
+                        value={alinhamentoCapitulo}
+                        onChange={(e: any) => setAlinhamentoCapitulo(e.target.value)}
                         className="input-standard text-[10px]"
                       >
-                        <option value="0.5em">0.5em</option>
-                        <option value="0.8em">0.8em (padrão)</option>
-                        <option value="1em">1em</option>
-                        <option value="1.2em">1.2em</option>
+                        <option value="center">Meio (Padrão)</option>
+                        <option value="flex-start">Topo</option>
+                        <option value="flex-end">Base</option>
                       </select>
                     </div>
                   </div>
