@@ -355,9 +355,10 @@ function getScriptPreview(
       if (!container) return;
 
       // CORREÇÃO DO UNSPLASH: Burlar o cache usando sintaxe aceita pela API
+      // Reforçado para garantir que todas as capas de capítulo recebam imagem
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          let bg = overlay.style.backgroundImage || '';
-         if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
+         if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg === '')) {
             const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
             const cacheBuster = Math.random().toString(36).substring(7);
             overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},sig\${cacheBuster}')\`, 'important');
@@ -918,7 +919,8 @@ export default function Home() {
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
   const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('0.8em');
-  const [recuoParagrafo, setRecuoParagrafo] = useState('20px');
+  // CORREÇÃO: recuo inicial 0px
+  const [recuoParagrafo, setRecuoParagrafo] = useState('0px');
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   const [paletaCores, setPaletaCores] = useState<'branco-preto' | 'branco-dourado' | 'branco-verde' | 'manual'>('branco-preto');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
@@ -926,7 +928,7 @@ export default function Home() {
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  // CORREÇÃO: Estado inicial do box preto translúcido
+  // CORREÇÃO: Box preto translúcido (estado inicial)
   const [boxColorHex, setBoxColorHex] = useState('#000000');
   const [boxOpacity, setBoxOpacity] = useState('0.70');
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
@@ -1103,7 +1105,7 @@ export default function Home() {
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
     clean = clean.replace(/<style id="ebook-dynamic-styles">[\s\S]*?<\/style>/gi, '');
-    // REMOVE FALSO RECUO (espaços iniciais e &nbsp;)
+    // REMOVE FALSO RECUO (espaços iniciais e &nbsp;) - reforçado
     clean = clean.replace(/<p>(\s|&nbsp;)+/gi, '<p>');
     
     const conf = getEstilosFormato();
@@ -1205,6 +1207,9 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 .cap-img-overlay .cap-overlay-box { 
   background: var(--cap-box-bg) !important; backdrop-filter: blur(10px); padding: 50px 40px !important; border-radius: 12px !important; 
   box-shadow: 0 20px 40px rgba(0,0,0,0.4); width: 100% !important; max-width: 85% !important; text-align: center !important; z-index: 32; position: relative;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
 }
 .cap-img-overlay h1.chapter-title-exclusive {
   margin: 0 !important;
@@ -1216,6 +1221,14 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   text-transform: none !important;
   text-shadow: 0 0 20px rgba(0,0,0,0.7);
 }
+/* ícone acima do título fica centralizado e com espaçamento */
+.cap-overlay-box i {
+  display: block;
+  font-size: 3rem !important;
+  margin-bottom: 1rem !important;
+  color: #ffffff;
+  text-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
 
 .page-header { position: absolute; top: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--color-primary); opacity: 0.8; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px; }
 .page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
@@ -1226,7 +1239,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; text-align: center; }
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-/* SUBTÍTULOS (H3) - negrito e espaçamento maior */
+/* SUBTÍTULOS (H3) - negrito e espaçamento maior, sem borda */
 h3 {
   font-size: 1.4rem !important;
   font-weight: 800 !important;
@@ -1251,6 +1264,7 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
   font-size: 0.75em !important;
   line-height: 1 !important;
   padding: 2px 0 !important;
+  margin-bottom: 2px !important;
 }
 
 .author-page { display: block; }
@@ -1880,7 +1894,8 @@ Mantenha a consistência visual com o resto do e-book.`;
      <!-- PÁGINA 1: A Capa do Capítulo (Imagem 100% de fundo com o Título no Box) -->
      <div class="cap-img-overlay" data-unsplash="[PALAVRA_EM_INGLES_AQUI]">
         <div class="cap-overlay-box">
-           <h1 class="chapter-title-exclusive"><i class="fas fa-${iconeSugerido}"></i> Capítulo ${numero}: [Nome do Capítulo]</h1>
+           <i class="fas fa-${iconeSugerido} text-4xl mb-4"></i>
+           <h1 class="chapter-title-exclusive">Capítulo ${numero}: [Nome do Capítulo]</h1>
         </div>
      </div>
 
@@ -2013,15 +2028,23 @@ Mantenha a consistência visual com o resto do e-book.`;
 
   // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
+    // CORREÇÃO: Verifica se existe conteúdo e se a conclusão já não foi gerada
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
       return;
     }
 
-    // Trava de Segurança: Impede de gerar a conclusão duas vezes
+    // Verifica se já existe conclusão
     if (htmlAtual.includes('id="conclusao"')) {
-        (window as any).showNotification('O e-book já está finalizado! Use os botões normais para adicionar capítulos.', 'error');
-        return; 
+      (window as any).showNotification('O e-book já está finalizado! Use os botões normais para adicionar capítulos.', 'error');
+      return;
+    }
+
+    // Verifica se há pelo menos um capítulo (pode ser um h2 com "Capítulo" ou .cap-img-overlay)
+    const hasChapters = htmlAtual.includes('cap-img-overlay') || /Capítulo\s*\d+/i.test(htmlAtual);
+    if (!hasChapters) {
+      (window as any).showNotification('Você precisa adicionar pelo menos um capítulo antes de finalizar.', 'error');
+      return;
     }
 
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
@@ -2211,6 +2234,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     alinhamentoCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, 
     bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, indexShowSubtopics,
     boxColorHex, boxOpacity
+    // recuoParagrafo removido para evitar reflow desnecessário
   ]);
 
   const isTextElement = elementoSelecionado
