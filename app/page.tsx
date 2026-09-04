@@ -402,21 +402,21 @@ function getScriptPreview(
 
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
             if (!el.classList.contains('cap-img-overlay')) {
-              atual.areaTexto.removeChild(el); 
-              
-              let orfao = atual.areaTexto.lastElementChild;
-              let moveOrfao = false;
-              if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'BLOCKQUOTE')) {
-                  moveOrfao = true;
-                  atual.areaTexto.removeChild(orfao);
+              // QUEBRA SEGURA: Só move se houver mais de um elemento na página! (Evita estourar margens)
+              if (atual.areaTexto.children.length > 1) {
+                  atual.areaTexto.removeChild(el); 
+                  let orfao = atual.areaTexto.lastElementChild;
+                  let moveOrfao = false;
+                  if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'BLOCKQUOTE')) {
+                      moveOrfao = true;
+                      atual.areaTexto.removeChild(orfao);
+                  }
+                  atual = criarNovaPagina();
+                  if (moveOrfao) atual.areaTexto.appendChild(orfao);
+                  atual.areaTexto.appendChild(el);
               }
-              
-              atual = criarNovaPagina();
-              if (moveOrfao) atual.areaTexto.appendChild(orfao);
-              atual.areaTexto.appendChild(el);
             }
           }
-        }
       }
 
       container.querySelectorAll('.chapter-text-page').forEach(page => {
@@ -756,7 +756,8 @@ export default function Home() {
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  const [corBoxCapitulo, setCorBoxCapitulo] = useState('rgba(255, 255, 255, 0.95)');
+  const [boxColorHex, setBoxColorHex] = useState('#f3f4f6');
+  const [boxOpacity, setBoxOpacity] = useState('0.92');
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('retangulo');
@@ -929,16 +930,11 @@ async function gerarEbookPDF(textoBruto: string) {
 
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
-    // Remove o estilo antigo para forçar a atualização em tempo real (Bordas)
     clean = clean.replace(/<style id="ebook-dynamic-styles">[\s\S]*?<\/style>/gi, '');
+    clean = clean.replace(/<p>(\s|&nbsp;)+/gi, '<p>'); // MATA O FALSO RECUO DA IA!
     
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
-
-    // A Mágica da cor inteligente: Usa a cor do texto para criar um fundo com 8% de transparência
-    let capBoxBackground = 'color-mix(in srgb, var(--color-text) 8%, transparent)';
-    let capBoxBorder = 'none';
-    let capBoxTextColor = 'var(--color-primary)';
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -952,8 +948,9 @@ async function gerarEbookPDF(textoBruto: string) {
   --font-heading: ${fontFamily === 'Poppins' ? "'Poppins', sans-serif" : fontFamily === 'Arial' || fontFamily === 'Verdana' ? `'${fontFamily}', sans-serif` : "'Playfair Display', serif"};
   --font-body: ${['Arial', 'Verdana', 'Poppins', 'Lato'].includes(fontFamily) ? `'${fontFamily}', sans-serif` : `'${fontFamily}', serif`};
   --line-spacing: ${espacamentoLinhas};
-  --p-spacing: ${espacamentoParagrafo};
-  --text-indent: ${recuoParagrafo};
+  --p-spacing: 0.8em;
+  --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
+  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#f3f4f6'} ${parseFloat(boxOpacity || '0.92')*100}%, transparent);
 }
 
 body {
@@ -966,232 +963,85 @@ body {
 ${indexShowSubtopics ? '' : '.toc-subtopic { display: none !important; }'}
 
 #ebook-container * {
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  overflow-wrap: break-word !important;
-  word-wrap: break-word !important;
-  word-break: break-word !important;
+  max-width: 100% !important; box-sizing: border-box !important; overflow-wrap: break-word !important; word-break: break-word !important;
 }
 
-/* ========== PASSO 2: ALTURA DA IMAGEM REDUZIDA E TÍTULO MENOR ========== */
-img.chapter-banner-img {
-  width: 100% !important;
-  height: 300px !important;
-  min-height: 300px !important;
-  max-height: 300px !important;
-  object-fit: cover !important;
-  border-radius: 8px !important;
-  margin: 15px 0 !important;
-  display: block !important;
+img.chapter-banner-img { width: 100% !important; height: 300px !important; object-fit: cover !important; border-radius: 8px !important; margin: 15px 0 !important; display: block !important; }
+h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !important; font-family: var(--font-heading) !important; font-size: 1.8rem !important; }
+.page-container > h3.subtopic-title:first-of-type, .page-container > .page-header + h3.subtopic-title { margin-top: 0 !important; }
+
+.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
+  background-color: var(--color-bg); width: ${conf.width} !important; height: ${conf.height} !important;
+  min-width: ${conf.width} !important; min-height: ${conf.height} !important; max-width: ${conf.width} !important; max-height: ${conf.height} !important;
+  flex-shrink: 0 !important; padding: ${conf.padding}; margin: 0 auto 20px auto; box-sizing: border-box;
+  position: relative; overflow: hidden !important; page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
-h2.chapter-title-inline {
-  margin-top: 25px !important; 
-  margin-bottom: 15px !important;
-  font-family: var(--font-heading) !important;
-  font-size: 1.8rem !important;
-}
-.page-container > h3.subtopic-title:first-of-type,
-.page-container > .page-header + h3.subtopic-title {
-  margin-top: 0 !important;
-}
+/* MARGEM DO TOPO CORRIGIDA */
+.chapter-text-page { padding-top: 20mm !important; }
 
-.page-container, .page-cover-img, .page-cover-pura, .page-cover-text,
-.cap-img-overlay, .cap-box-rounded, .cap-img-pura {
-  background-color: var(--color-bg);
-  width: ${conf.width} !important;
-  height: ${conf.height} !important;
-  min-width: ${conf.width} !important;
-  min-height: ${conf.height} !important;
-  max-width: ${conf.width} !important;
-  max-height: ${conf.height} !important;
-  flex-shrink: 0 !important;
-  padding: ${conf.padding};
-  margin: 0 auto 20px auto;
-  box-sizing: border-box;
-  position: relative;
-  overflow: hidden !important; 
-  page-break-after: always;
-  break-after: page;
-  page-break-inside: avoid;
-  break-inside: avoid;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-  counter-increment: ebook-page;
-}
-
-.chapter-text-page { padding-top: 28mm !important; }
-
-.legal-page { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40mm 25mm !important; }
+/* AVISO LEGAL CORRIGIDO PARA NÃO BATER NO RODAPÉ */
+.legal-page { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 25mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
 .legal-page p { font-size: 1rem; line-height: 1.8; margin-bottom: 1.2rem; text-align: justify; }
 
-.page-container::after, .page-cover-img::after, .page-cover-pura::after, .page-cover-text::after,
-.cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after {
-  content: '';
-  position: absolute;
-  top: 6mm; left: 6mm; right: 6mm; bottom: 6mm;
-  pointer-events: none; z-index: 50;
+.page-container::after, .cap-img-overlay::after {
+  content: ''; position: absolute; top: 6mm; left: 6mm; right: 6mm; bottom: 6mm; pointer-events: none; z-index: 50;
   border: ${tipoBorda === 'single' ? '1px solid var(--color-border)' : tipoBorda === 'medium' ? '2px solid var(--color-border)' : tipoBorda === 'double-thin' ? '3px double var(--color-border)' : 'none'};
 }
-.page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after { display: none !important; }
-.page-cover-img::after, .page-cover-pura::after, .cap-img-overlay::after, .cap-box-rounded::after, .cap-img-pura::after { display: none !important; }
+.page-cover-img::after, .cap-img-overlay::after { display: none !important; }
 
-/* BLINDAGEM MÁXIMA: Garante que a capa e a primeira página NUNCA terão rodapé ou cabeçalho */
-#ebook-container > .page-container:first-child .page-header,
-#ebook-container > .page-container:first-child .page-footer,
-.page-cover-img .page-header, .page-cover-img .page-footer,
-.page-cover-pura .page-header, .page-cover-pura .page-footer,
-.cap-box-rounded .page-header, .cap-box-rounded .page-footer {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
+#ebook-container > .page-container:first-child .page-header, #ebook-container > .page-container:first-child .page-footer,
+.page-cover-img .page-header, .page-cover-img .page-footer, .cap-box-rounded .page-header, .cap-box-rounded .page-footer {
+  display: none !important; opacity: 0 !important; visibility: hidden !important;
 }
 
-.page-extra { padding: 32mm 20mm 25mm 20mm; }
-.page-extra { padding: 32mm 20mm 25mm 20mm; }
-.page-extra img { max-width: 100%; height: auto; margin: 1rem auto; display: block; border-radius: 8px; }
-
-/* NOVA CAPA DE CAPÍTULO PREMIUM (IMAGEM 100% E BOX FLUTUANTE) */
+/* NOVA CAPA DE CAPÍTULO PREMIUM GLOBAL */
 .cap-img-overlay { 
-  position: absolute !important; /* Cobre a página toda ignorando o padding */
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-size: cover !important; 
-  background-position: center !important; 
-  background-color: var(--color-bg); /* Fundo padrão vindo do painel */
-  display: flex !important; 
-  flex-direction: column !important;
-  justify-content: ${alinhamentoCapitulo} !important; /* Responde ao Painel (Topo, Meio, Base) */
-  align-items: center !important; 
-  padding: 15% 10% !important; 
-  z-index: 30; /* Esconde cabeçalhos e rodapés embaixo dela */
-  page-break-inside: avoid;
-  break-inside: avoid;
+  position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
+  background-size: cover !important; background-position: center !important; background-color: var(--color-bg);
+  display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
+  padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
 }
-.cap-img-overlay::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)); /* Leve escurecida estilosa na foto */
-  z-index: 31;
-}
+.cap-img-overlay::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)); z-index: 31; }
 .cap-img-overlay .cap-overlay-box { 
-  background-color: var(--color-bg) !important; /* Puxa a cor exata que o usuário escolheu no painel */
-  background: color-mix(in srgb, var(--color-bg) 92%, transparent) !important; /* 8% de transparência elegante */
-  backdrop-filter: blur(10px);
-  padding: 50px 40px !important; 
-  border-radius: 12px !important; 
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-  width: 100% !important; 
-  max-width: 85% !important;
-  text-align: center !important; 
-  z-index: 32; /* Fica acima de tudo na página */
-  position: relative;
+  background: var(--cap-box-bg) !important; backdrop-filter: blur(10px); padding: 50px 40px !important; border-radius: 12px !important; 
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4); width: 100% !important; max-width: 85% !important; text-align: center !important; z-index: 32; position: relative;
 }
-.cap-img-overlay h1.chapter-title-exclusive { 
-  margin: 0 !important; 
-  color: var(--color-primary) !important; /* Puxa a cor do texto do painel */
-  font-size: 2.8rem !important; 
-  line-height: 1.2 !important; 
-  text-shadow: none !important; 
-  font-weight: 800;
-  font-family: var(--font-heading);
-}
+.cap-img-overlay h1.chapter-title-exclusive { margin: 0 !important; color: var(--color-primary) !important; font-size: 2.8rem !important; line-height: 1.2 !important; font-weight: 800; font-family: var(--font-heading); }
 
-/* Mantendo compatibilidade legada silenciosa para e-books antigos salvos na biblioteca */
-.cap-box-rounded { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; }
-.cap-box-inner { background: ${capBoxBackground}; padding: 35px 25px; border-radius: 20px; text-align: center; width: 85%; border: ${capBoxBorder}; z-index: 10; position: relative; color: ${capBoxTextColor}; }
-.cap-box-inner h1.chapter-title-exclusive { margin:0; font-size: 2.2rem; color: ${capBoxTextColor}; text-shadow: none; }
-.cap-img-pura { background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; display: block; }
-.page-cover-img { display: flex; flex-direction: column; justify-content: ${alinhamentoCapitulo}; align-items: center; text-align: center; background: url('${imagemCapaUrl}') center/cover no-repeat !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #ffffff; }
-.page-cover-img h1 { color: #fff; font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-.page-cover-pura { background: url('${imagemCapaUrl}') center/cover no-repeat !important; }
-.page-cover-text { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--color-primary); }
-.page-cover-text h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
-
-.chapter-title-inline { text-align: center; font-size: 2.1rem; margin-top: 0.5rem; margin-bottom: 1.2rem; color: var(--color-primary); font-weight: 800; line-height: 1.15; }
-h3.subtopic-title { font-weight: 800; font-size: 1.4rem; margin-top: 1.8rem; margin-bottom: 1em !important; color: var(--color-primary); line-height: 1.2; text-align: left; }
+.page-cover-img { background: url('${imagemCapaUrl}') center/cover no-repeat !important; color: #ffffff; }
 
 .page-header { position: absolute; top: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--color-primary); opacity: 0.8; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px; }
-.page-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48%; }
-
 .page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
 .page-number { margin-left: auto !important; }
 .page-number::after { content: counter(ebook-page); }
-.page-number.circulo { display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 26px; border-radius: 50%; margin-left: auto !important; background-color: var(--color-primary); color: #ffffff !important; font-size: 10px; font-weight: 800; margin-bottom: -3px; }
-.page-number.circulo::after { color: #ffffff !important; }
 
 h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
-h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; line-height: 1.2; text-align: center; }
+h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; text-align: center; }
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-word !important; }
+/* RECUO E ESPAÇAMENTO BLINDADOS */
+p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; }
 
-/* CORES INTELIGENTES: Lê a cor do texto para formar os fundos e as bordas para a cor primária */
-blockquote {
-  page-break-inside: avoid; break-inside: avoid;
-  font-style: italic; color: var(--color-text);
-  border-left: 4px solid var(--color-primary);
-  background: color-mix(in srgb, var(--color-text) 5%, transparent);
-  padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; max-width: 100%;
-}
-.highlight-box {
-  background: color-mix(in srgb, var(--color-text) 8%, transparent);
-  border-left: 4px solid var(--color-primary);
-  padding: 12px 18px; border-radius: 8px; margin: 1rem 0; font-weight: 500; font-size: ${tamanhoFonteBase}; display: flex; align-items: center; gap: 12px; max-width: 100%;
-}
-.highlight-box i { font-size: 1.8rem; color: var(--color-primary); flex-shrink: 0; }
+blockquote { font-style: italic; color: var(--color-text); border-left: 4px solid var(--color-primary); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
+.highlight-box { background: color-mix(in srgb, var(--color-text) 8%, transparent); border-left: 4px solid var(--color-primary); padding: 12px 18px; border-radius: 8px; margin: 1rem 0; font-weight: 500; font-size: ${tamanhoFonteBase}; display: flex; align-items: center; gap: 12px; }
 
-img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; margin: 1rem auto; display: block; object-fit: cover; page-break-inside: avoid; break-inside: avoid; }
-ul, ol { margin-top: 0; margin-bottom: 1em; padding-left: 2rem; font-size: ${tamanhoFonteBase}; line-height: var(--line-spacing); }
-li { margin-bottom: 0.4rem; page-break-inside: avoid; }
-
+img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; margin: 1rem auto; display: block; object-fit: cover; }
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
-.toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; padding: 6px 0; cursor: pointer; margin-bottom: 0.2rem; }
-.toc-item:hover { color: var(--color-secondary); }
+.toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; padding: 6px 0; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* AJUSTE DO SUBTÓPICO NO ÍNDICE (Menor e mais juntinho) */
-.toc-subtopic {
-  font-size: 0.85em !important;
-  line-height: 1.1 !important;
-  padding-left: 20px !important;
-  opacity: 0.75;
-  margin-bottom: 2px !important;
-}
-
-/* Permite que o Índice flua naturalmente para as próximas páginas sem pular em bloco */
-#toc, 
-.toc-container {
-  break-inside: auto !important;
-  page-break-inside: auto !important;
-  display: block !important; 
-}
-
-/* Garante que uma linha (um capítulo) não seja cortada no meio da palavra ao trocar de página */
-#toc a, 
-.toc-subtopic {
-  break-inside: avoid !important;
-  page-break-inside: avoid !important;
-}
-
-.page-container.author-page { display: block; }
-.author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; page-break-inside: avoid; break-inside: avoid; }
-.author-section.layout-topo { flex-direction: column; text-align: center; }
-.author-section.layout-esquerda { flex-direction: row; text-align: justify; align-items: flex-start; }
-.author-photo { flex-shrink: 0; object-fit: cover; box-shadow: 0 8px 20px rgba(0,0,0,0.12); border: 3px solid rgba(255,255,255,0.8); }
-.author-photo.circulo { border-radius: 50%; width: 150px; height: 150px; }
-.author-photo.retangulo { border-radius: 20px; width: 130px; height: 180px; }
-.author-bio { flex-grow: 1; min-width: 250px; }
-.author-bio h2 { margin-top: 0; margin-bottom: 1rem; }
+.author-page { display: block; }
+.author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.author-photo { flex-shrink: 0; object-fit: cover; border: 3px solid rgba(255,255,255,0.8); }
 
 @page { size: A4 portrait; margin: 0; }
 @media print {
   html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
-  #ebook-container { width: 100%; padding: 0; margin: 0; }
-  .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
-    width: ${conf.width} !important; height: ${conf.height} !important; box-sizing: border-box !important; margin: 0 !important; padding: ${conf.padding} !important; page-break-after: always !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; border: none !important;
-  }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+  .page-container, .cap-img-overlay { width: ${conf.width} !important; height: ${conf.height} !important; margin: 0 !important; padding: ${conf.padding} !important; page-break-after: always !important; box-shadow: none !important; border: none !important; }
 }
 </style>`;
 
@@ -1280,7 +1130,7 @@ ${ebookStyles}
   // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
   // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
-    if (!htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
+    if (!htmlBase || !htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
 
     let cleanNovo = htmlNovo;
     const bodyMatch = cleanNovo.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
@@ -1289,17 +1139,12 @@ ${ebookStyles}
     const containerMatch = cleanNovo.match(/<div id="ebook-container">([\s\S]*?)<\/div>\s*$/i);
     if (containerMatch) cleanNovo = containerMatch[1];
 
-    let lastBodyIndex = htmlBase.lastIndexOf('</body>');
-    if (lastBodyIndex === -1) lastBodyIndex = htmlBase.lastIndexOf('</BODY>');
-
-    if (lastBodyIndex !== -1) {
-      let lastDivIndex = htmlBase.lastIndexOf('</div>', lastBodyIndex);
-      if (lastDivIndex === -1) lastDivIndex = htmlBase.lastIndexOf('</DIV>', lastBodyIndex);
-      if (lastDivIndex !== -1) {
-        return htmlBase.substring(0, lastDivIndex) + '\n' + cleanNovo + '\n' + htmlBase.substring(lastDivIndex);
-      }
+    // INJEÇÃO BLINDADA: Acha a última div de fechamento exata e insere com segurança
+    const lastDivIndex = htmlBase.lastIndexOf('</div>');
+    if (lastDivIndex !== -1) {
+      return htmlBase.substring(0, lastDivIndex) + '\n' + cleanNovo + '\n' + htmlBase.substring(lastDivIndex);
     }
-    return htmlBase.replace(/<\/div>\s*<\/body>\s*<\/html>/gi, '\n' + cleanNovo + '\n    </div>\n</body>\n</html>');
+    return htmlBase + '\n' + cleanNovo;
   }
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
@@ -2129,8 +1974,14 @@ async function finalizarEbookEtapas() {
       localStorage.setItem('ebook_draft_html', htmlFinal);
       setRecarregarIframe(true);
     }
-  }, [tipoBorda, paletaCores, corManualPri, corManualSec, corManualText, corManualBg, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade]);
-  const isTextElement = elementoSelecionado
+  }, [
+    fontFamily, tamanhoFonteBase, tipoBorda, paletaCores, corManualPri, 
+    corManualSec, corManualText, corManualBg, estiloRodape, recuoParagrafo, 
+    alinhamentoCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, 
+    bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, indexShowSubtopics,
+    boxColorHex, boxOpacity
+  ]);
+    const isTextElement = elementoSelecionado
     ? ['p', 'h1', 'h2', 'h3', 'h4', 'span', 'li', 'a', 'blockquote', 'strong', 'em', 'i', 'b'].includes(
         elementoSelecionado.tagName.toLowerCase()
       )
@@ -2489,7 +2340,25 @@ async function finalizarEbookEtapas() {
                       </select>
                     </div>
                   </div>
-
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="input-label text-[9px] flex justify-between">Fundo do Retângulo <span className="text-slate-400">Transparência</span></label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={boxColorHex}
+                          onChange={(e) => setBoxColorHex(e.target.value)}
+                          className="w-10 h-8 rounded cursor-pointer border-none flex-shrink-0"
+                        />
+                        <input
+                          type="range"
+                          min="0" max="1" step="0.05" value={boxOpacity}
+                          onChange={(e) => setBoxOpacity(e.target.value)}
+                          className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="input-label text-[9px]">Borda das Páginas</label>
