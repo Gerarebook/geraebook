@@ -361,7 +361,8 @@ function getScriptPreview(
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg === '')) {
             const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
             const cacheBuster = Math.random().toString(36).substring(7);
-            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},sig\${cacheBuster}')\`, 'important');
+            // CORREÇÃO: Fallback com abstract,texture se a palavra-chave falhar
+            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},abstract,texture,sig\${cacheBuster}')\`, 'important');
          }
       });
 
@@ -816,6 +817,15 @@ function getScriptPreview(
             setTimeout(executarRefluxoCompleto, 100);
          }
       }
+      // CORREÇÃO: Aplicar cor a todas as páginas
+      if (e.data.type === 'APPLY_GLOBAL_BG') {
+         const color = e.data.color;
+         const pages = document.querySelectorAll('.page-container');
+         pages.forEach(page => {
+            page.style.setProperty('background-color', color, 'important');
+         });
+         window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+      }
     });  
 
     document.addEventListener('mouseover', (e) => {
@@ -1154,7 +1164,8 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
-.chapter-text-page { padding-top: 20mm !important; }
+/* CORREÇÃO: aumentar padding-top para evitar que o texto encoste no cabeçalho */
+.chapter-text-page { padding-top: 25mm !important; }
 
 /* AVISO LEGAL: justificado ao topo com padding-top 35mm */
 .legal-page { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 35mm 25mm !important; }
@@ -1433,6 +1444,7 @@ ${ebookStyles}
 </div>`;
   }
 
+  // CORREÇÃO: Foto do autor neutra
   function obterBlocoAutorHtml() {
     let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
     let regraRodape = '';
@@ -1447,7 +1459,7 @@ ${ebookStyles}
       <div class="page-header"><span>${livroTitulo || 'Título do Livro'}</span><span>SOBRE O AUTOR</span></div>
       <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute; z-index:-1;">Sobre o Autor</h2>
       <div class="author-section layout-${autorPosicao}">
-        <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" class="author-photo ${autorFormato}" alt="${livroAutores || 'Autor'}">
+        <img src="https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png" class="author-photo ${autorFormato}" alt="${livroAutores || 'Autor'}">
         <div class="author-bio">
           <h2>${livroAutores || 'Sobre o Autor'}</h2>
           <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional. Este espaço é dedicado a apresentar quem você é para o leitor.</p>
@@ -1625,6 +1637,18 @@ ${ebookStyles}
       
       return novoHistorico;
     });
+  }
+
+  // CORREÇÃO: Aplicar cor global
+  function aplicarCorGlobal() {
+    if (!elementoSelecionado || !elementoSelecionado.bgColor) return;
+    if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+      previewFrameRef.current.contentWindow.postMessage({
+        type: 'APPLY_GLOBAL_BG',
+        color: elementoSelecionado.bgColor,
+      }, '*');
+    }
+    (window as any).showNotification('Cor aplicada a todas as páginas!', 'success');
   }
 
   // ============================================================
@@ -1899,25 +1923,25 @@ Mantenha a consistência visual com o resto do e-book.`;
         </div>
      </div>
 
-     <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) -->
+     <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) - Reduzido para caber com highlight-box -->
      <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     <p>[Parágrafo 1 - Aprox 70 palavras (Atenção: evite textos muito curtos)]</p>
-     <p>[Parágrafo 2 - Aprox 70 palavras]</p>
-     <p>[Parágrafo 3 - Aprox 70 palavras]</p>
-     <p>[Parágrafo 4 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 1 - Aprox 50 palavras]</p>
+     <p>[Parágrafo 2 - Aprox 50 palavras]</p>
+     <p>[Parágrafo 3 - Aprox 50 palavras]</p>
+     <p>[Parágrafo 4 - Aprox 50 palavras]</p>
 
-     <!-- PÁGINA 3: O Aprofundamento (Meio) -->
+     <!-- PÁGINA 3: O Aprofundamento (Meio) - Reduzido para caber com highlight-box -->
      <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     <p>[Parágrafo 5 - Aprox 80 palavras]</p>
-     <p>[Parágrafo 6 - Aprox 80 palavras]</p>
-     <p>[Parágrafo 7 - Aprox 80 palavras]</p>
+     <p>[Parágrafo 5 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 6 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 7 - Aprox 60 palavras]</p>
      <div class="highlight-box"><i class="fas fa-lightbulb"></i> [Insira aqui um TEXTO RELEVANTE ou DICA PRÁTICA para fechar a página]</div>
 
      <!-- PÁGINA 4: A Concretização (Fim do Capítulo) -->
      <h3 class="subtopic-title">[Subtítulo Final]</h3>
-     <p>[Parágrafo 8 - Aprox 85 palavras]</p>
-     <p>[Parágrafo 9 - Aprox 85 palavras]</p>
-     <p>[Parágrafo 10 - Aprox 85 palavras]</p>
+     <p>[Parágrafo 8 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 9 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 10 - Aprox 70 palavras]</p>
      <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL impactante para fechar a última página]</blockquote>
 
   4. REGRA DE SEGURANÇA (LEIA COM ATENÇÃO): 
@@ -2049,9 +2073,9 @@ Mantenha a consistência visual com o resto do e-book.`;
 
     const instrucao = `Você vai FINALIZAR a escrita do e-book.
     DIRETRIZES:
-      1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS tags HTML soltas (H1, H3, P). NÃO crie <div class="page-container">, NÃO crie cabeçalhos e NÃO crie rodapés.
+      1. PROIBIÇÃO ABSOLUTA: A sua resposta deve conter APENAS tags HTML soltas (H2, H3, P). NÃO crie <div class="page-container">, NÃO crie cabeçalhos e NÃO crie rodapés.
       2. MOLDE DE CONCLUSÃO:
-      <h1 id="conclusao" class="chapter-title-exclusive"><i class="fas fa-flag-checkered"></i> Conclusão</h1>
+      <h2 id="conclusao" class="chapter-title-inline"><i class="fas fa-flag-checkered"></i> Conclusão</h2>
       <h3 class="subtopic-title">Considerações Finais</h3>
       <p>[Escreva aqui a conclusão detalhada do e-book em cerca de 3 parágrafos...]</p>
       
@@ -2746,6 +2770,14 @@ Mantenha a consistência visual com o resto do e-book.`;
                         </button>
                       </div>
 
+                      {/* CORREÇÃO: Botão Desfazer dentro do inspetor */}
+                      <button
+                        onClick={desfazerCodigo}
+                        className="w-full mb-4 bg-yellow-50 hover:bg-yellow-100 border border-yellow-300 text-yellow-700 font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2"
+                      >
+                        <i className="fas fa-undo"></i> Desfazer Última Edição
+                      </button>
+
                       {(elementoSelecionado.tagName === 'img' ||
                         elementoSelecionado.bgImage ||
                         elementoSelecionado.isBgTarget) && (
@@ -2810,6 +2842,15 @@ Mantenha a consistência visual com o resto do e-book.`;
                               >
                                 <i className="fas fa-times-circle mr-1"></i> Remover Imagem de Fundo
                               </button>
+                              {/* CORREÇÃO: Botão Aplicar cor a todas as páginas */}
+                              {elementoSelecionado.isBgTarget && (
+                                <button
+                                  onClick={aplicarCorGlobal}
+                                  className="w-full mt-3 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[9px] uppercase py-2 rounded transition hover:bg-purple-100"
+                                >
+                                  <i className="fas fa-fill-drip mr-1"></i> Aplicar cor a todas as páginas
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2951,12 +2992,7 @@ Mantenha a consistência visual com o resto do e-book.`;
               </button>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={desfazerCodigo}
-                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5"
-              >
-                <i className="fas fa-undo"></i> Desfazer
-              </button>
+              {/* CORREÇÃO: Botão Desfazer removido do header */}
               <button
                 onClick={() => (window as any).baixarPdf()}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md shadow-indigo-200 transition flex items-center gap-2"
