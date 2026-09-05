@@ -618,8 +618,9 @@ export default function Home() {
   const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
   // CORREÇÃO: Removido boxOpacity - transparência fixa em 85% no CSS
   
+  // CORREÇÃO 4: Cores padrão em azul marinho
   const [corFundoCapitulo, setCorFundoCapitulo] = useState('#0f172a');
-  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#15803d');
+  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#1e3a8a'); // Alterado de '#15803d' para '#1e3a8a'
 
   const [estiloRodape, setEstiloRodape] = useState<'linha-superior' | 'centralizado-circulo' | 'centralizado'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
@@ -800,7 +801,7 @@ export default function Home() {
     
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
-    // CORREÇÃO: opacidade fixa de 85% para o box
+    // CORREÇÃO 3: opacidade fixa de 85% para o box
     const opacidadeSegura = 0.85;
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
@@ -817,7 +818,7 @@ export default function Home() {
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
   --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#15803d'} ${Math.round(opacidadeSegura * 100)}%, transparent);
+  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#1e3a8a'} ${Math.round(opacidadeSegura * 100)}%, transparent);
 }
 
 body {
@@ -847,7 +848,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
-/* CORREÇÃO: Estilos específicos para capas */
+/* CORREÇÃO 1: Estilos específicos para capas - A4 preenchida e sem linha */
 .page-cover-img, .page-cover-pura, .page-cover-text {
   padding: 0 !important;
   margin: 0 !important;
@@ -861,6 +862,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 .page-cover-img::after, .page-cover-pura::after, .page-cover-text::after {
   display: none !important;
   border: none !important;
+  content: none !important;
 }
 #ebook-container > .page-container:first-child .page-header, #ebook-container > .page-container:first-child .page-footer,
 .page-cover-img .page-header, .page-cover-img .page-footer, 
@@ -1802,10 +1804,11 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       }
     }
 
+    // CORREÇÃO 2: Prompt restritivo para evitar pulo de capítulos
     let instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
     Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-    ATENÇÃO MÁXIMA: O primeiro capítulo que você gerar nesta resposta DEVE ser OBRIGATORIAMENTE o 'Capítulo ${proximoNumero}'. NUNCA pule números, obedeça a contagem matemática de forma estrita.
+    INSTRUÇÃO CRÍTICA MÁXIMA: Você DEVE gerar EXATAMENTE e SEQUENCIALMENTE os capítulos ${proximoNumero}, ${proximoNumero + 1} e ${proximoNumero + 2}. É PROIBIDO pular números (Ex: pular do 1 para o 4).
     Respeite rigorosamente a ordem (imagem primeiro, depois título).
 
     MOLDE PARA CADA CAPÍTULO:
@@ -2275,7 +2278,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         placeholder="Ex: O Poder da Mente"
                       />
                     </div>
-                    {/* CORREÇÃO: Removido campo "Texto do Cabeçalho (Esquerda)" */}
+                    {/* CORREÇÃO 3: Removido campo "Texto do Cabeçalho (Esquerda)" */}
                     <div>
                       <label className="input-label">Nome do Autor</label>
                       <input
