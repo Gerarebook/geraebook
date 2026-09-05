@@ -9,9 +9,7 @@ import { jsPDF } from 'jspdf';
 // SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Blindagem de Cores)
 // ============================================================
 
-function getScriptPreview(
-  indexShowSubtopics: boolean
-) {
+function getScriptPreview(indexShowSubtopics: boolean) {
   return `
 <script>
   (function() {
@@ -197,7 +195,7 @@ function getScriptPreview(
         if (!area || area.children.length === 0) page.remove();
       });
 
-      // --- Sincronizar Índice com paginação por contagem fixa ---
+      // --- Sincronizar Índice com paginação por altura real ---
       function sincronizarIndice() {
         let tocs = container.querySelectorAll('.toc-container');
         if (tocs.length === 0) return;
@@ -206,6 +204,16 @@ function getScriptPreview(
         const mainPage = mainToc.closest('.page-container');
         if (!mainPage) return;
 
+        // Remove todas as páginas de índice subsequentes (além da primeira)
+        const allTocPages = container.querySelectorAll('.page-container .toc-container');
+        allTocPages.forEach((toc, index) => {
+          if (index > 0) {
+            const page = toc.closest('.page-container');
+            if (page) page.remove();
+          }
+        });
+
+        // Limpa o conteúdo do TOC principal
         mainToc.innerHTML = '';
 
         const titulos = container.querySelectorAll('h1, h2, h3');
@@ -266,6 +274,7 @@ function getScriptPreview(
           return;
         }
 
+        // Função para criar nova página de índice
         function criarPaginaIndice(afterPage) {
           const novaPagina = document.createElement('div');
           novaPagina.className = 'page-container chapter-text-page';
@@ -308,23 +317,27 @@ function getScriptPreview(
 
         let currentPage = mainPage;
         let currentToc = mainToc;
-        let itemCount = 0;
-        const MAX_ITENS_POR_PAGINA = 22;
+        const LIMITE_ALTURA_INDICE = 850; // altura máxima do content-area
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
           currentToc.appendChild(item);
-          itemCount++;
 
-          if (itemCount >= MAX_ITENS_POR_PAGINA && i < itens.length - 1) {
+          // Verifica se o content-area estourou o limite
+          const contentArea = currentPage.querySelector('.content-area');
+          if (contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) {
+            // Remove o item recém adicionado
+            currentToc.removeChild(item);
+            // Cria nova página
             const nova = criarPaginaIndice(currentPage);
             currentPage = nova.pagina;
             currentToc = nova.toc;
-            itemCount = 0;
+            // Adiciona o item na nova página
+            currentToc.appendChild(item);
           }
         }
 
-        // CORREÇÃO: TOC Wiper - remove apenas páginas que contêm exclusivamente .toc-container
+        // Remove páginas de índice vazias (se houver)
         container.querySelectorAll('.page-container').forEach(page => {
           const toc = page.querySelector('.toc-container');
           if (toc && !page.querySelector('.toc-item')) {
@@ -335,55 +348,32 @@ function getScriptPreview(
               if (onlyToc) {
                 page.remove();
               }
-            } else {
-              const allChildren = Array.from(page.children).filter(el =>
-                !el.classList.contains('page-header') && !el.classList.contains('page-footer')
-              );
-              if (allChildren.length === 1 && allChildren[0].classList.contains('toc-container')) {
-                page.remove();
-              }
             }
           }
         });
+
+        // CORREÇÃO 3: Numeração do Índice com setTimeout e contagem exata
+        setTimeout(() => {
+          const allPages = Array.from(container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.legal-page):not(.author-page)'));
+          const allTocItems = container.querySelectorAll('.toc-item');
+          allTocItems.forEach(item => {
+            const href = item.getAttribute('href');
+            if (!href || !href.startsWith('#')) return;
+            const target = document.getElementById(href.substring(1));
+            if (target) {
+              const page = target.closest('.page-container');
+              if (page) {
+                const idx = allPages.indexOf(page) + 1;
+                const numSpan = item.querySelector('.toc-page-num');
+                if (numSpan) numSpan.innerText = String(idx);
+              }
+            }
+          });
+        }, 500);
       }
 
       // Chamada inicial do índice
       setTimeout(() => sincronizarIndice(), 100);
-
-      // --- Função para preencher números de página (separada e com setTimeout) ---
-      function preencherNumerosPaginas() {
-        const container = document.getElementById('ebook-container');
-        if (!container) return;
-        const paginas = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.legal-page):not(.author-page)');
-        let pageNumber = 1;
-        const tituloParaPagina = new Map();
-
-        paginas.forEach((pagina) => {
-          const titulos = pagina.querySelectorAll('h1, h2, h3');
-          titulos.forEach(titulo => {
-            if (titulo.id) {
-              tituloParaPagina.set(titulo.id, pageNumber);
-            }
-          });
-          pageNumber++;
-        });
-
-        const tocItems = container.querySelectorAll('.toc-item');
-        tocItems.forEach(item => {
-          const href = item.getAttribute('href');
-          if (href && href.startsWith('#')) {
-            const id = href.substring(1);
-            const num = tituloParaPagina.get(id);
-            const span = item.querySelector('.toc-page-num');
-            if (span && num !== undefined) {
-              span.innerText = num;
-            }
-          }
-        });
-      }
-
-      // Agenda a numeração para depois que o reflow estiver completo
-      setTimeout(preencherNumerosPaginas, 300);
 
       if (isEditMode && selectedEl) {
          selectedEl.style.outline = '3px solid #4f46e5';
@@ -615,12 +605,11 @@ export default function Home() {
   const [corTextoDetalhes, setCorTextoDetalhes] = useState('#111827');
   
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
-  // CORREÇÃO: Removido boxOpacity - transparência fixa em 85% no CSS
-  
-  // CORREÇÃO 4: Cores padrão em azul marinho
+  // CORREÇÃO 5: Removido boxColorHex e boxOpacity
+
+  // CORREÇÃO 5: Cores padrão em azul marinho
   const [corFundoCapitulo, setCorFundoCapitulo] = useState('#0f172a');
-  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#1e3a8a'); // Alterado de '#15803d' para '#1e3a8a'
+  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#1e3a8a');
 
   const [estiloRodape, setEstiloRodape] = useState<'linha-superior' | 'centralizado-circulo' | 'centralizado'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
@@ -801,8 +790,7 @@ export default function Home() {
     
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
-    // CORREÇÃO 3: opacidade fixa de 85% para o box
-    const opacidadeSegura = 0.85;
+    const opacidadeSegura = 0.85; // fixa
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -848,21 +836,28 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
-/* CORREÇÃO 1: Estilos específicos para capas - A4 preenchida e sem linha */
+/* CORREÇÃO 4: Capa em A4 absoluto e sem linha */
 .page-cover-img, .page-cover-pura, .page-cover-text {
-  padding: 0 !important;
-  margin: 0 !important;
-  justify-content: center !important;
-  align-items: center !important;
-  width: 100% !important;
-  height: 100% !important;
+  background: url('${imagemCapaUrl}') center/cover no-repeat !important;
+  background-color: var(--color-bg) !important;
+  color: #ffffff !important;
   display: flex !important;
   flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  width: 210mm !important;
+  height: 297mm !important;
+  max-width: 210mm !important;
+  max-height: 297mm !important;
+  padding: 0 !important;
+  margin: 0 auto 20px auto !important;
+  border: none !important;
 }
 .page-cover-img::after, .page-cover-pura::after, .page-cover-text::after {
   display: none !important;
-  border: none !important;
   content: none !important;
+  border: none !important;
 }
 #ebook-container > .page-container:first-child .page-header, #ebook-container > .page-container:first-child .page-footer,
 .page-cover-img .page-header, .page-cover-img .page-footer, 
@@ -886,16 +881,6 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 }
 .page-cover-img::after, .cap-img-overlay::after { display: none !important; }
 
-/* Regra já existente, mantida para compatibilidade */
-.page-cover-img {
-  display: flex !important;
-  flex-direction: column;
-  justify-content: center !important;
-  align-items: center !important;
-  text-align: center;
-  background: url('${imagemCapaUrl}') center/cover no-repeat !important;
-  color: #ffffff !important;
-}
 .page-cover-img h1 {
   font-size: 3.5rem;
   font-weight: 800;
@@ -1388,7 +1373,6 @@ ${ebookStyles}
     (window as any).showNotification('Cor aplicada a todas as páginas!', 'success');
   }
 
-  // CORREÇÃO: Função para trocar ícone ciclicamente sem duplicação
   function trocarIcone() {
     if (!elementoSelecionado || elementoSelecionado.tagName !== 'i') return;
     const currentIndex = iconIndex % iconList.length;
@@ -1776,6 +1760,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }
 
   // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
+  // CORREÇÃO 1: Continuidade Inteligente e Anti-Pulo
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1791,24 +1776,22 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
-    let ultimoTrecho = '';
+    // Extrai o último parágrafo do HTML atual (texto puro)
+    let ultimoParagrafo = '';
     if (currentHtml) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = currentHtml;
       const paragrafos = tempDiv.querySelectorAll('p');
-      if (paragrafos.length >= 2) {
-        const ultimos = Array.from(paragrafos).slice(-2);
-        ultimoTrecho = ultimos.map(p => p.textContent?.trim() || '').join(' ');
-      } else if (paragrafos.length === 1) {
-        ultimoTrecho = paragrafos[0].textContent?.trim() || '';
+      if (paragrafos.length > 0) {
+        ultimoParagrafo = paragrafos[paragrafos.length - 1].textContent?.trim() || '';
       }
     }
 
-    // CORREÇÃO 2: Prompt restritivo para evitar pulo de capítulos
+    // CORREÇÃO 1: Instrução crítica com continuidade exata
     let instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
     Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-    INSTRUÇÃO CRÍTICA MÁXIMA: Você DEVE gerar EXATAMENTE e SEQUENCIALMENTE os capítulos ${proximoNumero}, ${proximoNumero + 1} e ${proximoNumero + 2}. É PROIBIDO pular números (Ex: pular do 1 para o 4).
+    INSTRUÇÃO CRÍTICA: Você foi interrompido na geração anterior. O último trecho gerado foi: "${ultimoParagrafo}". Continue o raciocínio EXATAMENTE a partir da próxima palavra que completaria esta frase, e então siga gerando os capítulos ${proximoNumero}, ${proximoNumero + 1} e ${proximoNumero + 2}.
     Respeite rigorosamente a ordem (imagem primeiro, depois título).
 
     MOLDE PARA CADA CAPÍTULO:
@@ -1820,10 +1803,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     if (modoConteudo === 'rigoroso') {
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
-    }
-
-    if (ultimoTrecho) {
-      instrucao += `\n\nContinue o raciocínio a partir deste último trecho gerado: "${ultimoTrecho}"`;
     }
 
     const data = await chamarMotorIA(instrucao, [
@@ -2040,7 +2019,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }, [
     fontFamily, tamanhoFonteBase, tipoBorda, estiloRodape, 
     alinhamentoCapitulo, autorPosicao, autorFormato,
-    boxColorHex, corFundoPagina, corTextoDetalhes,
+    corFundoPagina, corTextoDetalhes,
     corFundoCapitulo, corRetanguloCapitulo
   ]);
 
@@ -2278,7 +2257,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         placeholder="Ex: O Poder da Mente"
                       />
                     </div>
-                    {/* CORREÇÃO 3: Removido campo "Texto do Cabeçalho (Esquerda)" */}
                     <div>
                       <label className="input-label">Nome do Autor</label>
                       <input
@@ -2416,20 +2394,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="input-label text-[9px] flex justify-between">Fundo do Retângulo <span className="text-slate-400">(85% opaco)</span></label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={boxColorHex}
-                          onChange={(e) => setBoxColorHex(e.target.value)}
-                          className="w-10 h-8 rounded cursor-pointer border-none flex-shrink-0"
-                        />
-                        <span className="text-xs text-slate-400 font-medium">opacidade fixa</span>
-                      </div>
-                    </div>
-                  </div>
+
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="input-label text-[9px]">Borda das Páginas</label>
@@ -2478,6 +2443,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         className="w-full h-10 rounded cursor-pointer border border-slate-200 p-1"
                       />
                     </div>
+                    {/* CORREÇÃO 5: UI de transparência removida */}
                   </div>
                 </div>
               </div>
