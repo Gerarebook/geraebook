@@ -57,10 +57,10 @@ function getScriptPreview(indexShowSubtopics: boolean) {
 
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
+        // Removido .legal-page da condição – agora ela recebe cabeçalho/rodapé normalmente
         if (p.classList.contains('page-cover-img') || 
             p.classList.contains('page-cover-pura') || 
             p.classList.contains('page-cover-text') || 
-            p.classList.contains('legal-page') || 
             p.querySelector('.toc-container') || 
             p.classList.contains('author-page')) {
             return; 
@@ -97,7 +97,6 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         !el.classList.contains('page-cover-img') &&
         !el.classList.contains('page-cover-pura') &&
         !el.classList.contains('page-cover-text') &&
-        !el.classList.contains('legal-page') &&
         !el.classList.contains('author-page') &&
         !el.classList.contains('page-extra') &&
         el.tagName !== 'STYLE' &&
@@ -221,7 +220,8 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         const itens = [];
 
         titulos.forEach((titleEl) => {
-          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) return;
+          // Ignora títulos da capa, e também da página de avisos (data-legal)
+          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, [data-legal]')) return;
           
           let texto = titleEl.textContent?.trim() || '';
           if (!texto || /índice|sumário/i.test(texto)) return;
@@ -352,37 +352,32 @@ function getScriptPreview(indexShowSubtopics: boolean) {
           }
         });
 
-        // CORREÇÃO 2: Numeração do Índice com setTimeout e contagem exata
-        // Agora incluímos TODAS as páginas físicas (capa, avisos, extras, autor, etc.)
-        setTimeout(() => {
-          const allPages = Array.from(container.children).filter(el =>
-            el.classList.contains('page-container') ||
-            el.classList.contains('page-cover-img') ||
-            el.classList.contains('page-cover-pura') ||
-            el.classList.contains('page-cover-text') ||
-            el.classList.contains('legal-page') ||
-            el.classList.contains('page-extra') ||
-            el.classList.contains('author-page')
-          );
-          const allTocItems = container.querySelectorAll('.toc-item');
-          allTocItems.forEach(item => {
-            const href = item.getAttribute('href');
-            if (!href || !href.startsWith('#')) return;
-            const target = document.getElementById(href.substring(1));
-            if (target) {
-              const page = target.closest('.page-container');
-              if (page) {
-                const idx = allPages.indexOf(page) + 1;
-                const numSpan = item.querySelector('.toc-page-num');
-                if (numSpan) numSpan.innerText = String(idx);
-              }
+        // --- Numeração do Índice (Síncrona) - CORREÇÃO: removido setTimeout ---
+        const allPages = Array.from(container.children).filter(el =>
+          el.classList.contains('page-container') ||
+          el.classList.contains('page-cover-img') ||
+          el.classList.contains('page-cover-pura') ||
+          el.classList.contains('page-cover-text') ||
+          el.classList.contains('page-extra') ||
+          el.classList.contains('author-page')
+        );
+        const allTocItems = container.querySelectorAll('.toc-item');
+        allTocItems.forEach(item => {
+          const href = item.getAttribute('href');
+          if (!href || !href.startsWith('#')) return;
+          const target = document.getElementById(href.substring(1));
+          if (target) {
+            const page = target.closest('.page-container');
+            if (page) {
+              const idx = allPages.indexOf(page) + 1;
+              const numSpan = item.querySelector('.toc-page-num');
+              if (numSpan) numSpan.innerText = String(idx);
             }
-          });
-        }, 500);
+          }
+        });
       }
 
-      // CORREÇÃO 1: Chamada síncrona do índice ANTES de reativar o observer
-      // Removemos o setTimeout anterior e chamamos diretamente aqui
+      // Chamada síncrona do índice ANTES de reativar o observer
       sincronizarIndice();
 
       if (isEditMode && selectedEl) {
@@ -391,7 +386,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
 
       window.scrollTo(0, currentScrollY);
 
-      // Reativa o observer após um delay, mas a chamada do índice já foi feita
+      // Reativa o observer após um delay seguro (300ms)
       setTimeout(() => {
         if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
       }, 300);
@@ -616,9 +611,7 @@ export default function Home() {
   const [corTextoDetalhes, setCorTextoDetalhes] = useState('#111827');
   
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  // CORREÇÃO 5: Removido boxColorHex e boxOpacity
 
-  // CORREÇÃO 5: Cores padrão em azul marinho
   const [corFundoCapitulo, setCorFundoCapitulo] = useState('#0f172a');
   const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#1e3a8a');
 
@@ -801,7 +794,7 @@ export default function Home() {
     
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
-    const opacidadeSegura = 0.85; // fixa
+    const opacidadeSegura = 0.85;
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -837,7 +830,7 @@ img.chapter-banner-img { width: 100% !important; height: 300px !important; objec
 h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !important; font-family: var(--font-heading) !important; font-size: 1.8rem !important; }
 .page-container > h3.subtopic-title:first-of-type, .page-container > .page-header + h3.subtopic-title { margin-top: 0 !important; }
 
-.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .legal-page, .author-page, .page-extra,
+.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .author-page, .page-extra,
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
   background-color: var(--color-bg) !important;
   width: ${conf.width} !important; height: ${conf.height} !important;
@@ -847,7 +840,6 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
-/* CORREÇÃO 4: Capa em A4 absoluto e sem linha */
 .page-cover-img, .page-cover-pura, .page-cover-text {
   background: url('${imagemCapaUrl}') center/cover no-repeat !important;
   background-color: var(--color-bg) !important;
@@ -880,11 +872,27 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   visibility: hidden !important;
 }
 
+/* CORREÇÃO 2: Título da Capa com contenção de margens */
+.page-cover-img h1, .page-cover-pura h1 {
+  width: 100% !important;
+  padding: 0 20mm !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  hyphens: auto;
+}
+.page-cover-img p, .page-cover-pura p {
+  width: 100% !important;
+  padding: 0 20mm !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  hyphens: auto;
+}
+
 .chapter-text-page { padding-top: 25mm !important; }
 
-.legal-page { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 35mm 25mm !important; }
-.legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
-.legal-page p { font-size: 1rem; line-height: 1.8; margin-bottom: 1.2rem; text-align: justify; }
+/* Removidas regras exclusivas de .legal-page – agora usa .chapter-text-page */
 
 .page-container::after, .cap-img-overlay::after {
   content: ''; position: absolute; top: 6mm; left: 6mm; right: 6mm; bottom: 6mm; pointer-events: none; z-index: 50;
@@ -1083,20 +1091,16 @@ ${ebookStyles}
   // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
     if (!htmlBase || !htmlBase.includes('id="ebook-container"')) {
-      // Fallback: concatenação simples
       return htmlBase + '\n' + htmlNovo;
     }
 
-    // Parse do documento base
     const parser = new DOMParser();
     const docBase = parser.parseFromString(htmlBase, 'text/html');
     const container = docBase.getElementById('ebook-container');
     if (!container) {
-      // Fallback
       return htmlBase + '\n' + htmlNovo;
     }
 
-    // Parse do novo HTML para extrair os nós do corpo
     const docNovo = parser.parseFromString(htmlNovo, 'text/html');
     const bodyNodes = Array.from(docNovo.body.childNodes).filter(node => {
       if (node.nodeType === 1) {
@@ -1106,11 +1110,9 @@ ${ebookStyles}
       return true;
     });
 
-    // Localizar a página do autor para inserir antes
     const authorPage = container.querySelector('.author-page');
     const insertPoint = authorPage || null;
 
-    // Inserir os nós um a um
     bodyNodes.forEach(node => {
       const importedNode = docBase.importNode(node, true);
       if (insertPoint) {
@@ -1120,7 +1122,6 @@ ${ebookStyles}
       }
     });
 
-    // Serializar o documento resultante
     const doctype = '<!DOCTYPE html>\n';
     const htmlContent = docBase.documentElement.outerHTML;
     return doctype + htmlContent;
@@ -1156,25 +1157,18 @@ ${ebookStyles}
   // ============================================================
   function gerarPaginaAviso() {
     return `
-    <div class="page-container legal-page">
-  <div class="page-header"><span></span><span>AVISOS LEGAIS</span></div>
-  <div class="content-area" style="display: flex; flex-direction: column; justify-content: flex-start; height: 100%; text-align: justify; font-size: 11px; line-height: 1.5; padding: 0 10px;">
-    
-    <h2 class="chapter-title-inline" style="text-align: center; margin-bottom: 20px;">Avisos Legais & Direitos Autorais</h2>
-    
-    <p><strong>© Todos os direitos reservados.</strong></p>
-    
-    <p style="margin-top: 10px;">Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
-    
-    <p style="margin-top: 10px;"><strong>Isenção de Responsabilidade (Disclaimer):</strong></p>
-    
-    <p>As informações contidas neste e-book são fornecidas estritamente para fins educacionais, informativos e de entretenimento. Não são oferecidas quaisquer garantias quanto à integridade, confiabilidade e exatidão dessas informações.</p>
-    
-    <p style="margin-top: 10px;">Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. Não haverá responsabilização por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado, consulte um profissional qualificado da área.</p>
-    
-  </div>
-  <div class="page-footer"><span></span><span class="page-number"></span></div>
-</div>`;
+    <div class="page-container chapter-text-page" data-legal="true">
+      <div class="page-header"><span></span><span>${livroTitulo}</span></div>
+      <div class="content-area">
+        <h2 class="chapter-title-inline">Avisos Legais & Direitos Autorais</h2>
+        <p><strong>© Todos os direitos reservados.</strong></p>
+        <p>Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
+        <p><strong>Isenção de Responsabilidade (Disclaimer):</strong></p>
+        <p>As informações contidas neste e-book são fornecidas estritamente para fins educacionais, informativos e de entretenimento. Não são oferecidas quaisquer garantias quanto à integridade, confiabilidade e exatidão dessas informações.</p>
+        <p>Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. Não haverá responsabilização por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado, consulte um profissional qualificado da área.</p>
+      </div>
+      <div class="page-footer"><span></span><span class="page-number"></span></div>
+    </div>`;
   }
 
   function obterBlocoAutorHtml() {
@@ -1706,7 +1700,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
      <p>[Parágrafo 12 - Aprox 70 palavras]</p>
      <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL impactante para fechar a última página]</blockquote>
 
-  // CORREÇÃO 3: Blindagem contra alucinações da IA
   4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.
 
   5. IMAGENS DINÂMICAS: Na tag <div class="cap-img-overlay">, substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para o sistema buscar a foto depois. Exemplo: data-unsplash="business".
@@ -1771,7 +1764,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }
 
   // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
-  // CORREÇÃO 1: Continuidade Inteligente e Anti-Pulo
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1787,7 +1779,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
-    // Extrai o último parágrafo do HTML atual (texto puro)
     let ultimoParagrafo = '';
     if (currentHtml) {
       const tempDiv = document.createElement('div');
@@ -1798,7 +1789,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       }
     }
 
-    // CORREÇÃO 1: Instrução crítica com continuidade exata
     let instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
     Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
@@ -1816,7 +1806,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
-    // Reforço extra contra alucinações
     instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.`;
 
     const data = await chamarMotorIA(instrucao, [
@@ -2459,7 +2448,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         className="w-full h-10 rounded cursor-pointer border border-slate-200 p-1"
                       />
                     </div>
-                    {/* CORREÇÃO 5: UI de transparência removida */}
                   </div>
                 </div>
               </div>
