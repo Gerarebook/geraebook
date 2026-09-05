@@ -13,9 +13,7 @@ function executarRefluxoCompleto(
   containerId: string,
   alturaMaxima: number,
   indexShowSubtopics: boolean,
-  bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string,
-  bgEnabled: boolean
+  // CORREÇÃO: Removidos parâmetros do fundo da 2ª página
 ) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -102,29 +100,23 @@ function executarRefluxoCompleto(
     }
   });
 
-  // --- 6. Sincronizar Índice (com paginação inteligente) ---
+  // --- 6. Sincronizar Índice (com paginação inteligente e hard limit) ---
   function sincronizarIndice() {
         // Encontrar todos os .toc-container existentes
         let tocs = container.querySelectorAll('.toc-container');
         // Se não houver nenhum, não faz nada
         if (tocs.length === 0) return;
         
-        // Se houver mais de um, remover os extras (exceto o primeiro)
-        if (tocs.length > 1) {
-          for (let i = 1; i < tocs.length; i++) {
-            const p = tocs[i].closest('.page-container');
-            if (p) p.remove();
-          }
-          tocs = [tocs[0]]; // recarregar a lista
-        }
+        // CORREÇÃO: Não remover páginas extras, apenas selecionar a primeira página de índice
+        // e garantir que os .toc-container extras sejam removidos apenas se forem além do necessário
+        // e com cuidado para não apagar elementos irmãos.
         
-        // Pegar o container principal do índice
-        const mainToc = tocs[0];
-        // Página que contém o índice principal
-        const mainPage = mainToc.closest('.page-container');
+        // Vamos pegar a página que contém o primeiro .toc-container
+        const mainPage = tocs[0].closest('.page-container');
         if (!mainPage) return;
 
-        // Limpar o container principal
+        // Limpar o conteúdo do .toc-container principal, mas sem remover a página
+        const mainToc = tocs[0];
         mainToc.innerHTML = '';
 
         // Coletar todos os títulos para o índice
@@ -188,7 +180,7 @@ function executarRefluxoCompleto(
         }
 
         // Função para criar uma nova página de índice (com .toc-container vazio)
-        function criarPaginaIndice() {
+        function criarPaginaIndice(afterPage) {
           const novaPagina = document.createElement('div');
           novaPagina.className = 'page-container chapter-text-page';
           novaPagina.style.overflow = 'hidden';
@@ -211,17 +203,21 @@ function executarRefluxoCompleto(
           footer.innerHTML = modeloFooter;
           novaPagina.appendChild(footer);
 
-          // Criar um novo .toc-container dentro da área de conteúdo
           const newToc = document.createElement('div');
           newToc.className = 'toc-container';
           contentArea.appendChild(newToc);
 
-          // Inserir antes da página do autor (se existir)
-          const authorPage = container.querySelector('.author-page');
-          if (authorPage) {
-            container.insertBefore(novaPagina, authorPage);
+          // Inserir imediatamente após a página anterior (afterPage)
+          if (afterPage && afterPage.parentNode) {
+            afterPage.parentNode.insertBefore(novaPagina, afterPage.nextSibling);
           } else {
-            container.appendChild(novaPagina);
+            // Fallback: inserir antes da página do autor
+            const authorPage = container.querySelector('.author-page');
+            if (authorPage) {
+              container.insertBefore(novaPagina, authorPage);
+            } else {
+              container.appendChild(novaPagina);
+            }
           }
           return { pagina: novaPagina, toc: newToc };
         }
@@ -229,9 +225,9 @@ function executarRefluxoCompleto(
         // Começar com a página principal
         let currentPage = mainPage;
         let currentToc = mainToc;
-        // Limpar conteúdo atual (já limpo)
-        // Adicionar os itens um a um, verificando estouro
         const LIMITE_ALTURA_INDICE = 850;
+        let pageCount = 1;
+        const MAX_PAGES = 6; // Hard limit
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
@@ -242,82 +238,40 @@ function executarRefluxoCompleto(
           if (contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) {
             // Remove o item que acabou de ser adicionado
             currentToc.removeChild(item);
-            // Criar nova página de índice
-            const nova = criarPaginaIndice();
+            // Criar nova página de índice, inserindo após a página atual
+            if (pageCount >= MAX_PAGES) {
+              // Se atingiu o limite máximo, interrompe o loop (não adiciona mais itens)
+              break;
+            }
+            const nova = criarPaginaIndice(currentPage);
             currentPage = nova.pagina;
             currentToc = nova.toc;
+            pageCount++;
             // Adicionar o item na nova página
             currentToc.appendChild(item);
           }
         }
 
-        // --- Atualizar numeração das páginas ---
-        const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-        const pageArray = Array.from(allPages);
-        
-        // Para cada item, encontrar a página do título e atribuir número
-        container.querySelectorAll('.toc-item').forEach(item => {
-          const href = item.getAttribute('href');
-          if (!href || !href.startsWith('#')) return;
-          const target = document.getElementById(href.substring(1));
-          if (target) {
-            const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-            if (page) {
-              const idx = pageArray.indexOf(page) + 1;
-              const numSpan = item.querySelector('.toc-page-num');
-              if (numSpan) numSpan.innerText = String(idx);
-            }
+        // Remover páginas de índice extras que possam ter sido criadas além do necessário
+        // mas cuidado: só remover se não forem a principal e se estiverem vazias ou além do limite
+        const allTocPages = container.querySelectorAll('.page-container .toc-container');
+        // Se houver mais páginas de índice do que o pageCount, remova as extras (apenas as que estão depois)
+        // Mas não remova a principal (a primeira)
+        // Vamos remover as páginas de índice que estão após a última página que contém itens
+        // Mas como não sabemos exatamente qual é a última, vamos simplesmente garantir que não haja
+        // páginas de índice vazias no final
+        container.querySelectorAll('.page-container').forEach(page => {
+          const toc = page.querySelector('.toc-container');
+          if (toc && !page.querySelector('.toc-item')) {
+            page.remove();
           }
         });
       }
 
   sincronizarIndice();
 
-  // --- 7. Aplicar fundo da segunda página (opcional) ---
-  let chIndex = 0;
-  let currentChapterImg = '';
-  container.querySelectorAll('.page-container').forEach((p) => {
-    const imgEl = p.querySelector('.chapter-banner-img');
-
-    // Detectar início de capítulo
-    if (p.querySelector('h2.chapter-title-inline') || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-overlay') || p.classList.contains('cap-box-rounded') || p.classList.contains('cap-img-pura')) {
-      chIndex = 1;
-      if (imgEl) {
-        currentChapterImg = imgEl.src;
-      } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-        const match = p.style.backgroundImage.match(/url\(['"]?(.*?)['"]?\)/);
-        if (match) currentChapterImg = match[1];
-      }
-    } else {
-      chIndex++;
-    }
-
-    if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
-      p.classList.add('chapter-page-2');
-      let finalBgUrl = bgSegundaPaginaUrl.trim() !== '' ? bgSegundaPaginaUrl : currentChapterImg;
-      if (finalBgUrl && finalBgUrl.trim() !== '') {
-        p.dataset.bgUrl = finalBgUrl;
-        if (bgEnabled) {
-          p.style.setProperty('background-image', `linear-gradient(rgba(255,255,255, ${bgSegundaPaginaOpacidade}), rgba(255,255,255, ${bgSegundaPaginaOpacidade})), url('${finalBgUrl}')`, 'important');
-          p.style.setProperty('background-size', 'cover', 'important');
-          p.style.setProperty('background-position', 'center', 'important');
-        } else {
-          p.style.removeProperty('background-image');
-          p.style.removeProperty('background-size');
-          p.style.removeProperty('background-position');
-        }
-      }
-    } else {
-      p.classList.remove('chapter-page-2');
-      if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
-        if (!p.hasAttribute('data-custom-bg')) {
-          p.style.removeProperty('background-image');
-          p.style.removeProperty('background-size');
-          p.style.removeProperty('background-position');
-        }
-      }
-    }
-  });
+  // --- 7. Aplicar fundo da segunda página (removido) ---
+  // CORREÇÃO: Removida toda a lógica de .chapter-page-2
 
   // --- 8. Forçar reflow para ajustar numeração ---
   setTimeout(() => sincronizarIndice(), 50);
@@ -328,10 +282,8 @@ function executarRefluxoCompleto(
 // ============================================================
 
 function getScriptPreview(
-  indexShowSubtopics: boolean,
-  ativarBgSegundaPagina: boolean,
-  bgSegundaPaginaUrl: string,
-  bgSegundaPaginaOpacidade: string
+  indexShowSubtopics: boolean
+  // CORREÇÃO: Removidos parâmetros do fundo da 2ª página
 ) {
   return `
 <script>
@@ -339,7 +291,7 @@ function getScriptPreview(
     let observer;
     let isEditMode = false;
     let selectedEl = null;
-    let bg2Hidden = false;
+    // CORREÇÃO: Removido bg2Hidden
 
     function rgbToHex(rgb) {
       if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return '#ffffff';
@@ -523,21 +475,17 @@ function getScriptPreview(
         if (!area || area.children.length === 0) page.remove();
       });
 
+      // --- Sincronizar Índice com paginação (cópia da função externa) ---
       function sincronizarIndice() {
         let tocs = container.querySelectorAll('.toc-container');
         if (tocs.length === 0) return;
         
-        if (tocs.length > 1) {
-          for (let i = 1; i < tocs.length; i++) {
-            const p = tocs[i].closest('.page-container');
-            if (p) p.remove();
-          }
-          tocs = [tocs[0]];
-        }
+        // CORREÇÃO: Selecionar a página principal e não remover as outras de forma agressiva
         const mainToc = tocs[0];
         const mainPage = mainToc.closest('.page-container');
         if (!mainPage) return;
 
+        // Limpar o conteúdo do .toc-container principal
         mainToc.innerHTML = '';
 
         const titulos = container.querySelectorAll('h1, h2, h3');
@@ -598,7 +546,7 @@ function getScriptPreview(
           return;
         }
 
-        function criarPaginaIndice() {
+        function criarPaginaIndice(afterPage) {
           const novaPagina = document.createElement('div');
           novaPagina.className = 'page-container chapter-text-page';
           novaPagina.style.overflow = 'hidden';
@@ -625,11 +573,15 @@ function getScriptPreview(
           newToc.className = 'toc-container';
           contentArea.appendChild(newToc);
 
-          const authorPage = container.querySelector('.author-page');
-          if (authorPage) {
-            container.insertBefore(novaPagina, authorPage);
+          if (afterPage && afterPage.parentNode) {
+            afterPage.parentNode.insertBefore(novaPagina, afterPage.nextSibling);
           } else {
-            container.appendChild(novaPagina);
+            const authorPage = container.querySelector('.author-page');
+            if (authorPage) {
+              container.insertBefore(novaPagina, authorPage);
+            } else {
+              container.appendChild(novaPagina);
+            }
           }
           return { pagina: novaPagina, toc: newToc };
         }
@@ -637,6 +589,8 @@ function getScriptPreview(
         let currentPage = mainPage;
         let currentToc = mainToc;
         const LIMITE_ALTURA_INDICE = 850;
+        let pageCount = 1;
+        const MAX_PAGES = 6;
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
@@ -644,92 +598,27 @@ function getScriptPreview(
           const contentArea = currentPage.querySelector('.content-area');
           if (contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) {
             currentToc.removeChild(item);
-            const nova = criarPaginaIndice();
+            if (pageCount >= MAX_PAGES) break;
+            const nova = criarPaginaIndice(currentPage);
             currentPage = nova.pagina;
             currentToc = nova.toc;
+            pageCount++;
             currentToc.appendChild(item);
           }
         }
 
-        const allPages = container.querySelectorAll('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-        const pageArray = Array.from(allPages);
-        
-        container.querySelectorAll('.toc-item').forEach(item => {
-          const href = item.getAttribute('href');
-          if (!href || !href.startsWith('#')) return;
-          const target = document.getElementById(href.substring(1));
-          if (target) {
-            const page = target.closest('.page-container, .page-cover-img, .page-cover-text, .page-cover-pura, .cap-img-overlay, .cap-box-rounded, .cap-img-pura');
-            if (page) {
-              const idx = pageArray.indexOf(page) + 1;
-              const numSpan = item.querySelector('.toc-page-num');
-              if (numSpan) numSpan.innerText = String(idx);
-            }
+        // Remover páginas de índice vazias que possam ter ficado
+        container.querySelectorAll('.page-container').forEach(page => {
+          const toc = page.querySelector('.toc-container');
+          if (toc && !page.querySelector('.toc-item')) {
+            page.remove();
           }
         });
       }
 
       setTimeout(() => sincronizarIndice(), 100);
 
-      let chIndex = 0;
-      let currentChapterImg = '';
-      container.querySelectorAll('.page-container').forEach((p) => {
-        const capaOverlay = p.querySelector('.cap-img-overlay');
-        const h2Inline = p.querySelector('h2.chapter-title-inline');
-        const imgEl = p.querySelector('.chapter-banner-img');
-
-        if (capaOverlay || h2Inline || p.classList.contains('page-cover-img') || p.classList.contains('cap-img-pura')) {
-          chIndex = 1;
-          currentChapterImg = '';
-          
-          if (capaOverlay && capaOverlay.style.backgroundImage && capaOverlay.style.backgroundImage !== 'none') {
-            const match = capaOverlay.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
-            if (match) currentChapterImg = match[1];
-          } else if (imgEl) {
-            currentChapterImg = imgEl.src;
-          } else if (p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-            const match = p.style.backgroundImage.match(/url\\(['"]?(.*?)['"]?\\)/);
-            if (match) currentChapterImg = match[1];
-          }
-        } else {
-          chIndex++;
-        }
-
-        if (chIndex === 2 && !p.classList.contains('author-page') && !p.classList.contains('toc-container') && !p.hasAttribute('data-bg-removed')) {
-          p.classList.add('chapter-page-2');
-          let customUrl = '${bgSegundaPaginaUrl}'.trim();
-          let finalBgUrl = customUrl !== '' ? customUrl : currentChapterImg;
-          
-          if (finalBgUrl && finalBgUrl.trim() !== '') {
-            p.dataset.bgUrl = finalBgUrl;
-            if (${ativarBgSegundaPagina}) {
-              let opac = '${bgSegundaPaginaOpacidade}';
-              p.style.setProperty('background-image', \`linear-gradient(rgba(255,255,255, \${opac}), rgba(255,255,255, \${opac})), url('\${finalBgUrl}')\`, 'important');
-              p.style.setProperty('background-size', 'cover', 'important');
-              p.style.setProperty('background-position', 'center', 'important');
-            } else {
-              p.style.removeProperty('background-image');
-              p.style.removeProperty('background-size');
-              p.style.removeProperty('background-position');
-            }
-          }
-        } else {
-          p.classList.remove('chapter-page-2');
-          if (!p.classList.contains('cap-img-overlay') && !p.classList.contains('cap-box-rounded') && !p.classList.contains('page-cover-img') && !p.classList.contains('page-cover-pura') && !p.classList.contains('cap-img-pura')) {
-            if (!p.hasAttribute('data-custom-bg')) {
-              p.style.removeProperty('background-image');
-              p.style.removeProperty('background-size');
-              p.style.removeProperty('background-position');
-            }
-          }
-        }
-      });
-
-      if (bg2Hidden) {
-        document.querySelectorAll('.chapter-page-2').forEach(el => el.classList.add('hide-bg-2'));
-      } else {
-        document.querySelectorAll('.chapter-page-2').forEach(el => el.classList.remove('hide-bg-2'));
-      }
+      // CORREÇÃO: Removida lógica de .chapter-page-2
 
       if (isEditMode && selectedEl) {
          selectedEl.style.outline = '3px solid #4f46e5';
@@ -846,17 +735,7 @@ function getScriptPreview(
          });
          window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
       }
-      if (e.data.type === 'TOGGLE_BG_2') {
-         bg2Hidden = !bg2Hidden;
-         document.querySelectorAll('.chapter-page-2').forEach(el => {
-            if (bg2Hidden) {
-               el.classList.add('hide-bg-2');
-            } else {
-               el.classList.remove('hide-bg-2');
-            }
-         });
-         window.parent.postMessage({ type: 'BG_2_TOGGLED', hidden: bg2Hidden }, '*');
-      }
+      // CORREÇÃO: Removido TOGGLE_BG_2
     });  
 
     document.addEventListener('mouseover', (e) => {
@@ -955,7 +834,7 @@ export default function Home() {
   });
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
-  const [bg2Oculto, setBg2Oculto] = useState(false);
+  // CORREÇÃO: Removido bg2Oculto
 
   // Configurações de estilo
   const [fontFamily, setFontFamily] = useState('Lato');
@@ -965,25 +844,26 @@ export default function Home() {
   const [recuoParagrafo, setRecuoParagrafo] = useState('0px');
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   
-  // CORREÇÃO: Novos estados para cores (substituem paleta antiga)
   const [corFundoPagina, setCorFundoPagina] = useState('#ffffff');
   const [corTextoDetalhes, setCorTextoDetalhes] = useState('#111827');
   
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
+  // CORREÇÃO: Removido boxOpacity duplicado (mantido apenas o que está com a capa)
   const [boxOpacity, setBoxOpacity] = useState('0.70');
   
-  // CORREÇÃO: Removido estado usarImagemFundoCap
-  const [corFundoCapitulo, setCorFundoCapitulo] = useState('#e2e8f0');
-  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#1e3a8a');
-  const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
+  // CORREÇÃO: Novas cores padrão
+  const [corFundoCapitulo, setCorFundoCapitulo] = useState('#0f172a'); // azul marinho escuro
+  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#15803d'); // verde elegante
+  // CORREÇÃO: Removido usarImagemFundoCap
+
+  // CORREÇÃO: Remover opção "simples" do estiloRodape
+  const [estiloRodape, setEstiloRodape] = useState<'linha-superior' | 'centralizado-circulo' | 'centralizado'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('retangulo');
 
-  // Fundo da 2ª página
-  const [ativarBgSegundaPagina, setAtivarBgSegundaPagina] = useState(true);
-  const [bgSegundaPaginaUrl, setBgSegundaPaginaUrl] = useState('');
-  const [bgSegundaPaginaOpacidade, setBgSegundaPaginaOpacidade] = useState('0.85');
+  // CORREÇÃO: Removidas variáveis do fundo da 2ª página
+  // const [ativarBgSegundaPagina, ...] removido
 
   // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
@@ -1012,6 +892,15 @@ export default function Home() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  // CORREÇÃO: Array de ícones para troca
+  const iconList = [
+    'fa-leaf', 'fa-star', 'fa-lightbulb', 'fa-seedling', 'fa-anchor',
+    'fa-crown', 'fa-feather', 'fa-gem', 'fa-tree', 'fa-mountain',
+    'fa-compass', 'fa-sun', 'fa-moon', 'fa-cloud', 'fa-bolt',
+    'fa-fire', 'fa-water', 'fa-wind', 'fa-earth', 'fa-rocket'
+  ];
+  const [iconIndex, setIconIndex] = useState(0);
 
   async function gerarEbookPDF(textoBruto: string) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -1090,14 +979,13 @@ export default function Home() {
   // FUNÇÕES AUXILIARES
   // ============================================================
 
-  // CORREÇÃO: getPaletaObj agora unifica as cores
   function getPaletaObj() {
     return {
       bg: corFundoPagina,
       text: corTextoDetalhes,
-      pri: corTextoDetalhes,   // títulos usam a mesma cor dos textos
-      sec: corTextoDetalhes,   // subtítulos também
-      borda: corTextoDetalhes  // bordas e numeração também
+      pri: corTextoDetalhes,
+      sec: corTextoDetalhes,
+      borda: corTextoDetalhes
     };
   }
 
@@ -1169,7 +1057,7 @@ export default function Home() {
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
   --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#1e3a8a'} ${opacidadeSegura}%, transparent);
+  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#15803d'} ${opacidadeSegura}%, transparent);
 }
 
 body {
@@ -1189,7 +1077,6 @@ img.chapter-banner-img { width: 100% !important; height: 300px !important; objec
 h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !important; font-family: var(--font-heading) !important; font-size: 1.8rem !important; }
 .page-container > h3.subtopic-title:first-of-type, .page-container > .page-header + h3.subtopic-title { margin-top: 0 !important; }
 
-/* CORREÇÃO: Aplicar background com !important a todas as páginas estruturais */
 .page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .legal-page, .author-page, .page-extra,
 .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
   background-color: var(--color-bg) !important;
@@ -1244,7 +1131,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
   background-size: cover !important;
   background-position: center !important;
-  background-color: ${corFundoCapitulo || '#e2e8f0'} !important;
+  background-color: ${corFundoCapitulo || '#0f172a'} !important;
   display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
   padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
 }
@@ -1275,7 +1162,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 }
 
 .page-header { position: absolute; top: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--color-primary); opacity: 0.8; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px; }
-.page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape.includes('linha-superior') ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
+.page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
 .page-number { margin-left: auto !important; }
 .page-number::after { content: counter(ebook-page); }
 
@@ -1331,13 +1218,6 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 .author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
 .author-photo { flex-shrink: 0; object-fit: cover; border: 3px solid rgba(255,255,255,0.8); }
-
-.chapter-page-2 {
-  transition: background-image 0.4s ease-in-out, background-color 0.4s ease-in-out;
-}
-.hide-bg-2 {
-  background-image: none !important;
-}
 
 @page { size: A4 portrait; margin: 0; }
 @media print {
@@ -1468,7 +1348,7 @@ ${ebookStyles}
 
     if (recarregar && previewFrameRef.current) {
       setRecarregarIframe(true);
-      const script = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      const script = getScriptPreview(indexShowSubtopics);
       previewFrameRef.current.srcdoc = htmlFinal + script;
     } else {
       setRecarregarIframe(false);
@@ -1504,7 +1384,7 @@ ${ebookStyles}
   function obterBlocoAutorHtml() {
     let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
     let regraRodape = '';
-    if (estiloRodape.includes('simples') || estiloRodape.includes('linha-superior')) {
+    if (estiloRodape === 'linha-superior') {
       regraRodape = `<span>${livroAutores}</span>${numSpan}`;
     } else {
       regraRodape = `${numSpan}`;
@@ -1615,7 +1495,7 @@ ${ebookStyles}
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
     if (previewFrameRef.current) {
-      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics);
     }
 
     setShowModalPagina(false);
@@ -1708,11 +1588,22 @@ ${ebookStyles}
     (window as any).showNotification('Cor aplicada a todas as páginas!', 'success');
   }
 
-  function toggleBg2() {
+  // CORREÇÃO: Função para trocar ícone ciclicamente
+  function trocarIcone() {
+    if (!elementoSelecionado || elementoSelecionado.tagName !== 'i') return;
+    const currentIndex = iconIndex % iconList.length;
+    const newClass = iconList[currentIndex];
+    // Atualiza o elemento no iframe
     if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-      previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_BG_2' }, '*');
+      previewFrameRef.current.contentWindow.postMessage({
+        type: 'UPDATE_ELEMENT',
+        id: elementoSelecionado.id,
+        text: `<i class="fas ${newClass}"></i>`,
+        forceTextUpdate: true,
+      }, '*');
     }
-    setBg2Oculto(!bg2Oculto);
+    setElementoSelecionado((prev: any) => ({ ...prev, text: newClass }));
+    setIconIndex((prev) => (prev + 1) % iconList.length);
   }
 
   // ============================================================
@@ -1879,7 +1770,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
   function baixarArquivo(html: string, titulo: string) {
     const htmlCompleto = moldarApresentacaoHtml(html);
-    const scriptInjetado = getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+    const scriptInjetado = getScriptPreview(indexShowSubtopics);
     
     const htmlProntoParaImpressao = htmlCompleto.replace('</body>', `<script>${scriptInjetado.replace(/<script>|<\/script>/g, '')}</script>\n</body>`);
 
@@ -2102,7 +1993,22 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
-    const instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
+    // CORREÇÃO: Extrair último trecho para continuidade
+    let ultimoTrecho = '';
+    if (currentHtml) {
+      // Extrair os últimos 2 parágrafos do conteúdo (ignorando tags)
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = currentHtml;
+      const paragrafos = tempDiv.querySelectorAll('p');
+      if (paragrafos.length >= 2) {
+        const ultimos = Array.from(paragrafos).slice(-2);
+        ultimoTrecho = ultimos.map(p => p.textContent?.trim() || '').join(' ');
+      } else if (paragrafos.length === 1) {
+        ultimoTrecho = paragrafos[0].textContent?.trim() || '';
+      }
+    }
+
+    let instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
     Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
     ATENÇÃO: Não pule números. Respeite rigorosamente a ordem (imagem primeiro, depois título).
@@ -2113,6 +2019,16 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     ${cap3.regrasCompletas}
 
     A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos acima preenchidos, sem repetir cabeçalhos ou rodapés. Não escreva "Conclusão".`;
+
+    // CORREÇÃO: Adicionar modo rigoroso se selecionado
+    if (modoConteudo === 'rigoroso') {
+      instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
+    }
+
+    // CORREÇÃO: Adicionar contexto de continuação
+    if (ultimoTrecho) {
+      instrucao += `\n\nContinue o raciocínio a partir deste último trecho gerado: "${ultimoTrecho}"`;
+    }
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
@@ -2256,7 +2172,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       const htmlFinal = moldarApresentacaoHtml(savedHtml);
       setHtmlAtual(htmlFinal);
       if (previewFrameRef.current) {
-        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+        previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics);
       }
     }
 
@@ -2277,7 +2193,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         localStorage.setItem('ebook_draft_html', htmlAtualizado);
         setRecarregarIframe(true);
         if (previewFrameRef.current) {
-          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+          previewFrameRef.current.srcdoc = htmlAtualizado + getScriptPreview(indexShowSubtopics);
         }
       }
     }
@@ -2305,26 +2221,23 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(true);
           if (previewFrameRef.current) {
-            previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+            previewFrameRef.current.srcdoc = htmlLimpo + getScriptPreview(indexShowSubtopics);
           }
         }
-      }
-      if (e.data.type === 'BG_2_TOGGLED') {
-        setBg2Oculto(e.data.hidden);
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Recarregar iframe apenas quando necessário (desfazer ou novas gerações)
+  // Recarregar iframe apenas quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
-      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics, ativarBgSegundaPagina, bgSegundaPaginaUrl, bgSegundaPaginaOpacidade);
+      previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics);
     }
   }, [htmlAtual, recarregarIframe]);
 
-  // Reaplicar estilos ao mudar configurações visuais (exceto recuo, que é removido do gatilho)
+  // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
@@ -2334,8 +2247,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }, [
     fontFamily, tamanhoFonteBase, tipoBorda, estiloRodape, 
-    alinhamentoCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, 
-    bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, indexShowSubtopics,
+    alinhamentoCapitulo, autorPosicao, autorFormato,
     boxColorHex, boxOpacity, corFundoPagina, corTextoDetalhes,
     corFundoCapitulo, corRetanguloCapitulo
     // recuoParagrafo removido para evitar reflow desnecessário
@@ -2650,7 +2562,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                 <div className="panel-section">
                   <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
                   
-                  {/* CORREÇÃO: Novos controles de cores, agora primeiro */}
                   <div className="space-y-4 mb-4">
                     <div>
                       <label className="input-label text-[9px]">Cor de Fundo das Páginas</label>
@@ -2681,7 +2592,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         className="input-standard text-[10px]"
                       >
                         <option value="linha-superior">Linha Superior + Autor + Num</option>
-                        <option value="simples">Simples (Autor + Num)</option>
                         <option value="centralizado-circulo">Centralizado com Círculo</option>
                         <option value="centralizado">Apenas Número Centralizado</option>
                       </select>
@@ -2770,46 +2680,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                   </div>
                 </div>
 
-                <div className="panel-section">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
-                    <input
-                      type="checkbox"
-                      checked={ativarBgSegundaPagina}
-                      onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)}
-                      disabled={htmlAtual !== '' || etapaAtual > 0}
-                      className="rounded text-indigo-600 accent-indigo-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  {ativarBgSegundaPagina && (
-                    <div className="space-y-2 mt-2">
-                      <input
-                        type="text"
-                        value={bgSegundaPaginaUrl}
-                        onChange={(e) => setBgSegundaPaginaUrl(e.target.value)}
-                        disabled={htmlAtual !== '' || etapaAtual > 0}
-                        className="input-standard text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        placeholder="URL de fundo opcional (ou usa do cap)..."
-                      />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-bold text-slate-500">Opacidade:</span>
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="0.98"
-                          step="0.02"
-                          value={bgSegundaPaginaOpacidade}
-                          onChange={(e) => setBgSegundaPaginaOpacidade(e.target.value)}
-                          disabled={htmlAtual !== '' || etapaAtual > 0}
-                          className="flex-1 accent-indigo-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-[9px] text-slate-400 mt-2">Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar globalmente após gerar.</p>
-                </div>
+                {/* CORREÇÃO: Removida seção "Fundo da 2ª Página" */}
 
-                {/* CORREÇÃO: Seção de customização da capa do capítulo (sem checkbox de imagem) */}
                 <div className="panel-section">
                   <label className="input-label text-indigo-600 mb-3">Customização da Capa do Capítulo</label>
                   <div className="space-y-3">
@@ -2900,29 +2772,15 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         </button>
                       </div>
 
+                      {/* CORREÇÃO: Controle de ícone com botão "Trocar Ícone" */}
                       {elementoSelecionado.tagName === 'i' && (
                         <div className="pt-3 border-t border-slate-100 space-y-3">
-                          <div>
-                            <label className="input-label text-[9px]">Classe do Ícone (FontAwesome)</label>
-                            <input
-                              type="text"
-                              value={elementoSelecionado.text || ''}
-                              onChange={(e) => {
-                                const newClass = e.target.value.trim();
-                                if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-                                  previewFrameRef.current.contentWindow.postMessage({
-                                    type: 'UPDATE_ELEMENT',
-                                    id: elementoSelecionado.id,
-                                    text: `<i class="${newClass}"></i>`,
-                                    forceTextUpdate: true,
-                                  }, '*');
-                                }
-                                setElementoSelecionado((prev: any) => ({ ...prev, text: newClass }));
-                              }}
-                              className="input-standard text-[10px]"
-                              placeholder="Ex: fas fa-star"
-                            />
-                          </div>
+                          <button
+                            onClick={trocarIcone}
+                            className="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-[9px] uppercase py-2 rounded transition"
+                          >
+                            <i className="fas fa-exchange-alt mr-1"></i> Trocar Ícone
+                          </button>
                           <button
                             onClick={() => {
                               if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
@@ -3184,19 +3042,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
               >
                 <i className="fas fa-redo"></i> Refazer
               </button>
-              {modoInspetor && (
-                <button
-                  onClick={toggleBg2}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                    bg2Oculto
-                      ? 'bg-gray-700 text-white hover:bg-gray-800'
-                      : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-300'
-                  }`}
-                >
-                  <i className={`fas ${bg2Oculto ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                  {bg2Oculto ? 'Mostrar Fundo 2ª Pág' : 'Ocultar Fundo 2ª Pág'}
-                </button>
-              )}
+              {/* CORREÇÃO: Removido botão toggle do fundo 2ª página */}
             </div>
             <div className="flex items-center gap-3">
               <button
