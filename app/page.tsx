@@ -352,9 +352,18 @@ function getScriptPreview(indexShowSubtopics: boolean) {
           }
         });
 
-        // CORREÇÃO 3: Numeração do Índice com setTimeout e contagem exata
+        // CORREÇÃO 2: Numeração do Índice com setTimeout e contagem exata
+        // Agora incluímos TODAS as páginas físicas (capa, avisos, extras, autor, etc.)
         setTimeout(() => {
-          const allPages = Array.from(container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.legal-page):not(.author-page)'));
+          const allPages = Array.from(container.children).filter(el =>
+            el.classList.contains('page-container') ||
+            el.classList.contains('page-cover-img') ||
+            el.classList.contains('page-cover-pura') ||
+            el.classList.contains('page-cover-text') ||
+            el.classList.contains('legal-page') ||
+            el.classList.contains('page-extra') ||
+            el.classList.contains('author-page')
+          );
           const allTocItems = container.querySelectorAll('.toc-item');
           allTocItems.forEach(item => {
             const href = item.getAttribute('href');
@@ -372,8 +381,9 @@ function getScriptPreview(indexShowSubtopics: boolean) {
         }, 500);
       }
 
-      // Chamada inicial do índice
-      setTimeout(() => sincronizarIndice(), 100);
+      // CORREÇÃO 1: Chamada síncrona do índice ANTES de reativar o observer
+      // Removemos o setTimeout anterior e chamamos diretamente aqui
+      sincronizarIndice();
 
       if (isEditMode && selectedEl) {
          selectedEl.style.outline = '3px solid #4f46e5';
@@ -381,6 +391,7 @@ function getScriptPreview(indexShowSubtopics: boolean) {
 
       window.scrollTo(0, currentScrollY);
 
+      // Reativa o observer após um delay, mas a chamada do índice já foi feita
       setTimeout(() => {
         if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
       }, 300);
@@ -1695,9 +1706,9 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
      <p>[Parágrafo 12 - Aprox 70 palavras]</p>
      <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL impactante para fechar a última página]</blockquote>
 
-  4. REGRA DE SEGURANÇA (LEIA COM ATENÇÃO): 
-     - PROIBIÇÃO ABSOLUTA: NÃO mostre o seu processo de pensamento, rascunhos, ou contagem de palavras (como "Word count check").
-     - DEVOLVA APENAS AS TAGS HTML. NÃO escreva NENHUM texto solto fora das tags.
+  // CORREÇÃO 3: Blindagem contra alucinações da IA
+  4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.
+
   5. IMAGENS DINÂMICAS: Na tag <div class="cap-img-overlay">, substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para o sistema buscar a foto depois. Exemplo: data-unsplash="business".
   `;
 
@@ -1805,6 +1816,9 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
+    // Reforço extra contra alucinações
+    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.`;
+
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
       { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
@@ -1846,6 +1860,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       <p>[Escreva aqui a conclusão detalhada do e-book em cerca de 3 parágrafos...]</p>
       
       O PROMPT ACABA AQUI. Devolva apenas essas tags HTML soltas e preenchidas. O sistema cuidará de adicionar o Autor nativamente.
+      
+      REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.
       `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
