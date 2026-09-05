@@ -231,7 +231,7 @@ function executarRefluxoCompleto(
         let currentToc = mainToc;
         // Limpar conteúdo atual (já limpo)
         // Adicionar os itens um a um, verificando estouro
-        const LIMITE_ALTURA_INDICE = 850; // CORREÇÃO: ajustado para 850
+        const LIMITE_ALTURA_INDICE = 850;
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
@@ -339,7 +339,6 @@ function getScriptPreview(
     let observer;
     let isEditMode = false;
     let selectedEl = null;
-    // CORREÇÃO: estado para controle do fundo da 2ª página
     let bg2Hidden = false;
 
     function rgbToHex(rgb) {
@@ -357,7 +356,6 @@ function getScriptPreview(
       if (!container) return;
 
       // CORREÇÃO DO UNSPLASH: Burlar o cache usando sintaxe aceita pela API
-      // Reforçado para garantir que todas as capas de capítulo recebam imagem
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          let bg = overlay.style.backgroundImage || '';
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg === '')) {
@@ -407,14 +405,12 @@ function getScriptPreview(
 
       container.querySelectorAll('hr').forEach(hr => hr.remove());
       container.querySelectorAll('p').forEach(p => {
-          // REMOVER FALSO RECUO: espaços iniciais e &nbsp;
           if (p.innerHTML) {
             p.innerHTML = p.innerHTML.replace(/^(&nbsp;|\\s)+/g, '');
           }
           if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
       });
 
-      // SALVA VIDAS: Se a IA gerar um texto solto sem <p>, envolve em <p> para não quebrar a margem!
       Array.from(container.childNodes).forEach(node => {
           if (node.nodeType === 3 && node.textContent.trim() !== '') {
               const p = document.createElement('p');
@@ -487,17 +483,13 @@ function getScriptPreview(
           let el = elementosIA[i];
           let deveQuebrar = false;
 
-          // REGRA DE QUEBRA DE PÁGINA:
           if (atual.areaTexto.children.length > 0) {
-            // H1, H2 ou capa de capítulo forçam quebra
             if (el.tagName === 'H1' || el.tagName === 'H2' || el.classList.contains('cap-img-overlay')) {
               deveQuebrar = true; 
             } 
-            // Se a página atual já tem uma capa de capítulo, qualquer elemento seguinte quebra
             else if (atual.areaTexto.querySelector('.cap-img-overlay') || atual.areaTexto.classList.contains('cap-img-overlay')) {
               deveQuebrar = true;
             }
-            // H3 quebra apenas se já houver outros elementos de texto na página
             else if (el.tagName === 'H3' && atual.areaTexto.querySelectorAll('p, blockquote, ul, .highlight-box, .concept-box, img').length > 0) {
               deveQuebrar = true; 
             }
@@ -507,9 +499,7 @@ function getScriptPreview(
 
           atual.areaTexto.appendChild(el);
 
-          // Verifica estouro de altura e cria nova página se necessário
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-            // Não quebra se for uma capa de capítulo (imagem)
             if (!el.classList.contains('cap-img-overlay')) {
               if (atual.areaTexto.children.length > 1) {
                   atual.areaTexto.removeChild(el); 
@@ -533,7 +523,6 @@ function getScriptPreview(
         if (!area || area.children.length === 0) page.remove();
       });
 
-      // --- Sincronizar Índice com paginação (cópia da função externa) ---
       function sincronizarIndice() {
         let tocs = container.querySelectorAll('.toc-container');
         if (tocs.length === 0) return;
@@ -736,7 +725,6 @@ function getScriptPreview(
         }
       });
 
-      // CORREÇÃO: Aplicar estado de ocultação do fundo da 2ª página
       if (bg2Hidden) {
         document.querySelectorAll('.chapter-page-2').forEach(el => el.classList.add('hide-bg-2'));
       } else {
@@ -763,12 +751,10 @@ function getScriptPreview(
          }
       }
       
-      // CORREÇÃO: Desfazer e Refazer com scroll lock
       if (e.data.type === 'UNDO_HTML' || e.data.type === 'REDO_HTML') {
          const scrollY = window.scrollY;
          const selectedId = selectedEl ? selectedEl.id : null;
          document.getElementById('ebook-container').innerHTML = e.data.html;
-         // Aguarda o reflow e restaura a posição e seleção
          setTimeout(() => {
             executarRefluxoCompleto();
             requestAnimationFrame(() => {
@@ -778,7 +764,6 @@ function getScriptPreview(
                   if (el) {
                      selectedEl = el;
                      el.style.outline = '3px solid #4f46e5';
-                     // Re-emitir seleção para o React
                      const computed = window.getComputedStyle(el);
                      window.parent.postMessage({
                         type: 'ELEMENT_SELECTED',
@@ -853,7 +838,6 @@ function getScriptPreview(
             setTimeout(executarRefluxoCompleto, 100);
          }
       }
-      // CORREÇÃO: Aplicar cor a todas as páginas
       if (e.data.type === 'APPLY_GLOBAL_BG') {
          const color = e.data.color;
          const pages = document.querySelectorAll('.page-container');
@@ -862,7 +846,6 @@ function getScriptPreview(
          });
          window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
       }
-      // CORREÇÃO: Toggle do fundo da 2ª página
       if (e.data.type === 'TOGGLE_BG_2') {
          bg2Hidden = !bg2Hidden;
          document.querySelectorAll('.chapter-page-2').forEach(el => {
@@ -876,7 +859,6 @@ function getScriptPreview(
       }
     });  
 
-    // CORREÇÃO: Adicionar 'i' (ícones) na seleção
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
       const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
@@ -973,7 +955,6 @@ export default function Home() {
   });
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
-  // CORREÇÃO: estado para controle do toggle do fundo da 2ª página
   const [bg2Oculto, setBg2Oculto] = useState(false);
 
   // Configurações de estilo
@@ -981,23 +962,20 @@ export default function Home() {
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
   const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('0.8em');
-  // CORREÇÃO: recuo inicial 0px
   const [recuoParagrafo, setRecuoParagrafo] = useState('0px');
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
-  // CORREÇÃO: atualizar opções da paleta
-  const [paletaCores, setPaletaCores] = useState<'classico' | 'noturno' | 'natureza' | 'manual'>('classico');
-  const [corManualPri, setCorManualPri] = useState('#2563eb');
-  const [corManualSec, setCorManualSec] = useState('#3b82f6');
-  const [corManualText, setCorManualText] = useState('#111827');
-  const [corManualBg, setCorManualBg] = useState('#ffffff');
+  
+  // CORREÇÃO: Novos estados para cores (substituem paleta antiga)
+  const [corFundoPagina, setCorFundoPagina] = useState('#ffffff');
+  const [corTextoDetalhes, setCorTextoDetalhes] = useState('#111827');
+  
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  // CORREÇÃO: Box azul (blue-900)
   const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
   const [boxOpacity, setBoxOpacity] = useState('0.70');
-  // CORREÇÃO: Novos estados para customização da capa do capítulo
+  
+  // CORREÇÃO: Removido estado usarImagemFundoCap
   const [corFundoCapitulo, setCorFundoCapitulo] = useState('#e2e8f0');
   const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#1e3a8a');
-  const [usarImagemFundoCap, setUsarImagemFundoCap] = useState(true);
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('retangulo');
@@ -1112,36 +1090,26 @@ export default function Home() {
   // FUNÇÕES AUXILIARES
   // ============================================================
 
-  // CORREÇÃO: Atualizar getPaletaObj com novas paletas
+  // CORREÇÃO: getPaletaObj agora unifica as cores
   function getPaletaObj() {
-    if (paletaCores === 'manual') {
-      return { bg: corManualBg, text: corManualText, pri: corManualText, sec: corManualText, borda: corManualText };
-    }
-    
-    switch (paletaCores) {
-      case 'noturno':
-        return { bg: '#1e293b', text: '#f1f5f9', pri: '#60a5fa', sec: '#93c5fd', borda: '#475569' };
-      case 'natureza':
-        return { bg: '#064e3b', text: '#ecfdf5', pri: '#34d399', sec: '#6ee7b7', borda: '#065f46' };
-      case 'classico':
-      default:
-        return { bg: '#ffffff', text: '#111827', pri: '#111827', sec: '#374151', borda: '#111827' };
-    }
+    return {
+      bg: corFundoPagina,
+      text: corTextoDetalhes,
+      pri: corTextoDetalhes,   // títulos usam a mesma cor dos textos
+      sec: corTextoDetalhes,   // subtítulos também
+      borda: corTextoDetalhes  // bordas e numeração também
+    };
   }
 
-  // CORREÇÃO: purificarHTML preservando atributos essenciais
   function purificarHTML(rawHtml: string) {
     let clean = rawHtml;
-    // Remove markdown, mas preserva conteúdo
     const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
     if (markdownMatch) clean = markdownMatch[1];
     clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
 
-    // Remove apenas scripts e estilos injetados que são lixo
     clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
     clean = clean.replace(/<style id="builder-core-styles">[\s\S]*?<\/style>/gi, '');
     
-    // Remove atributos de edição, mas preserva data-* e style
     clean = clean.replace(/\bbuilder-editing\b/gi, '');
     clean = clean
       .replace(/cursor:\s*pointer;?/gi, '')
@@ -1152,27 +1120,21 @@ export default function Home() {
       .replace(/data-old-outline="[^"]*"/gi, '')
       .replace(/\s*style="\s*"/gi, '');
     
-    // Preserva classes válidas
     clean = clean.replace(/ class="\s*"/gi, '');
 
-    // Remove tags <br> e parágrafos vazios
     clean = clean.replace(/<br\s*\/?>/gi, '');
     clean = clean.replace(/<p>[\s\n\r&nbsp;]*<\/p>/gi, '');
 
-    // Limpa placeholders de numeração (preserva estrutura)
     clean = clean.replace(/<span class="toc-page-num">[^<]*<\/span>/gi, '<span class="toc-page-num"></span>');
     clean = clean.replace(/<span class="page-number( circulo)?">[^<]*<\/span>/gi, '<span class="page-number$1"></span>');
 
-    // Corrige estrutura de índice
     clean = clean.replace(/<p>\s*<a class="toc-item"/gi, '<a class="toc-item"');
     clean = clean.replace(/<\/a>\s*<\/p>/gi, '</a>');
     clean = clean.replace(/<p>\s*<div class="toc-container"/gi, '<div class="toc-container"');
     clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
     clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
 
-    // Não remove <p> com style ou data-*; apenas limpa atributos vazios
     clean = clean.replace(/<p\s+[^>]*>/gi, (match) => {
-      // Mantém style, data-*, class
       if (/style\s*=|data-|class\s*=/i.test(match)) return match;
       return '<p>';
     });
@@ -1187,7 +1149,6 @@ export default function Home() {
   function moldarApresentacaoHtml(rawHtml: string) {
     let clean = purificarHTML(rawHtml);
     clean = clean.replace(/<style id="ebook-dynamic-styles">[\s\S]*?<\/style>/gi, '');
-    // REMOVE FALSO RECUO (espaços iniciais e &nbsp;) - reforçado
     clean = clean.replace(/<p>(\s|&nbsp;)+/gi, '<p>');
     
     const conf = getEstilosFormato();
@@ -1228,18 +1189,19 @@ img.chapter-banner-img { width: 100% !important; height: 300px !important; objec
 h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !important; font-family: var(--font-heading) !important; font-size: 1.8rem !important; }
 .page-container > h3.subtopic-title:first-of-type, .page-container > .page-header + h3.subtopic-title { margin-top: 0 !important; }
 
-.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .cap-img-overlay, .cap-box-rounded, .cap-img-pura {
-  background-color: var(--color-bg); width: ${conf.width} !important; height: ${conf.height} !important;
+/* CORREÇÃO: Aplicar background com !important a todas as páginas estruturais */
+.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .legal-page, .author-page, .page-extra,
+.cap-img-overlay, .cap-box-rounded, .cap-img-pura {
+  background-color: var(--color-bg) !important;
+  width: ${conf.width} !important; height: ${conf.height} !important;
   min-width: ${conf.width} !important; min-height: ${conf.height} !important; max-width: ${conf.width} !important; max-height: ${conf.height} !important;
   flex-shrink: 0 !important; padding: ${conf.padding}; margin: 0 auto 20px auto; box-sizing: border-box;
   position: relative; overflow: hidden !important; page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
-/* CORREÇÃO: aumentar padding-top para evitar que o texto encoste no cabeçalho */
 .chapter-text-page { padding-top: 25mm !important; }
 
-/* AVISO LEGAL: justificado ao topo com padding-top 35mm */
 .legal-page { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 35mm 25mm !important; }
 .legal-page h2 { font-size: 2rem; margin-bottom: 2rem; }
 .legal-page p { font-size: 1rem; line-height: 1.8; margin-bottom: 1.2rem; text-align: justify; }
@@ -1255,7 +1217,6 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   display: none !important; opacity: 0 !important; visibility: hidden !important;
 }
 
-/* CAPA DO LIVRO: centralização perfeita e texto sempre branco com sombra */
 .page-cover-img {
   display: flex !important;
   flex-direction: column;
@@ -1279,14 +1240,11 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   text-shadow: 0 0 15px rgba(0,0,0,0.9);
 }
 
-/* CAPA DO CAPÍTULO - fundo controlado via variáveis */
 .cap-img-overlay { 
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
   background-size: cover !important;
   background-position: center !important;
   background-color: ${corFundoCapitulo || '#e2e8f0'} !important;
-  /* CORREÇÃO: quando não usar imagem, aplicar none, mas manter cor e altura */
-  ${usarImagemFundoCap ? '' : 'background-image: none !important;'}
   display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
   padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
 }
@@ -1300,7 +1258,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 }
 .cap-img-overlay h1.chapter-title-exclusive {
   margin: 0 !important;
-  color: #ffffff !important; /* forçando branco para contraste com fundo escuro */
+  color: #ffffff !important;
   font-size: 2.2rem !important;
   line-height: 1.2 !important;
   font-weight: 700;
@@ -1308,7 +1266,6 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   text-transform: none !important;
   text-shadow: 0 0 20px rgba(0,0,0,0.7);
 }
-/* ícone acima do título fica centralizado e com espaçamento */
 .cap-overlay-box i {
   display: block;
   font-size: 3rem !important;
@@ -1326,7 +1283,6 @@ h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); 
 h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; text-align: center; }
 h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
 
-/* SUBTÍTULOS (H3) - negrito e espaçamento maior, sem borda */
 h3 {
   font-size: 1.4rem !important;
   font-weight: 800 !important;
@@ -1340,9 +1296,8 @@ p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) 
 blockquote { font-style: italic; color: var(--color-text); border-left: 4px solid var(--color-primary); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
 .highlight-box { background: color-mix(in srgb, var(--color-text) 8%, transparent); border-left: 4px solid var(--color-primary); padding: 12px 18px; border-radius: 8px; margin: 1rem 0; font-weight: 500; font-size: ${tamanhoFonteBase}; display: flex; align-items: center; gap: 12px; }
 
-/* CORREÇÃO: Nova classe concept-box */
 .concept-box {
-  background: #eff6ff; /* azul muito claro */
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
   border: 2px solid var(--color-primary);
   border-radius: 12px;
   padding: 1rem 1.5rem;
@@ -1366,7 +1321,6 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
 .toc-page-num { font-weight: bold; color: var(--color-primary); }
 
-/* CORREÇÃO: subtópicos no índice mais compactos */
 .toc-subtopic {
   font-size: 0.75em !important;
   line-height: 1 !important;
@@ -1378,7 +1332,6 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
 .author-photo { flex-shrink: 0; object-fit: cover; border: 3px solid rgba(255,255,255,0.8); }
 
-/* CORREÇÃO: Transição suave para o fundo da 2ª página */
 .chapter-page-2 {
   transition: background-image 0.4s ease-in-out, background-color 0.4s ease-in-out;
 }
@@ -1490,7 +1443,6 @@ ${ebookStyles}
         console.error('Erro na injeção segura, usando fallback');
     }
 
-    // Fallback: insere antes do último </div> (que é o fechamento do container)
     const lastDivIndex = htmlBase.lastIndexOf('</div>');
     if (lastDivIndex !== -1) {
       return htmlBase.substring(0, lastDivIndex) + '\n' + cleanNovo + '\n' + htmlBase.substring(lastDivIndex);
@@ -1509,7 +1461,6 @@ ${ebookStyles}
       htmlFinal = moldarApresentacaoHtml(novoConteudo);
     }
 
-    // CORREÇÃO: Atualizar histórico e limpar futuro
     setHistorico((prev) => [...prev, htmlAtual]);
     setFuturo([]);
     setHtmlAtual(htmlFinal);
@@ -1550,7 +1501,6 @@ ${ebookStyles}
 </div>`;
   }
 
-  // CORREÇÃO: Foto do autor neutra
   function obterBlocoAutorHtml() {
     let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
     let regraRodape = '';
@@ -1715,7 +1665,6 @@ ${ebookStyles}
     (window as any).showNotification('Elemento transformado!', 'success');
   }
 
-  // CORREÇÃO: Desfazer e Refazer
   function desfazer() {
     if (historico.length === 0) return;
     const novoHistorico = [...historico];
@@ -1748,7 +1697,6 @@ ${ebookStyles}
     }
   }
 
-  // CORREÇÃO: Aplicar cor global
   function aplicarCorGlobal() {
     if (!elementoSelecionado || !elementoSelecionado.bgColor) return;
     if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
@@ -1760,7 +1708,6 @@ ${ebookStyles}
     (window as any).showNotification('Cor aplicada a todas as páginas!', 'success');
   }
 
-  // CORREÇÃO: Toggle do fundo da 2ª página
   function toggleBg2() {
     if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
       previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_BG_2' }, '*');
@@ -1850,7 +1797,6 @@ ${ebookStyles}
     setFuturo([]);
     const paleta = getPaletaObj();
 
-    // CORREÇÃO: Prompt cirúrgico e restritivo
     const instrucao = `Você é um parser estrito de HTML. Receberá a tag HTML exata selecionada pelo usuário.
 Sua tarefa é modificar APENAS o conteúdo interno desta tag, mantendo a tag e seus atributos exatos, a menos que o pedido explicitamente solicite mudança de classe ou estilo.
 
@@ -2035,7 +1981,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   // ============================================================
   function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
     const numero = opts?.numeroCapitulo || 1;
-    // CORREÇÃO: Adicionar ícone temático no prompt
     const iconeSugerido = opts?.tema ? `fa-${opts.tema.toLowerCase()}` : 'fa-book';
 
     const regrasCompletas = `
@@ -2185,19 +2130,16 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
   // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
-    // CORREÇÃO: Verifica se existe conteúdo e se a conclusão já não foi gerada
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
       return;
     }
 
-    // Verifica se já existe conclusão
     if (htmlAtual.includes('id="conclusao"')) {
       (window as any).showNotification('O e-book já está finalizado! Use os botões normais para adicionar capítulos.', 'error');
       return;
     }
 
-    // Verifica se há pelo menos um capítulo (pode ser um h2 com "Capítulo" ou .cap-img-overlay)
     const hasChapters = htmlAtual.includes('cap-img-overlay') || /Capítulo\s*\d+/i.test(htmlAtual);
     if (!hasChapters) {
       (window as any).showNotification('Você precisa adicionar pelo menos um capítulo antes de finalizar.', 'error');
@@ -2367,7 +2309,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
           }
         }
       }
-      // CORREÇÃO: Sincronizar estado do toggle do fundo da 2ª página
       if (e.data.type === 'BG_2_TOGGLED') {
         setBg2Oculto(e.data.hidden);
       }
@@ -2392,11 +2333,11 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       setRecarregarIframe(true);
     }
   }, [
-    fontFamily, tamanhoFonteBase, tipoBorda, paletaCores, corManualPri, 
-    corManualSec, corManualText, corManualBg, estiloRodape, 
+    fontFamily, tamanhoFonteBase, tipoBorda, estiloRodape, 
     alinhamentoCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, 
     bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, indexShowSubtopics,
-    boxColorHex, boxOpacity, corFundoCapitulo, corRetanguloCapitulo, usarImagemFundoCap
+    boxColorHex, boxOpacity, corFundoPagina, corTextoDetalhes,
+    corFundoCapitulo, corRetanguloCapitulo
     // recuoParagrafo removido para evitar reflow desnecessário
   ]);
 
@@ -2708,7 +2649,30 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
                 <div className="panel-section">
                   <label className="input-label text-indigo-600 mb-3">Estilo Visual do E-book</label>
-                 <div className="grid grid-cols-2 gap-3 mb-3">
+                  
+                  {/* CORREÇÃO: Novos controles de cores, agora primeiro */}
+                  <div className="space-y-4 mb-4">
+                    <div>
+                      <label className="input-label text-[9px]">Cor de Fundo das Páginas</label>
+                      <input
+                        type="color"
+                        value={corFundoPagina}
+                        onChange={(e) => setCorFundoPagina(e.target.value)}
+                        className="w-full h-12 rounded cursor-pointer border border-slate-200 p-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label text-[9px]">Cor Global dos Textos e Detalhes</label>
+                      <input
+                        type="color"
+                        value={corTextoDetalhes}
+                        onChange={(e) => setCorTextoDetalhes(e.target.value)}
+                        className="w-full h-12 rounded cursor-pointer border border-slate-200 p-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="input-label text-[9px]">Rodapé da Página</label>
                       <select
@@ -2806,7 +2770,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                   </div>
                 </div>
 
-                {/* CORREÇÃO: Seção "Fundo da 2ª Página" com disabled */}
                 <div className="panel-section">
                   <div className="flex items-center justify-between mb-2">
                     <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
@@ -2846,7 +2809,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                   <p className="text-[9px] text-slate-400 mt-2">Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar globalmente após gerar.</p>
                 </div>
 
-                {/* CORREÇÃO: Seção de customização da capa do capítulo */}
+                {/* CORREÇÃO: Seção de customização da capa do capítulo (sem checkbox de imagem) */}
                 <div className="panel-section">
                   <label className="input-label text-indigo-600 mb-3">Customização da Capa do Capítulo</label>
                   <div className="space-y-3">
@@ -2868,75 +2831,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         className="w-full h-10 rounded cursor-pointer border border-slate-200 p-1"
                       />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={usarImagemFundoCap}
-                        onChange={(e) => setUsarImagemFundoCap(e.target.checked)}
-                        className="w-4 h-4 text-indigo-600 rounded border-slate-300"
-                      />
-                      {/* CORREÇÃO: Remover "(Unsplash)" */}
-                      <label className="text-xs font-medium text-slate-700">Usar Imagem de Fundo</label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CORREÇÃO: Seção de Paleta de Cores com novas opções */}
-                <div className="panel-section">
-                  <label className="input-label text-indigo-600 mb-3">Paleta de Cores</label>
-                  <div className="space-y-3">
-                    <div>
-                      <select
-                        value={paletaCores}
-                        onChange={(e) => setPaletaCores(e.target.value as any)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="classico">Clássico (Fundo Branco, Texto Preto)</option>
-                        <option value="noturno">Noturno (Fundo Azul Marinho, Texto Branco)</option>
-                        <option value="natureza">Natureza (Fundo Verde, Texto Branco)</option>
-                        <option value="manual">Personalizado</option>
-                      </select>
-                    </div>
-                    {paletaCores === 'manual' && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="input-label text-[9px]">Cor de Fundo</label>
-                          <input
-                            type="color"
-                            value={corManualBg}
-                            onChange={(e) => setCorManualBg(e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="input-label text-[9px]">Cor do Texto</label>
-                          <input
-                            type="color"
-                            value={corManualText}
-                            onChange={(e) => setCorManualText(e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="input-label text-[9px]">Cor Primária</label>
-                          <input
-                            type="color"
-                            value={corManualPri}
-                            onChange={(e) => setCorManualPri(e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="input-label text-[9px]">Cor Secundária</label>
-                          <input
-                            type="color"
-                            value={corManualSec}
-                            onChange={(e) => setCorManualSec(e.target.value)}
-                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -3006,7 +2900,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         </button>
                       </div>
 
-                      {/* CORREÇÃO: Controles para ícone */}
                       {elementoSelecionado.tagName === 'i' && (
                         <div className="pt-3 border-t border-slate-100 space-y-3">
                           <div>
@@ -3118,7 +3011,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                                   <i className="fas fa-fill-drip mr-1"></i> Aplicar cor a todas as páginas
                                 </button>
                               )}
-                              {/* CORREÇÃO: Controles de cor de fundo para capa de capítulo */}
                               {elementoSelecionado.isBgTarget && (
                                 <div className="mt-3">
                                   <label className="input-label text-[9px]">Cor de Fundo da Capa</label>
@@ -3127,7 +3019,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                                     value={corFundoCapitulo}
                                     onChange={(e) => {
                                       setCorFundoCapitulo(e.target.value);
-                                      // Atualizar no iframe via UPDATE_ELEMENT
                                       if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
                                         previewFrameRef.current.contentWindow.postMessage({
                                           type: 'UPDATE_ELEMENT',
@@ -3279,7 +3170,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
               >
                 <i className="fas fa-file-upload"></i> Importar Ebook
               </button>
-              {/* CORREÇÃO: Botões Desfazer e Refazer no header */}
               <button
                 onClick={desfazer}
                 disabled={historico.length === 0}
@@ -3294,7 +3184,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
               >
                 <i className="fas fa-redo"></i> Refazer
               </button>
-              {/* CORREÇÃO: Botão Toggle do Fundo da 2ª Página no header (modo inspetor) */}
               {modoInspetor && (
                 <button
                   onClick={toggleBg2}
