@@ -339,6 +339,8 @@ function getScriptPreview(
     let observer;
     let isEditMode = false;
     let selectedEl = null;
+    // CORREÇÃO: estado para controle do fundo da 2ª página
+    let bg2Hidden = false;
 
     function rgbToHex(rgb) {
       if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return '#ffffff';
@@ -734,6 +736,13 @@ function getScriptPreview(
         }
       });
 
+      // CORREÇÃO: Aplicar estado de ocultação do fundo da 2ª página
+      if (bg2Hidden) {
+        document.querySelectorAll('.chapter-page-2').forEach(el => el.classList.add('hide-bg-2'));
+      } else {
+        document.querySelectorAll('.chapter-page-2').forEach(el => el.classList.remove('hide-bg-2'));
+      }
+
       if (isEditMode && selectedEl) {
          selectedEl.style.outline = '3px solid #4f46e5';
       }
@@ -853,6 +862,18 @@ function getScriptPreview(
          });
          window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
       }
+      // CORREÇÃO: Toggle do fundo da 2ª página
+      if (e.data.type === 'TOGGLE_BG_2') {
+         bg2Hidden = !bg2Hidden;
+         document.querySelectorAll('.chapter-page-2').forEach(el => {
+            if (bg2Hidden) {
+               el.classList.add('hide-bg-2');
+            } else {
+               el.classList.remove('hide-bg-2');
+            }
+         });
+         window.parent.postMessage({ type: 'BG_2_TOGGLED', hidden: bg2Hidden }, '*');
+      }
     });  
 
     // CORREÇÃO: Adicionar 'i' (ícones) na seleção
@@ -952,6 +973,8 @@ export default function Home() {
   });
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
+  // CORREÇÃO: estado para controle do toggle do fundo da 2ª página
+  const [bg2Oculto, setBg2Oculto] = useState(false);
 
   // Configurações de estilo
   const [fontFamily, setFontFamily] = useState('Lato');
@@ -961,7 +984,8 @@ export default function Home() {
   // CORREÇÃO: recuo inicial 0px
   const [recuoParagrafo, setRecuoParagrafo] = useState('0px');
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
-  const [paletaCores, setPaletaCores] = useState<'branco-preto' | 'branco-dourado' | 'branco-verde' | 'manual'>('branco-preto');
+  // CORREÇÃO: atualizar opções da paleta
+  const [paletaCores, setPaletaCores] = useState<'classico' | 'noturno' | 'natureza' | 'manual'>('classico');
   const [corManualPri, setCorManualPri] = useState('#2563eb');
   const [corManualSec, setCorManualSec] = useState('#3b82f6');
   const [corManualText, setCorManualText] = useState('#111827');
@@ -1088,18 +1112,19 @@ export default function Home() {
   // FUNÇÕES AUXILIARES
   // ============================================================
 
+  // CORREÇÃO: Atualizar getPaletaObj com novas paletas
   function getPaletaObj() {
     if (paletaCores === 'manual') {
       return { bg: corManualBg, text: corManualText, pri: corManualText, sec: corManualText, borda: corManualText };
     }
     
     switch (paletaCores) {
-      case 'branco-dourado': 
-        return { bg: '#ffffff', text: '#333333', pri: '#b8860b', sec: '#d4af37', borda: '#b8860b' };
-      case 'branco-verde': 
-        return { bg: '#ffffff', text: '#333333', pri: '#059669', sec: '#10b981', borda: '#059669' };
-      case 'branco-preto': 
-      default: 
+      case 'noturno':
+        return { bg: '#1e293b', text: '#f1f5f9', pri: '#60a5fa', sec: '#93c5fd', borda: '#475569' };
+      case 'natureza':
+        return { bg: '#064e3b', text: '#ecfdf5', pri: '#34d399', sec: '#6ee7b7', borda: '#065f46' };
+      case 'classico':
+      default:
         return { bg: '#ffffff', text: '#111827', pri: '#111827', sec: '#374151', borda: '#111827' };
     }
   }
@@ -1260,7 +1285,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   background-size: cover !important;
   background-position: center !important;
   background-color: ${corFundoCapitulo || '#e2e8f0'} !important;
-  /* A imagem é aplicada via JS, mas pode ser sobrescrita */
+  /* CORREÇÃO: quando não usar imagem, aplicar none, mas manter cor e altura */
   ${usarImagemFundoCap ? '' : 'background-image: none !important;'}
   display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
   padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
@@ -1352,6 +1377,14 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 .author-page { display: block; }
 .author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
 .author-photo { flex-shrink: 0; object-fit: cover; border: 3px solid rgba(255,255,255,0.8); }
+
+/* CORREÇÃO: Transição suave para o fundo da 2ª página */
+.chapter-page-2 {
+  transition: background-image 0.4s ease-in-out, background-color 0.4s ease-in-out;
+}
+.hide-bg-2 {
+  background-image: none !important;
+}
 
 @page { size: A4 portrait; margin: 0; }
 @media print {
@@ -1727,6 +1760,14 @@ ${ebookStyles}
     (window as any).showNotification('Cor aplicada a todas as páginas!', 'success');
   }
 
+  // CORREÇÃO: Toggle do fundo da 2ª página
+  function toggleBg2() {
+    if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+      previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_BG_2' }, '*');
+    }
+    setBg2Oculto(!bg2Oculto);
+  }
+
   // ============================================================
   // BUSCA DE IMAGEM UNSPLASH
   // ============================================================
@@ -1809,23 +1850,30 @@ ${ebookStyles}
     setFuturo([]);
     const paleta = getPaletaObj();
 
-    // CORREÇÃO: Prompt cirúrgico
-    const instrucao = `Você é um Assistente Editorial especializado em edição de HTML. O usuário selecionou um trecho específico de HTML de um e-book.
-Sua tarefa é modificar APENAS este elemento HTML de acordo com o pedido: "${comando}".
+    // CORREÇÃO: Prompt cirúrgico e restritivo
+    const instrucao = `Você é um parser estrito de HTML. Receberá a tag HTML exata selecionada pelo usuário.
+Sua tarefa é modificar APENAS o conteúdo interno desta tag, mantendo a tag e seus atributos exatos, a menos que o pedido explicitamente solicite mudança de classe ou estilo.
 
-REGRAS MÁXIMAS E ESTRITAS:
-1. Retorne ESTRITAMENTE o HTML do elemento solicitado. Não envolva em markdown, não adicione wrappers, não altere classes a menos que pedido. Você é um compilador de nós HTML.
-2. PRESERVAÇÃO DE ESTRUTURA: Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos. Não os apague.
-3. Mantenha as classes originais.
-4. Use as cores do tema atual:
-   - Cor primária: ${paleta.pri}
-   - Cor secundária: ${paleta.sec}
-   - Cor de texto: ${paleta.text}
-   - Cor de fundo: ${paleta.bg}
-   - Cor de borda: ${paleta.borda}
-Mantenha a consistência visual com o resto do e-book.
+REGRAS ESTRITAS:
+1. Você deve retornar UNICAMENTE a mesma tag com o texto interno alterado.
+2. NÃO adicione containers, NÃO altere elementos adjacentes, NÃO mude a hierarquia.
+3. NÃO remova ou adicione atributos, a menos que o pedido especifique (ex: "mude a cor para azul").
+4. NÃO envolva a resposta em markdown ou comentários.
+5. Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos. Não os apague.
 
-Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
+Use as cores do tema atual:
+- Cor primária: ${paleta.pri}
+- Cor secundária: ${paleta.sec}
+- Cor de texto: ${paleta.text}
+- Cor de fundo: ${paleta.bg}
+- Cor de borda: ${paleta.borda}
+
+Pedido do usuário: "${comando}"
+
+HTML do elemento selecionado:
+"""${elementoSelecionado.outerHTML}"""
+
+Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     const data = await chamarMotorIA(instrucao, [{ text: `HTML DO ELEMENTO SELECIONADO:\n"""\n${elementoSelecionado.outerHTML}\n"""` }], true);
 
@@ -2319,6 +2367,10 @@ Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
           }
         }
       }
+      // CORREÇÃO: Sincronizar estado do toggle do fundo da 2ª página
+      if (e.data.type === 'BG_2_TOGGLED') {
+        setBg2Oculto(e.data.hidden);
+      }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
@@ -2754,6 +2806,7 @@ Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
                   </div>
                 </div>
 
+                {/* CORREÇÃO: Seção "Fundo da 2ª Página" com disabled */}
                 <div className="panel-section">
                   <div className="flex items-center justify-between mb-2">
                     <label className="input-label mb-0 text-indigo-600">Fundo da 2ª Página de Capítulo</label>
@@ -2761,7 +2814,8 @@ Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
                       type="checkbox"
                       checked={ativarBgSegundaPagina}
                       onChange={(e) => setAtivarBgSegundaPagina(e.target.checked)}
-                      className="rounded text-indigo-600 accent-indigo-600 cursor-pointer"
+                      disabled={htmlAtual !== '' || etapaAtual > 0}
+                      className="rounded text-indigo-600 accent-indigo-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   {ativarBgSegundaPagina && (
@@ -2770,7 +2824,8 @@ Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
                         type="text"
                         value={bgSegundaPaginaUrl}
                         onChange={(e) => setBgSegundaPaginaUrl(e.target.value)}
-                        className="input-standard text-[10px]"
+                        disabled={htmlAtual !== '' || etapaAtual > 0}
+                        className="input-standard text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="URL de fundo opcional (ou usa do cap)..."
                       />
                       <div className="flex items-center gap-2">
@@ -2782,7 +2837,8 @@ Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
                           step="0.02"
                           value={bgSegundaPaginaOpacidade}
                           onChange={(e) => setBgSegundaPaginaOpacidade(e.target.value)}
-                          className="flex-1 accent-indigo-600 cursor-pointer"
+                          disabled={htmlAtual !== '' || etapaAtual > 0}
+                          className="flex-1 accent-indigo-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -2819,8 +2875,68 @@ Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
                         onChange={(e) => setUsarImagemFundoCap(e.target.checked)}
                         className="w-4 h-4 text-indigo-600 rounded border-slate-300"
                       />
-                      <label className="text-xs font-medium text-slate-700">Usar Imagem de Fundo (Unsplash)</label>
+                      {/* CORREÇÃO: Remover "(Unsplash)" */}
+                      <label className="text-xs font-medium text-slate-700">Usar Imagem de Fundo</label>
                     </div>
+                  </div>
+                </div>
+
+                {/* CORREÇÃO: Seção de Paleta de Cores com novas opções */}
+                <div className="panel-section">
+                  <label className="input-label text-indigo-600 mb-3">Paleta de Cores</label>
+                  <div className="space-y-3">
+                    <div>
+                      <select
+                        value={paletaCores}
+                        onChange={(e) => setPaletaCores(e.target.value as any)}
+                        className="input-standard text-[10px]"
+                      >
+                        <option value="classico">Clássico (Fundo Branco, Texto Preto)</option>
+                        <option value="noturno">Noturno (Fundo Azul Marinho, Texto Branco)</option>
+                        <option value="natureza">Natureza (Fundo Verde, Texto Branco)</option>
+                        <option value="manual">Personalizado</option>
+                      </select>
+                    </div>
+                    {paletaCores === 'manual' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="input-label text-[9px]">Cor de Fundo</label>
+                          <input
+                            type="color"
+                            value={corManualBg}
+                            onChange={(e) => setCorManualBg(e.target.value)}
+                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label text-[9px]">Cor do Texto</label>
+                          <input
+                            type="color"
+                            value={corManualText}
+                            onChange={(e) => setCorManualText(e.target.value)}
+                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label text-[9px]">Cor Primária</label>
+                          <input
+                            type="color"
+                            value={corManualPri}
+                            onChange={(e) => setCorManualPri(e.target.value)}
+                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label text-[9px]">Cor Secundária</label>
+                          <input
+                            type="color"
+                            value={corManualSec}
+                            onChange={(e) => setCorManualSec(e.target.value)}
+                            className="w-full h-8 rounded cursor-pointer border border-slate-200"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3178,6 +3294,20 @@ Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
               >
                 <i className="fas fa-redo"></i> Refazer
               </button>
+              {/* CORREÇÃO: Botão Toggle do Fundo da 2ª Página no header (modo inspetor) */}
+              {modoInspetor && (
+                <button
+                  onClick={toggleBg2}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    bg2Oculto
+                      ? 'bg-gray-700 text-white hover:bg-gray-800'
+                      : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-300'
+                  }`}
+                >
+                  <i className={`fas ${bg2Oculto ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  {bg2Oculto ? 'Mostrar Fundo 2ª Pág' : 'Ocultar Fundo 2ª Pág'}
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <button
