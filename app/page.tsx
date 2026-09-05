@@ -6,236 +6,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 
 // ============================================================
-// FUNÇÕES AUXILIARES DE PAGINAÇÃO E ÍNDICE (UNIFICADAS)
-// ============================================================
-
-function executarRefluxoCompleto(
-  containerId: string,
-  alturaMaxima: number,
-  indexShowSubtopics: boolean,
-) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  // --- 1. Limpar páginas existentes (exceto capas e páginas especiais) ---
-  const paginasExistentes = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.cap-img-overlay):not(.cap-box-rounded):not(.cap-img-pura)');
-  paginasExistentes.forEach(p => p.remove());
-
-  // --- 2. Recolher todos os elementos filhos diretos que não são containers de página ---
-  const todosElementos = Array.from(container.children).filter(el =>
-    !el.classList.contains('page-container') &&
-    el.tagName !== 'STYLE' &&
-    el.tagName !== 'SCRIPT'
-  );
-
-  // --- 3. Função para criar uma nova página ---
-  function criarNovaPagina() {
-        const novaPagina = document.createElement('div');
-        novaPagina.className = 'page-container chapter-text-page';
-        novaPagina.style.overflow = 'hidden';
-        novaPagina.style.breakAfter = 'page';
-
-        const header = document.createElement('div');
-        header.className = 'page-header';
-        header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
-        novaPagina.appendChild(header);
-
-        const contentArea = document.createElement('div');
-        contentArea.className = 'content-area';
-        contentArea.style.display = 'flex';
-        contentArea.style.flexDirection = 'column';
-        contentArea.style.width = '100%'; 
-        novaPagina.appendChild(contentArea);
-
-        const footer = document.createElement('div');
-        footer.className = 'page-footer';
-        footer.innerHTML = modeloFooter; 
-        novaPagina.appendChild(footer);
-
-        const authorPage = container.querySelector('.author-page');
-        if (authorPage) {
-            container.insertBefore(novaPagina, authorPage);
-        } else {
-            container.appendChild(novaPagina);
-        }
-        
-        return { pagina: novaPagina, areaTexto: contentArea };
-      }
-      
-  let paginaAtual = criarNovaPagina();
-
-  // --- 4. Distribuir elementos pelas páginas ---
-  todosElementos.forEach(elemento => {
-    const footer = paginaAtual.querySelector('.page-footer');
-    paginaAtual.insertBefore(elemento, footer);
-
-    if (paginaAtual.scrollHeight > alturaMaxima) {
-      const novaPagina = criarNovaPagina();
-      const novoFooter = novaPagina.querySelector('.page-footer');
-      novaPagina.insertBefore(elemento, novoFooter);
-
-      const paginaAnterior = paginaAtual.previousElementSibling;
-      if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
-        const footerAnterior = paginaAnterior.querySelector('.page-footer');
-        const ultimoElemento = footerAnterior.previousElementSibling;
-        if (ultimoElemento && (ultimoElemento.tagName === 'H2' || ultimoElemento.tagName === 'H3')) {
-          novaPagina.insertBefore(ultimoElemento, elemento);
-        }
-      }
-
-      paginaAtual = novaPagina;
-    }
-  });
-
-  container.querySelectorAll('.page-container').forEach(page => {
-    const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
-    if (conteudo.length === 0) {
-      page.remove();
-    }
-  });
-
-  // --- 5. Sincronizar Índice (com paginação por contagem fixa de itens) ---
-  function sincronizarIndice() {
-        let tocs = container.querySelectorAll('.toc-container');
-        if (tocs.length === 0) return;
-        
-        const mainToc = tocs[0];
-        const mainPage = mainToc.closest('.page-container');
-        if (!mainPage) return;
-
-        mainToc.innerHTML = '';
-
-        const titulos = container.querySelectorAll('h1, h2, h3');
-        const titulosVistos = new Set();
-        const itens = [];
-
-        titulos.forEach((titleEl) => {
-          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, .legal-page')) return;
-          
-          let texto = titleEl.textContent?.trim() || '';
-          if (!texto || /índice|sumário/i.test(texto)) return;
-
-          let chave = texto.toLowerCase().replace(/capítulo\s*\d+:/, '').trim();
-          if (titulosVistos.has(chave)) return;
-          titulosVistos.add(chave);
-
-          if (!titleEl.id) {
-            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
-          }
-
-          const a = document.createElement('a');
-          a.className = 'toc-item';
-          
-          const isMain = titleEl.tagName === 'H1' || titleEl.tagName === 'H2';
-          if (isMain) {
-            a.classList.add('toc-main-chapter');
-            a.style.fontWeight = indexShowSubtopics ? '700' : '400';
-            a.style.color = 'var(--color-primary)';
-          } else if (titleEl.tagName === 'H3') {
-            if (!indexShowSubtopics) return;
-            a.classList.add('toc-subtopic');
-            a.style.paddingLeft = '20px';
-            a.style.fontSize = '0.75em';
-            a.style.lineHeight = '1';
-            a.style.opacity = '0.85';
-          }
-
-          a.href = '#' + titleEl.id;
-          
-          const spanTitle = document.createElement('span');
-          spanTitle.innerText = texto;
-          
-          const spanDots = document.createElement('span');
-          spanDots.className = 'toc-dots';
-          
-          const spanPage = document.createElement('span');
-          spanPage.className = 'toc-page-num';
-
-          a.appendChild(spanTitle);
-          a.appendChild(spanDots);
-          a.appendChild(spanPage);
-          
-          itens.push(a);
-        });
-
-        if (itens.length === 0) {
-          mainPage.remove();
-          return;
-        }
-
-        function criarPaginaIndice(afterPage) {
-          const novaPagina = document.createElement('div');
-          novaPagina.className = 'page-container chapter-text-page';
-          novaPagina.style.overflow = 'hidden';
-          novaPagina.style.breakAfter = 'page';
-
-          const header = document.createElement('div');
-          header.className = 'page-header';
-          header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
-          novaPagina.appendChild(header);
-
-          const contentArea = document.createElement('div');
-          contentArea.className = 'content-area';
-          contentArea.style.display = 'flex';
-          contentArea.style.flexDirection = 'column';
-          contentArea.style.width = '100%';
-          novaPagina.appendChild(contentArea);
-
-          const footer = document.createElement('div');
-          footer.className = 'page-footer';
-          footer.innerHTML = modeloFooter;
-          novaPagina.appendChild(footer);
-
-          const newToc = document.createElement('div');
-          newToc.className = 'toc-container';
-          contentArea.appendChild(newToc);
-
-          if (afterPage && afterPage.parentNode) {
-            afterPage.parentNode.insertBefore(novaPagina, afterPage.nextSibling);
-          } else {
-            const authorPage = container.querySelector('.author-page');
-            if (authorPage) {
-              container.insertBefore(novaPagina, authorPage);
-            } else {
-              container.appendChild(novaPagina);
-            }
-          }
-          return { pagina: novaPagina, toc: newToc };
-        }
-
-        let currentPage = mainPage;
-        let currentToc = mainToc;
-        let itemCount = 0;
-        const MAX_ITENS_POR_PAGINA = 22;
-
-        for (let i = 0; i < itens.length; i++) {
-          const item = itens[i];
-          currentToc.appendChild(item);
-          itemCount++;
-
-          if (itemCount >= MAX_ITENS_POR_PAGINA && i < itens.length - 1) {
-            const nova = criarPaginaIndice(currentPage);
-            currentPage = nova.pagina;
-            currentToc = nova.toc;
-            itemCount = 0;
-          }
-        }
-
-        container.querySelectorAll('.page-container').forEach(page => {
-          const toc = page.querySelector('.toc-container');
-          if (toc && !page.querySelector('.toc-item')) {
-            page.remove();
-          }
-        });
-      }
-
-  sincronizarIndice();
-
-  // --- 6. Forçar reflow para ajustar numeração (será feito no script injetado) ---
-  setTimeout(() => sincronizarIndice(), 50);
-}
-
-// ============================================================
 // SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Blindagem de Cores)
 // ============================================================
 
@@ -554,10 +324,25 @@ function getScriptPreview(
           }
         }
 
+        // CORREÇÃO: TOC Wiper - remove apenas páginas que contêm exclusivamente .toc-container
         container.querySelectorAll('.page-container').forEach(page => {
           const toc = page.querySelector('.toc-container');
           if (toc && !page.querySelector('.toc-item')) {
-            page.remove();
+            const contentArea = page.querySelector('.content-area');
+            if (contentArea) {
+              const children = Array.from(contentArea.children);
+              const onlyToc = children.length === 1 && children[0].classList.contains('toc-container');
+              if (onlyToc) {
+                page.remove();
+              }
+            } else {
+              const allChildren = Array.from(page.children).filter(el =>
+                !el.classList.contains('page-header') && !el.classList.contains('page-footer')
+              );
+              if (allChildren.length === 1 && allChildren[0].classList.contains('toc-container')) {
+                page.remove();
+              }
+            }
           }
         });
       }
@@ -571,11 +356,9 @@ function getScriptPreview(
         if (!container) return;
         const paginas = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.legal-page):not(.author-page)');
         let pageNumber = 1;
-        // Mapeia cada título para o número da página onde ele aparece
         const tituloParaPagina = new Map();
 
         paginas.forEach((pagina) => {
-          // Pula páginas de índice? Não, queremos números para os títulos
           const titulos = pagina.querySelectorAll('h1, h2, h3');
           titulos.forEach(titulo => {
             if (titulo.id) {
@@ -585,7 +368,6 @@ function getScriptPreview(
           pageNumber++;
         });
 
-        // Agora percorre todos os .toc-item e preenche .toc-page-num
         const tocItems = container.querySelectorAll('.toc-item');
         tocItems.forEach(item => {
           const href = item.getAttribute('href');
@@ -660,11 +442,9 @@ function getScriptPreview(
       if (e.data.type === 'UPDATE_ELEMENT') {
          const target = document.getElementById(e.data.id);
          if (target) {
-            // CORREÇÃO: Se for um ícone e recebermos iconClass, substituímos apenas a classe
             if (e.data.iconClass !== undefined && target.tagName === 'I') {
                target.className = e.data.iconClass;
             } else {
-               // Demais atualizações
                if (e.data.text !== undefined && e.data.forceTextUpdate) target.innerHTML = e.data.text;
                if (e.data.src !== undefined && target.tagName === 'IMG') target.src = e.data.src;
                if (e.data.bgImage !== undefined) target.style.setProperty('background-image', \`url(\${e.data.bgImage})\`, 'important');
@@ -836,7 +616,7 @@ export default function Home() {
   
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
-  // CORREÇÃO: Removido boxOpacity, transparência fixa em 85% no CSS
+  // CORREÇÃO: Removido boxOpacity - transparência fixa em 85% no CSS
   
   const [corFundoCapitulo, setCorFundoCapitulo] = useState('#0f172a');
   const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#15803d');
@@ -847,7 +627,6 @@ export default function Home() {
 
   // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
-  // CORREÇÃO: removido estado textoCabecalho
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso'>('expandido');
@@ -1068,6 +847,31 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
 }
 
+/* CORREÇÃO: Estilos específicos para capas */
+.page-cover-img, .page-cover-pura, .page-cover-text {
+  padding: 0 !important;
+  margin: 0 !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.page-cover-img::after, .page-cover-pura::after, .page-cover-text::after {
+  display: none !important;
+  border: none !important;
+}
+#ebook-container > .page-container:first-child .page-header, #ebook-container > .page-container:first-child .page-footer,
+.page-cover-img .page-header, .page-cover-img .page-footer, 
+.page-cover-pura .page-header, .page-cover-pura .page-footer,
+.page-cover-text .page-header, .page-cover-text .page-footer,
+.cap-box-rounded .page-header, .cap-box-rounded .page-footer {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 .chapter-text-page { padding-top: 25mm !important; }
 
 .legal-page { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center; padding: 35mm 25mm !important; }
@@ -1080,11 +884,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
 }
 .page-cover-img::after, .cap-img-overlay::after { display: none !important; }
 
-#ebook-container > .page-container:first-child .page-header, #ebook-container > .page-container:first-child .page-footer,
-.page-cover-img .page-header, .page-cover-img .page-footer, .cap-box-rounded .page-header, .cap-box-rounded .page-footer {
-  display: none !important; opacity: 0 !important; visibility: hidden !important;
-}
-
+/* Regra já existente, mantida para compatibilidade */
 .page-cover-img {
   display: flex !important;
   flex-direction: column;
@@ -1284,30 +1084,48 @@ ${ebookStyles}
   // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
   // ============================================================
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
-    if (!htmlBase || !htmlBase.includes('id="ebook-container"')) return htmlBase + '\n' + htmlNovo;
-
-    let cleanNovo = htmlNovo;
-    const bodyMatch = cleanNovo.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if (bodyMatch) cleanNovo = bodyMatch[1];
-    cleanNovo = cleanNovo.replace(/<!DOCTYPE[^>]*>/gi, '').replace(/<\/?html[^>]*>/gi, '').trim();
-
-    try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlBase, 'text/html');
-        const container = doc.getElementById('ebook-container');
-        if (container) {
-            container.insertAdjacentHTML('beforeend', cleanNovo);
-            return '<!DOCTYPE html>\n<html lang="pt-BR">\n' + doc.documentElement.innerHTML + '\n</html>';
-        }
-    } catch (e) {
-        console.error('Erro na injeção segura, usando fallback');
+    if (!htmlBase || !htmlBase.includes('id="ebook-container"')) {
+      // Fallback: concatenação simples
+      return htmlBase + '\n' + htmlNovo;
     }
 
-    const lastDivIndex = htmlBase.lastIndexOf('</div>');
-    if (lastDivIndex !== -1) {
-      return htmlBase.substring(0, lastDivIndex) + '\n' + cleanNovo + '\n' + htmlBase.substring(lastDivIndex);
+    // Parse do documento base
+    const parser = new DOMParser();
+    const docBase = parser.parseFromString(htmlBase, 'text/html');
+    const container = docBase.getElementById('ebook-container');
+    if (!container) {
+      // Fallback
+      return htmlBase + '\n' + htmlNovo;
     }
-    return htmlBase + '\n' + cleanNovo;
+
+    // Parse do novo HTML para extrair os nós do corpo
+    const docNovo = parser.parseFromString(htmlNovo, 'text/html');
+    const bodyNodes = Array.from(docNovo.body.childNodes).filter(node => {
+      if (node.nodeType === 1) {
+        const tag = (node as Element).tagName.toLowerCase();
+        return tag !== 'script' && tag !== 'style';
+      }
+      return true;
+    });
+
+    // Localizar a página do autor para inserir antes
+    const authorPage = container.querySelector('.author-page');
+    const insertPoint = authorPage || null;
+
+    // Inserir os nós um a um
+    bodyNodes.forEach(node => {
+      const importedNode = docBase.importNode(node, true);
+      if (insertPoint) {
+        container.insertBefore(importedNode, insertPoint);
+      } else {
+        container.appendChild(importedNode);
+      }
+    });
+
+    // Serializar o documento resultante
+    const doctype = '<!DOCTYPE html>\n';
+    const htmlContent = docBase.documentElement.outerHTML;
+    return doctype + htmlContent;
   }
 
   function aplicarHtmlNovo(htmlCru: string, isInjetar: boolean, recarregar: boolean = true) {
