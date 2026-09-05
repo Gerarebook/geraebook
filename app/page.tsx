@@ -231,7 +231,7 @@ function executarRefluxoCompleto(
         let currentToc = mainToc;
         // Limpar conteúdo atual (já limpo)
         // Adicionar os itens um a um, verificando estouro
-        const LIMITE_ALTURA_INDICE = 750; // valor aproximado, ajustável
+        const LIMITE_ALTURA_INDICE = 850; // CORREÇÃO: ajustado para 850
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
@@ -444,7 +444,6 @@ function getScriptPreview(
           }
       }
 
-      // CORREÇÃO: Aumentar limite para 940
       const LIMITE_ALTURA_TEXTO = 940; 
 
       function criarNovaPagina() {
@@ -646,7 +645,7 @@ function getScriptPreview(
 
         let currentPage = mainPage;
         let currentToc = mainToc;
-        const LIMITE_ALTURA_INDICE = 750;
+        const LIMITE_ALTURA_INDICE = 850;
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
@@ -755,15 +754,39 @@ function getScriptPreview(
          }
       }
       
-      // CORREÇÃO: Manter scroll ao desfazer
-      if (e.data.type === 'UNDO_HTML') {
+      // CORREÇÃO: Desfazer e Refazer com scroll lock
+      if (e.data.type === 'UNDO_HTML' || e.data.type === 'REDO_HTML') {
          const scrollY = window.scrollY;
+         const selectedId = selectedEl ? selectedEl.id : null;
          document.getElementById('ebook-container').innerHTML = e.data.html;
-         // Aguarda o reflow e restaura a posição
+         // Aguarda o reflow e restaura a posição e seleção
          setTimeout(() => {
             executarRefluxoCompleto();
             requestAnimationFrame(() => {
                window.scrollTo(0, scrollY);
+               if (selectedId) {
+                  const el = document.getElementById(selectedId);
+                  if (el) {
+                     selectedEl = el;
+                     el.style.outline = '3px solid #4f46e5';
+                     // Re-emitir seleção para o React
+                     const computed = window.getComputedStyle(el);
+                     window.parent.postMessage({
+                        type: 'ELEMENT_SELECTED',
+                        id: el.id,
+                        tagName: el.tagName.toLowerCase(),
+                        text: el.innerHTML,
+                        src: el.src,
+                        bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
+                        isBgTarget: el.classList.contains('page-container') || el.classList.contains('cap-img-overlay'),
+                        textColor: rgbToHex(computed.color),
+                        bgColor: rgbToHex(computed.backgroundColor),
+                        fontSize: parseInt(computed.fontSize),
+                        fontWeight: computed.fontWeight,
+                        textAlign: computed.textAlign
+                     }, '*');
+                  }
+               }
             });
          }, 50);
       }
@@ -832,15 +855,16 @@ function getScriptPreview(
       }
     });  
 
+    // CORREÇÃO: Adicionar 'i' (ícones) na seleção
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
       if (el && el !== selectedEl) el.style.outline = '2px dashed rgba(99,102,241,0.5)';
     });
     
     document.addEventListener('mouseout', (e) => {
       if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
       if (el && el !== selectedEl) el.style.outline = '';
     });
     
@@ -861,7 +885,7 @@ function getScriptPreview(
       
       e.preventDefault(); 
       e.stopPropagation();
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box');
+      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
       
       if (el) {
          if (selectedEl) selectedEl.style.outline = '';
@@ -917,7 +941,8 @@ function getScriptPreview(
 
 export default function Home() {
   // Estados principais
-  const [historicoCodigo, setHistoricoCodigo] = useState<string[]>([]);
+  const [historico, setHistorico] = useState<string[]>([]);
+  const [futuro, setFuturo] = useState<string[]>([]);
   const [htmlAtual, setHtmlAtual] = useState<string>('');
   const [modoInspetor, setModoInspetor] = useState(false);
   const [elementoSelecionado, setElementoSelecionado] = useState<any>(null);
@@ -942,9 +967,13 @@ export default function Home() {
   const [corManualText, setCorManualText] = useState('#111827');
   const [corManualBg, setCorManualBg] = useState('#ffffff');
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
-  // CORREÇÃO: Box azul (blue-900) em vez de preto
+  // CORREÇÃO: Box azul (blue-900)
   const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
   const [boxOpacity, setBoxOpacity] = useState('0.70');
+  // CORREÇÃO: Novos estados para customização da capa do capítulo
+  const [corFundoCapitulo, setCorFundoCapitulo] = useState('#e2e8f0');
+  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#1e3a8a');
+  const [usarImagemFundoCap, setUsarImagemFundoCap] = useState(true);
   const [estiloRodape, setEstiloRodape] = useState<'simples' | 'simples-circulo' | 'linha-superior' | 'centralizado' | 'centralizado-circulo'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('retangulo');
@@ -1154,7 +1183,7 @@ export default function Home() {
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
   --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${boxColorHex || '#1e3a8a'} ${opacidadeSegura}%, transparent);
+  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#1e3a8a'} ${opacidadeSegura}%, transparent);
 }
 
 body {
@@ -1225,12 +1254,14 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   text-shadow: 0 0 15px rgba(0,0,0,0.9);
 }
 
-/* CAPA DO CAPÍTULO - fundo 100% fotográfico, box flutuante com cor neutra e backdrop */
+/* CAPA DO CAPÍTULO - fundo controlado via variáveis */
 .cap-img-overlay { 
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
-  background-size: cover !important; background-position: center !important;
-  /* CORREÇÃO: fundo degradê azul como fallback */
-  background-image: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-color: ${corFundoCapitulo || '#e2e8f0'} !important;
+  /* A imagem é aplicada via JS, mas pode ser sobrescrita */
+  ${usarImagemFundoCap ? '' : 'background-image: none !important;'}
   display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
   padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
 }
@@ -1445,7 +1476,9 @@ ${ebookStyles}
       htmlFinal = moldarApresentacaoHtml(novoConteudo);
     }
 
-    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+    // CORREÇÃO: Atualizar histórico e limpar futuro
+    setHistorico((prev) => [...prev, htmlAtual]);
+    setFuturo([]);
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
 
@@ -1593,7 +1626,8 @@ ${ebookStyles}
       novoHtml = htmlAtualStr + '\n' + paginaHtml;
     }
 
-    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+    setHistorico((prev) => [...prev, htmlAtual]);
+    setFuturo([]);
     const htmlFinal = moldarApresentacaoHtml(novoHtml);
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
@@ -1648,35 +1682,37 @@ ${ebookStyles}
     (window as any).showNotification('Elemento transformado!', 'success');
   }
 
-  // ============================================================
-  // BOTÃO DESFAZER - CORRIGIDO
-  // ============================================================
-  function desfazerCodigo() {
-    setHistoricoCodigo((prev) => {
-      if (prev.length <= 1) {
-        // Se só tem o estado inicial ou nenhum, reseta para branco
-        setHtmlAtual('');
-        localStorage.removeItem('ebook_draft_html');
-        setRecarregarIframe(p => !p);
-        return [];
+  // CORREÇÃO: Desfazer e Refazer
+  function desfazer() {
+    if (historico.length === 0) return;
+    const novoHistorico = [...historico];
+    const estadoAtual = htmlAtual;
+    const estadoAnterior = novoHistorico.pop();
+    if (estadoAnterior) {
+      setFuturo((prev) => [estadoAtual, ...prev]);
+      setHistorico(novoHistorico);
+      setHtmlAtual(estadoAnterior);
+      localStorage.setItem('ebook_draft_html', estadoAnterior);
+      if (previewFrameRef.current) {
+        previewFrameRef.current.contentWindow.postMessage({ type: 'UNDO_HTML', html: estadoAnterior }, '*');
       }
+    }
+  }
 
-      const novoHistorico = [...prev];
-      novoHistorico.pop(); // remove o estado atual (o último)
-      const estadoAnterior = novoHistorico[novoHistorico.length - 1]; // pega o penúltimo
-
-      if (estadoAnterior !== undefined) {
-        setHtmlAtual(estadoAnterior);
-        localStorage.setItem('ebook_draft_html', estadoAnterior);
-        setRecarregarIframe(p => !p);
-      } else {
-        setHtmlAtual('');
-        localStorage.removeItem('ebook_draft_html');
-        setRecarregarIframe(p => !p);
+  function refazer() {
+    if (futuro.length === 0) return;
+    const novoFuturo = [...futuro];
+    const estadoAtual = htmlAtual;
+    const estadoProximo = novoFuturo.shift();
+    if (estadoProximo) {
+      setHistorico((prev) => [...prev, estadoAtual]);
+      setFuturo(novoFuturo);
+      setHtmlAtual(estadoProximo);
+      localStorage.setItem('ebook_draft_html', estadoProximo);
+      if (previewFrameRef.current) {
+        previewFrameRef.current.contentWindow.postMessage({ type: 'REDO_HTML', html: estadoProximo }, '*');
       }
-      
-      return novoHistorico;
-    });
+    }
   }
 
   // CORREÇÃO: Aplicar cor global
@@ -1769,15 +1805,17 @@ ${ebookStyles}
     }
     if (!elementoSelecionado) return;
 
-    setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+    setHistorico((prev) => [...prev, htmlAtual]);
+    setFuturo([]);
     const paleta = getPaletaObj();
 
-    const instrucao = `Você é um Assistente Editorial. O usuário selecionou um trecho específico de HTML de um e-book.
+    // CORREÇÃO: Prompt cirúrgico
+    const instrucao = `Você é um Assistente Editorial especializado em edição de HTML. O usuário selecionou um trecho específico de HTML de um e-book.
 Sua tarefa é modificar APENAS este elemento HTML de acordo com o pedido: "${comando}".
 
-REGRAS MÁXIMAS:
-1. PRESERVAÇÃO DE ESTRUTURA: Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos. Não os apague.
-2. Retorne APENAS o código HTML modificado DESSA CAIXA/ELEMENTO específico.
+REGRAS MÁXIMAS E ESTRITAS:
+1. Retorne ESTRITAMENTE o HTML do elemento solicitado. Não envolva em markdown, não adicione wrappers, não altere classes a menos que pedido. Você é um compilador de nós HTML.
+2. PRESERVAÇÃO DE ESTRUTURA: Se o elemento for uma <div class="page-container">, preserve OBRIGATORIAMENTE o cabeçalho (page-header) e o rodapé (page-footer) intactos. Não os apague.
 3. Mantenha as classes originais.
 4. Use as cores do tema atual:
    - Cor primária: ${paleta.pri}
@@ -1785,7 +1823,9 @@ REGRAS MÁXIMAS:
    - Cor de texto: ${paleta.text}
    - Cor de fundo: ${paleta.bg}
    - Cor de borda: ${paleta.borda}
-Mantenha a consistência visual com o resto do e-book.`;
+Mantenha a consistência visual com o resto do e-book.
+
+Retorne APENAS o HTML puro do elemento, sem comentários, sem texto extra.`;
 
     const data = await chamarMotorIA(instrucao, [{ text: `HTML DO ELEMENTO SELECIONADO:\n"""\n${elementoSelecionado.outerHTML}\n"""` }], true);
 
@@ -1915,6 +1955,8 @@ Mantenha a consistência visual com o resto do e-book.`;
       localStorage.removeItem('ebook_draft_html');
       localStorage.removeItem('ebook_draft_prompt');
       setHtmlAtual('');
+      setHistorico([]);
+      setFuturo([]);
       setLivroTitulo('');
       setProductContent('');
       setEtapaAtual(0);
@@ -2258,15 +2300,17 @@ Mantenha a consistência visual com o resto do e-book.`;
       if (e.data.type === 'HTML_SYNC') {
         const htmlLimpo = moldarApresentacaoHtml(e.data.html);
         if (modoInspetor) {
-          setHistoricoCodigo((prev) => {
+          setHistorico((prev) => {
             if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
             return [...prev, htmlAtual];
           });
+          setFuturo([]);
           setHtmlAtual(htmlLimpo);
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(false);
         } else {
-          setHistoricoCodigo((prev) => [...prev, htmlAtual]);
+          setHistorico((prev) => [...prev, htmlAtual]);
+          setFuturo([]);
           setHtmlAtual(htmlLimpo);
           localStorage.setItem('ebook_draft_html', htmlLimpo);
           setRecarregarIframe(true);
@@ -2300,7 +2344,7 @@ Mantenha a consistência visual com o resto do e-book.`;
     corManualSec, corManualText, corManualBg, estiloRodape, 
     alinhamentoCapitulo, autorPosicao, autorFormato, ativarBgSegundaPagina, 
     bgSegundaPaginaUrl, bgSegundaPaginaOpacidade, indexShowSubtopics,
-    boxColorHex, boxOpacity
+    boxColorHex, boxOpacity, corFundoCapitulo, corRetanguloCapitulo, usarImagemFundoCap
     // recuoParagrafo removido para evitar reflow desnecessário
   ]);
 
@@ -2745,6 +2789,40 @@ Mantenha a consistência visual com o resto do e-book.`;
                   )}
                   <p className="text-[9px] text-slate-400 mt-2">Esta opção define a imagem de fundo padrão. Use o botão "Fundo 2ª Pág" no topo para ligar/desligar globalmente após gerar.</p>
                 </div>
+
+                {/* CORREÇÃO: Seção de customização da capa do capítulo */}
+                <div className="panel-section">
+                  <label className="input-label text-indigo-600 mb-3">Customização da Capa do Capítulo</label>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="input-label text-[9px]">Cor de Fundo da Capa</label>
+                      <input
+                        type="color"
+                        value={corFundoCapitulo}
+                        onChange={(e) => setCorFundoCapitulo(e.target.value)}
+                        className="w-full h-10 rounded cursor-pointer border border-slate-200 p-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label text-[9px]">Cor do Retângulo (Box)</label>
+                      <input
+                        type="color"
+                        value={corRetanguloCapitulo}
+                        onChange={(e) => setCorRetanguloCapitulo(e.target.value)}
+                        className="w-full h-10 rounded cursor-pointer border border-slate-200 p-1"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={usarImagemFundoCap}
+                        onChange={(e) => setUsarImagemFundoCap(e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                      />
+                      <label className="text-xs font-medium text-slate-700">Usar Imagem de Fundo (Unsplash)</label>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -2760,7 +2838,7 @@ Mantenha a consistência visual com o resto do e-book.`;
                       <i className="fas fa-hand-pointer text-2xl text-indigo-300"></i>
                     </div>
                     <p className="text-sm font-bold text-slate-600 mb-1">Selecione para Revisar</p>
-                    <p className="text-xs font-medium text-slate-400">Clique em textos, títulos ou imagens de fundo na página ao lado para ajustar detalhes específicos.</p>
+                    <p className="text-xs font-medium text-slate-400">Clique em textos, títulos, imagens, ícones ou fundos na página ao lado.</p>
                   </div>
                 ) : (
                   <div className="pb-10 bg-white">
@@ -2812,12 +2890,45 @@ Mantenha a consistência visual com o resto do e-book.`;
                         </button>
                       </div>
 
-                      <button
-                        onClick={desfazerCodigo}
-                        className="w-full mb-4 bg-yellow-50 hover:bg-yellow-100 border border-yellow-300 text-yellow-700 font-bold text-[10px] uppercase py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-2"
-                      >
-                        <i className="fas fa-undo"></i> Desfazer Última Edição
-                      </button>
+                      {/* CORREÇÃO: Controles para ícone */}
+                      {elementoSelecionado.tagName === 'i' && (
+                        <div className="pt-3 border-t border-slate-100 space-y-3">
+                          <div>
+                            <label className="input-label text-[9px]">Classe do Ícone (FontAwesome)</label>
+                            <input
+                              type="text"
+                              value={elementoSelecionado.text || ''}
+                              onChange={(e) => {
+                                const newClass = e.target.value.trim();
+                                if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+                                  previewFrameRef.current.contentWindow.postMessage({
+                                    type: 'UPDATE_ELEMENT',
+                                    id: elementoSelecionado.id,
+                                    text: `<i class="${newClass}"></i>`,
+                                    forceTextUpdate: true,
+                                  }, '*');
+                                }
+                                setElementoSelecionado((prev: any) => ({ ...prev, text: newClass }));
+                              }}
+                              className="input-standard text-[10px]"
+                              placeholder="Ex: fas fa-star"
+                            />
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+                                previewFrameRef.current.contentWindow.postMessage({
+                                  type: 'DELETE_ELEMENT',
+                                  id: elementoSelecionado.id,
+                                }, '*');
+                              }
+                            }}
+                            className="w-full bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-[9px] uppercase py-2 rounded transition"
+                          >
+                            <i className="fas fa-trash mr-1"></i> Apagar Ícone
+                          </button>
+                        </div>
+                      )}
 
                       {(elementoSelecionado.tagName === 'img' ||
                         elementoSelecionado.bgImage ||
@@ -2891,6 +3002,28 @@ Mantenha a consistência visual com o resto do e-book.`;
                                   <i className="fas fa-fill-drip mr-1"></i> Aplicar cor a todas as páginas
                                 </button>
                               )}
+                              {/* CORREÇÃO: Controles de cor de fundo para capa de capítulo */}
+                              {elementoSelecionado.isBgTarget && (
+                                <div className="mt-3">
+                                  <label className="input-label text-[9px]">Cor de Fundo da Capa</label>
+                                  <input
+                                    type="color"
+                                    value={corFundoCapitulo}
+                                    onChange={(e) => {
+                                      setCorFundoCapitulo(e.target.value);
+                                      // Atualizar no iframe via UPDATE_ELEMENT
+                                      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
+                                        previewFrameRef.current.contentWindow.postMessage({
+                                          type: 'UPDATE_ELEMENT',
+                                          id: elementoSelecionado.id,
+                                          bgColor: e.target.value,
+                                        }, '*');
+                                      }
+                                    }}
+                                    className="w-full h-10 rounded cursor-pointer border border-slate-200 p-1"
+                                  />
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2954,12 +3087,12 @@ Mantenha a consistência visual com o resto do e-book.`;
                         </div>
                       )}
 
-                      {!elementoSelecionado.isBgTarget && !isTextElement && elementoSelecionado.tagName !== 'img' && (
+                      {!elementoSelecionado.isBgTarget && !isTextElement && elementoSelecionado.tagName !== 'img' && elementoSelecionado.tagName !== 'i' && (
                         <div className="pt-3 border-t border-slate-100">
                           <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-[10px] leading-relaxed">
                             <i className="fas fa-layer-group mb-1.5 text-indigo-400 text-lg block"></i>
                             <strong>Container Estrutural</strong><br/>
-                            A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo.
+                            A edição manual de texto está desabilitada aqui. Use a <strong>IA acima</strong> para alterar toda a página ou clique num parágrafo, título ou ícone.
                           </div>
                         </div>
                       )}
@@ -3030,9 +3163,23 @@ Mantenha a consistência visual com o resto do e-book.`;
               >
                 <i className="fas fa-file-upload"></i> Importar Ebook
               </button>
+              {/* CORREÇÃO: Botões Desfazer e Refazer no header */}
+              <button
+                onClick={desfazer}
+                disabled={historico.length === 0}
+                className="bg-yellow-50 hover:bg-yellow-100 border border-yellow-300 text-yellow-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i className="fas fa-undo"></i> Desfazer
+              </button>
+              <button
+                onClick={refazer}
+                disabled={futuro.length === 0}
+                className="bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i className="fas fa-redo"></i> Refazer
+              </button>
             </div>
             <div className="flex items-center gap-3">
-              {/* Botão Desfazer removido do header */}
               <button
                 onClick={() => (window as any).baixarPdf()}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs shadow-md shadow-indigo-200 transition flex items-center gap-2"
