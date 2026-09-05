@@ -13,7 +13,6 @@ function executarRefluxoCompleto(
   containerId: string,
   alturaMaxima: number,
   indexShowSubtopics: boolean,
-  // CORREÇÃO: Removidos parâmetros do fundo da 2ª página
 ) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -38,7 +37,7 @@ function executarRefluxoCompleto(
 
         const header = document.createElement('div');
         header.className = 'page-header';
-        header.innerHTML = '<span>' + textoEsquerdo + '</span><span>' + tituloDoLivro + '</span>';
+        header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
         novaPagina.appendChild(header);
 
         const contentArea = document.createElement('div');
@@ -53,7 +52,6 @@ function executarRefluxoCompleto(
         footer.innerHTML = modeloFooter; 
         novaPagina.appendChild(footer);
 
-        // CORREÇÃO: Garante que a página do autor sempre fique no final!
         const authorPage = container.querySelector('.author-page');
         if (authorPage) {
             container.insertBefore(novaPagina, authorPage);
@@ -71,14 +69,11 @@ function executarRefluxoCompleto(
     const footer = paginaAtual.querySelector('.page-footer');
     paginaAtual.insertBefore(elemento, footer);
 
-    // Verifica se estourou a altura
     if (paginaAtual.scrollHeight > alturaMaxima) {
-      // Move o elemento para a nova página
       const novaPagina = criarNovaPagina();
       const novoFooter = novaPagina.querySelector('.page-footer');
       novaPagina.insertBefore(elemento, novoFooter);
 
-      // Anti-órfão: se o último elemento da página anterior era um título, move-o junto
       const paginaAnterior = paginaAtual.previousElementSibling;
       if (paginaAnterior && paginaAnterior.classList.contains('page-container')) {
         const footerAnterior = paginaAnterior.querySelector('.page-footer');
@@ -92,7 +87,6 @@ function executarRefluxoCompleto(
     }
   });
 
-  // --- 5. Remover páginas vazias ---
   container.querySelectorAll('.page-container').forEach(page => {
     const conteudo = page.querySelectorAll('p, h1, h2, h3, img, ul, blockquote, .toc-container');
     if (conteudo.length === 0) {
@@ -100,26 +94,17 @@ function executarRefluxoCompleto(
     }
   });
 
-  // --- 6. Sincronizar Índice (com paginação inteligente e hard limit) ---
+  // --- 5. Sincronizar Índice (com paginação por contagem fixa de itens) ---
   function sincronizarIndice() {
-        // Encontrar todos os .toc-container existentes
         let tocs = container.querySelectorAll('.toc-container');
-        // Se não houver nenhum, não faz nada
         if (tocs.length === 0) return;
         
-        // CORREÇÃO: Não remover páginas extras, apenas selecionar a primeira página de índice
-        // e garantir que os .toc-container extras sejam removidos apenas se forem além do necessário
-        // e com cuidado para não apagar elementos irmãos.
-        
-        // Vamos pegar a página que contém o primeiro .toc-container
-        const mainPage = tocs[0].closest('.page-container');
+        const mainToc = tocs[0];
+        const mainPage = mainToc.closest('.page-container');
         if (!mainPage) return;
 
-        // Limpar o conteúdo do .toc-container principal, mas sem remover a página
-        const mainToc = tocs[0];
         mainToc.innerHTML = '';
 
-        // Coletar todos os títulos para o índice
         const titulos = container.querySelectorAll('h1, h2, h3');
         const titulosVistos = new Set();
         const itens = [];
@@ -173,13 +158,11 @@ function executarRefluxoCompleto(
           itens.push(a);
         });
 
-        // Se não há itens, remove a página do índice?
         if (itens.length === 0) {
           mainPage.remove();
           return;
         }
 
-        // Função para criar uma nova página de índice (com .toc-container vazio)
         function criarPaginaIndice(afterPage) {
           const novaPagina = document.createElement('div');
           novaPagina.className = 'page-container chapter-text-page';
@@ -188,7 +171,7 @@ function executarRefluxoCompleto(
 
           const header = document.createElement('div');
           header.className = 'page-header';
-          header.innerHTML = '<span>' + textoEsquerdo + '</span><span>' + tituloDoLivro + '</span>';
+          header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
           novaPagina.appendChild(header);
 
           const contentArea = document.createElement('div');
@@ -207,11 +190,9 @@ function executarRefluxoCompleto(
           newToc.className = 'toc-container';
           contentArea.appendChild(newToc);
 
-          // Inserir imediatamente após a página anterior (afterPage)
           if (afterPage && afterPage.parentNode) {
             afterPage.parentNode.insertBefore(novaPagina, afterPage.nextSibling);
           } else {
-            // Fallback: inserir antes da página do autor
             const authorPage = container.querySelector('.author-page');
             if (authorPage) {
               container.insertBefore(novaPagina, authorPage);
@@ -222,44 +203,24 @@ function executarRefluxoCompleto(
           return { pagina: novaPagina, toc: newToc };
         }
 
-        // Começar com a página principal
         let currentPage = mainPage;
         let currentToc = mainToc;
-        const LIMITE_ALTURA_INDICE = 850;
-        let pageCount = 1;
-        const MAX_PAGES = 6; // Hard limit
+        let itemCount = 0;
+        const MAX_ITENS_POR_PAGINA = 22;
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
           currentToc.appendChild(item);
+          itemCount++;
 
-          // Verificar se a página atual estourou a altura
-          const contentArea = currentPage.querySelector('.content-area');
-          if (contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) {
-            // Remove o item que acabou de ser adicionado
-            currentToc.removeChild(item);
-            // Criar nova página de índice, inserindo após a página atual
-            if (pageCount >= MAX_PAGES) {
-              // Se atingiu o limite máximo, interrompe o loop (não adiciona mais itens)
-              break;
-            }
+          if (itemCount >= MAX_ITENS_POR_PAGINA && i < itens.length - 1) {
             const nova = criarPaginaIndice(currentPage);
             currentPage = nova.pagina;
             currentToc = nova.toc;
-            pageCount++;
-            // Adicionar o item na nova página
-            currentToc.appendChild(item);
+            itemCount = 0;
           }
         }
 
-        // Remover páginas de índice extras que possam ter sido criadas além do necessário
-        // mas cuidado: só remover se não forem a principal e se estiverem vazias ou além do limite
-        const allTocPages = container.querySelectorAll('.page-container .toc-container');
-        // Se houver mais páginas de índice do que o pageCount, remova as extras (apenas as que estão depois)
-        // Mas não remova a principal (a primeira)
-        // Vamos remover as páginas de índice que estão após a última página que contém itens
-        // Mas como não sabemos exatamente qual é a última, vamos simplesmente garantir que não haja
-        // páginas de índice vazias no final
         container.querySelectorAll('.page-container').forEach(page => {
           const toc = page.querySelector('.toc-container');
           if (toc && !page.querySelector('.toc-item')) {
@@ -270,10 +231,7 @@ function executarRefluxoCompleto(
 
   sincronizarIndice();
 
-  // --- 7. Aplicar fundo da segunda página (removido) ---
-  // CORREÇÃO: Removida toda a lógica de .chapter-page-2
-
-  // --- 8. Forçar reflow para ajustar numeração ---
+  // --- 6. Forçar reflow para ajustar numeração (será feito no script injetado) ---
   setTimeout(() => sincronizarIndice(), 50);
 }
 
@@ -283,7 +241,6 @@ function executarRefluxoCompleto(
 
 function getScriptPreview(
   indexShowSubtopics: boolean
-  // CORREÇÃO: Removidos parâmetros do fundo da 2ª página
 ) {
   return `
 <script>
@@ -291,7 +248,6 @@ function getScriptPreview(
     let observer;
     let isEditMode = false;
     let selectedEl = null;
-    // CORREÇÃO: Removido bg2Hidden
 
     function rgbToHex(rgb) {
       if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return '#ffffff';
@@ -307,7 +263,6 @@ function getScriptPreview(
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // CORREÇÃO DO UNSPLASH: Burlar o cache usando sintaxe aceita pela API
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          let bg = overlay.style.backgroundImage || '';
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg === '')) {
@@ -320,12 +275,9 @@ function getScriptPreview(
       const metaTitle = document.getElementById('meta-book-title');
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
-      const metaHeader = document.getElementById('meta-header-text');
-      let textoEsquerdo = metaHeader && metaHeader.getAttribute('content') ? metaHeader.getAttribute('content').toUpperCase().trim() : '';
-
       container.querySelectorAll('.page-header').forEach(h => {
          const spans = h.querySelectorAll('span');
-         if (spans.length >= 1) spans[0].textContent = textoEsquerdo; 
+         if (spans.length >= 1) spans[0].textContent = ''; 
          if (spans.length >= 2) spans[1].textContent = tituloDoLivro;
       });
 
@@ -404,7 +356,7 @@ function getScriptPreview(
 
         const header = document.createElement('div');
         header.className = 'page-header';
-        header.innerHTML = '<span>' + textoEsquerdo + '</span><span>' + tituloDoLivro + '</span>';
+        header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
         novaPagina.appendChild(header);
 
         const contentArea = document.createElement('div');
@@ -475,17 +427,15 @@ function getScriptPreview(
         if (!area || area.children.length === 0) page.remove();
       });
 
-      // --- Sincronizar Índice com paginação (cópia da função externa) ---
+      // --- Sincronizar Índice com paginação por contagem fixa ---
       function sincronizarIndice() {
         let tocs = container.querySelectorAll('.toc-container');
         if (tocs.length === 0) return;
         
-        // CORREÇÃO: Selecionar a página principal e não remover as outras de forma agressiva
         const mainToc = tocs[0];
         const mainPage = mainToc.closest('.page-container');
         if (!mainPage) return;
 
-        // Limpar o conteúdo do .toc-container principal
         mainToc.innerHTML = '';
 
         const titulos = container.querySelectorAll('h1, h2, h3');
@@ -554,7 +504,7 @@ function getScriptPreview(
 
           const header = document.createElement('div');
           header.className = 'page-header';
-          header.innerHTML = '<span>' + textoEsquerdo + '</span><span>' + tituloDoLivro + '</span>';
+          header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
           novaPagina.appendChild(header);
 
           const contentArea = document.createElement('div');
@@ -588,26 +538,22 @@ function getScriptPreview(
 
         let currentPage = mainPage;
         let currentToc = mainToc;
-        const LIMITE_ALTURA_INDICE = 850;
-        let pageCount = 1;
-        const MAX_PAGES = 6;
+        let itemCount = 0;
+        const MAX_ITENS_POR_PAGINA = 22;
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
           currentToc.appendChild(item);
-          const contentArea = currentPage.querySelector('.content-area');
-          if (contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) {
-            currentToc.removeChild(item);
-            if (pageCount >= MAX_PAGES) break;
+          itemCount++;
+
+          if (itemCount >= MAX_ITENS_POR_PAGINA && i < itens.length - 1) {
             const nova = criarPaginaIndice(currentPage);
             currentPage = nova.pagina;
             currentToc = nova.toc;
-            pageCount++;
-            currentToc.appendChild(item);
+            itemCount = 0;
           }
         }
 
-        // Remover páginas de índice vazias que possam ter ficado
         container.querySelectorAll('.page-container').forEach(page => {
           const toc = page.querySelector('.toc-container');
           if (toc && !page.querySelector('.toc-item')) {
@@ -616,9 +562,46 @@ function getScriptPreview(
         });
       }
 
+      // Chamada inicial do índice
       setTimeout(() => sincronizarIndice(), 100);
 
-      // CORREÇÃO: Removida lógica de .chapter-page-2
+      // --- Função para preencher números de página (separada e com setTimeout) ---
+      function preencherNumerosPaginas() {
+        const container = document.getElementById('ebook-container');
+        if (!container) return;
+        const paginas = container.querySelectorAll('.page-container:not(.page-cover-img):not(.page-cover-text):not(.page-cover-pura):not(.legal-page):not(.author-page)');
+        let pageNumber = 1;
+        // Mapeia cada título para o número da página onde ele aparece
+        const tituloParaPagina = new Map();
+
+        paginas.forEach((pagina) => {
+          // Pula páginas de índice? Não, queremos números para os títulos
+          const titulos = pagina.querySelectorAll('h1, h2, h3');
+          titulos.forEach(titulo => {
+            if (titulo.id) {
+              tituloParaPagina.set(titulo.id, pageNumber);
+            }
+          });
+          pageNumber++;
+        });
+
+        // Agora percorre todos os .toc-item e preenche .toc-page-num
+        const tocItems = container.querySelectorAll('.toc-item');
+        tocItems.forEach(item => {
+          const href = item.getAttribute('href');
+          if (href && href.startsWith('#')) {
+            const id = href.substring(1);
+            const num = tituloParaPagina.get(id);
+            const span = item.querySelector('.toc-page-num');
+            if (span && num !== undefined) {
+              span.innerText = num;
+            }
+          }
+        });
+      }
+
+      // Agenda a numeração para depois que o reflow estiver completo
+      setTimeout(preencherNumerosPaginas, 300);
 
       if (isEditMode && selectedEl) {
          selectedEl.style.outline = '3px solid #4f46e5';
@@ -677,36 +660,42 @@ function getScriptPreview(
       if (e.data.type === 'UPDATE_ELEMENT') {
          const target = document.getElementById(e.data.id);
          if (target) {
-            if (e.data.text !== undefined && e.data.forceTextUpdate) target.innerHTML = e.data.text;
-            if (e.data.src !== undefined && target.tagName === 'IMG') target.src = e.data.src;
-            if (e.data.bgImage !== undefined) target.style.setProperty('background-image', \`url(\${e.data.bgImage})\`, 'important');
-            if (e.data.rawBgImage !== undefined) target.style.setProperty('background-image', e.data.rawBgImage, 'important');
-            if (e.data.textColor !== undefined) target.style.setProperty('color', e.data.textColor, 'important');
-            
-            if (e.data.bgColor !== undefined) {
-                target.dataset.rawHex = e.data.bgColor;
-                let op = target.dataset.bgOp || (target.classList.contains('cap-overlay-box') ? '0.92' : '1');
-                let hex = e.data.bgColor.replace('#','');
-                if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
-                let r = parseInt(hex.substring(0,2), 16) || 255;
-                let g = parseInt(hex.substring(2,4), 16) || 255;
-                let b = parseInt(hex.substring(4,6), 16) || 255;
-                target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${op})\`, 'important');
+            // CORREÇÃO: Se for um ícone e recebermos iconClass, substituímos apenas a classe
+            if (e.data.iconClass !== undefined && target.tagName === 'I') {
+               target.className = e.data.iconClass;
+            } else {
+               // Demais atualizações
+               if (e.data.text !== undefined && e.data.forceTextUpdate) target.innerHTML = e.data.text;
+               if (e.data.src !== undefined && target.tagName === 'IMG') target.src = e.data.src;
+               if (e.data.bgImage !== undefined) target.style.setProperty('background-image', \`url(\${e.data.bgImage})\`, 'important');
+               if (e.data.rawBgImage !== undefined) target.style.setProperty('background-image', e.data.rawBgImage, 'important');
+               if (e.data.textColor !== undefined) target.style.setProperty('color', e.data.textColor, 'important');
+               
+               if (e.data.bgColor !== undefined) {
+                   target.dataset.rawHex = e.data.bgColor;
+                   let op = target.dataset.bgOp || (target.classList.contains('cap-overlay-box') ? '0.92' : '1');
+                   let hex = e.data.bgColor.replace('#','');
+                   if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
+                   let r = parseInt(hex.substring(0,2), 16) || 255;
+                   let g = parseInt(hex.substring(2,4), 16) || 255;
+                   let b = parseInt(hex.substring(4,6), 16) || 255;
+                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${op})\`, 'important');
+               }
+               if (e.data.bgOpacity !== undefined) {
+                   target.dataset.bgOp = e.data.bgOpacity;
+                   let hex = target.dataset.rawHex || rgbToHex(window.getComputedStyle(target).backgroundColor) || '#f5f5f5';
+                   hex = hex.replace('#','');
+                   if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
+                   let r = parseInt(hex.substring(0,2), 16) || 245;
+                   let g = parseInt(hex.substring(2,4), 16) || 245;
+                   let b = parseInt(hex.substring(4,6), 16) || 245;
+                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${e.data.bgOpacity})\`, 'important');
+               }
+               
+               if (e.data.fontSize !== undefined) target.style.setProperty('font-size', e.data.fontSize + 'px', 'important');
+               if (e.data.fontWeight !== undefined) target.style.setProperty('font-weight', e.data.fontWeight, 'important');
+               if (e.data.textAlign !== undefined) target.className = target.className.replace(/text-(left|center|right|justify)/, '') + ' ' + e.data.textAlign;
             }
-            if (e.data.bgOpacity !== undefined) {
-                target.dataset.bgOp = e.data.bgOpacity;
-                let hex = target.dataset.rawHex || rgbToHex(window.getComputedStyle(target).backgroundColor) || '#f5f5f5';
-                hex = hex.replace('#','');
-                if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
-                let r = parseInt(hex.substring(0,2), 16) || 245;
-                let g = parseInt(hex.substring(2,4), 16) || 245;
-                let b = parseInt(hex.substring(4,6), 16) || 245;
-                target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${e.data.bgOpacity})\`, 'important');
-            }
-            
-            if (e.data.fontSize !== undefined) target.style.setProperty('font-size', e.data.fontSize + 'px', 'important');
-            if (e.data.fontWeight !== undefined) target.style.setProperty('font-weight', e.data.fontWeight, 'important');
-            if (e.data.textAlign !== undefined) target.className = target.className.replace(/text-(left|center|right|justify)/, '') + ' ' + e.data.textAlign;
 
             window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
          }
@@ -735,7 +724,6 @@ function getScriptPreview(
          });
          window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
       }
-      // CORREÇÃO: Removido TOGGLE_BG_2
     });  
 
     document.addEventListener('mouseover', (e) => {
@@ -834,7 +822,6 @@ export default function Home() {
   });
   const [recarregarIframe, setRecarregarIframe] = useState(true);
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
-  // CORREÇÃO: Removido bg2Oculto
 
   // Configurações de estilo
   const [fontFamily, setFontFamily] = useState('Lato');
@@ -849,25 +836,18 @@ export default function Home() {
   
   const [alinhamentoCapitulo, setAlinhamentoCapitulo] = useState<'center' | 'flex-start' | 'flex-end'>('center');
   const [boxColorHex, setBoxColorHex] = useState('#1e3a8a');
-  // CORREÇÃO: Removido boxOpacity duplicado (mantido apenas o que está com a capa)
-  const [boxOpacity, setBoxOpacity] = useState('0.70');
+  // CORREÇÃO: Removido boxOpacity, transparência fixa em 85% no CSS
   
-  // CORREÇÃO: Novas cores padrão
-  const [corFundoCapitulo, setCorFundoCapitulo] = useState('#0f172a'); // azul marinho escuro
-  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#15803d'); // verde elegante
-  // CORREÇÃO: Removido usarImagemFundoCap
+  const [corFundoCapitulo, setCorFundoCapitulo] = useState('#0f172a');
+  const [corRetanguloCapitulo, setCorRetanguloCapitulo] = useState('#15803d');
 
-  // CORREÇÃO: Remover opção "simples" do estiloRodape
   const [estiloRodape, setEstiloRodape] = useState<'linha-superior' | 'centralizado-circulo' | 'centralizado'>('linha-superior');
   const [autorPosicao, setAutorPosicao] = useState<'esquerda' | 'topo'>('esquerda');
   const [autorFormato, setAutorFormato] = useState<'circulo' | 'retangulo'>('retangulo');
 
-  // CORREÇÃO: Removidas variáveis do fundo da 2ª página
-  // const [ativarBgSegundaPagina, ...] removido
-
   // Conteúdo do livro
   const [livroTitulo, setLivroTitulo] = useState('');
-  const [textoCabecalho, setTextoCabecalho] = useState('');
+  // CORREÇÃO: removido estado textoCabecalho
   const [livroAutores, setLivroAutores] = useState('');
   const [productContent, setProductContent] = useState('');
   const [modoConteudo, setModoConteudo] = useState<'expandido' | 'rigoroso'>('expandido');
@@ -893,7 +873,7 @@ export default function Home() {
   const extraImageInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  // CORREÇÃO: Array de ícones para troca
+  // Ícones para troca
   const iconList = [
     'fa-leaf', 'fa-star', 'fa-lightbulb', 'fa-seedling', 'fa-anchor',
     'fa-crown', 'fa-feather', 'fa-gem', 'fa-tree', 'fa-mountain',
@@ -1041,7 +1021,8 @@ export default function Home() {
     
     const conf = getEstilosFormato();
     const paleta = getPaletaObj();
-    const opacidadeSegura = Math.round(parseFloat(boxOpacity || '0.70') * 100);
+    // CORREÇÃO: opacidade fixa de 85% para o box
+    const opacidadeSegura = 0.85;
 
     const ebookStyles = `<style id="ebook-dynamic-styles">
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -1057,7 +1038,7 @@ export default function Home() {
   --line-spacing: ${espacamentoLinhas};
   --p-spacing: 0.8em;
   --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#15803d'} ${opacidadeSegura}%, transparent);
+  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#15803d'} ${Math.round(opacidadeSegura * 100)}%, transparent);
 }
 
 body {
@@ -1237,7 +1218,6 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 <html lang="pt-BR">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta id="meta-header-text" content="${textoCabecalho}">
 <meta id="meta-book-title" content="${livroTitulo}">
 <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1588,21 +1568,19 @@ ${ebookStyles}
     (window as any).showNotification('Cor aplicada a todas as páginas!', 'success');
   }
 
-  // CORREÇÃO: Função para trocar ícone ciclicamente
+  // CORREÇÃO: Função para trocar ícone ciclicamente sem duplicação
   function trocarIcone() {
     if (!elementoSelecionado || elementoSelecionado.tagName !== 'i') return;
     const currentIndex = iconIndex % iconList.length;
-    const newClass = iconList[currentIndex];
-    // Atualiza o elemento no iframe
+    const newClass = 'fas ' + iconList[currentIndex];
     if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
       previewFrameRef.current.contentWindow.postMessage({
         type: 'UPDATE_ELEMENT',
         id: elementoSelecionado.id,
-        text: `<i class="fas ${newClass}"></i>`,
-        forceTextUpdate: true,
+        iconClass: newClass,
       }, '*');
     }
-    setElementoSelecionado((prev: any) => ({ ...prev, text: newClass }));
+    setElementoSelecionado((prev: any) => ({ ...prev, className: newClass }));
     setIconIndex((prev) => (prev + 1) % iconList.length);
   }
 
@@ -1945,13 +1923,13 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     ${regraCapaHtml}
     ${paginaAviso}
     <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>ÍNDICE</span></div>
+        <div class="page-header"><span></span><span>${livroTitulo}</span></div>
         <h2 class="chapter-title-inline">Índice</h2>
         <div class="toc-container"></div>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
     <div class="page-container">
-        <div class="page-header"><span>${livroTitulo}</span><span>INTRODUÇÃO</span></div>
+        <div class="page-header"><span></span><span>${livroTitulo}</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">O Início da Jornada</h3>
         <p>[Parágrafo 1 - aprox 60 palavras]</p>
@@ -1993,10 +1971,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
-    // CORREÇÃO: Extrair último trecho para continuidade
     let ultimoTrecho = '';
     if (currentHtml) {
-      // Extrair os últimos 2 parágrafos do conteúdo (ignorando tags)
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = currentHtml;
       const paragrafos = tempDiv.querySelectorAll('p');
@@ -2011,7 +1987,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     let instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
     Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-    ATENÇÃO: Não pule números. Respeite rigorosamente a ordem (imagem primeiro, depois título).
+    ATENÇÃO MÁXIMA: O primeiro capítulo que você gerar nesta resposta DEVE ser OBRIGATORIAMENTE o 'Capítulo ${proximoNumero}'. NUNCA pule números, obedeça a contagem matemática de forma estrita.
+    Respeite rigorosamente a ordem (imagem primeiro, depois título).
 
     MOLDE PARA CADA CAPÍTULO:
     ${cap1.regrasCompletas}
@@ -2020,12 +1997,10 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos acima preenchidos, sem repetir cabeçalhos ou rodapés. Não escreva "Conclusão".`;
 
-    // CORREÇÃO: Adicionar modo rigoroso se selecionado
     if (modoConteudo === 'rigoroso') {
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
-    // CORREÇÃO: Adicionar contexto de continuação
     if (ultimoTrecho) {
       instrucao += `\n\nContinue o raciocínio a partir deste último trecho gerado: "${ultimoTrecho}"`;
     }
@@ -2184,7 +2159,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }, []);
 
-  // Atualiza a capa quando título/autor mudam
   useEffect(() => {
     if (htmlAtual && (livroTitulo || livroAutores)) {
       const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
@@ -2199,7 +2173,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }, [livroTitulo, livroAutores]);
 
-  // Sincroniza mensagens do iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
@@ -2230,14 +2203,12 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     return () => window.removeEventListener('message', handleMessage);
   }, [modoInspetor, htmlAtual]);
 
-  // Recarregar iframe apenas quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics);
     }
   }, [htmlAtual, recarregarIframe]);
 
-  // Reaplicar estilos ao mudar configurações visuais
   useEffect(() => {
     if (htmlAtual) {
       const htmlFinal = moldarApresentacaoHtml(htmlAtual);
@@ -2248,9 +2219,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }, [
     fontFamily, tamanhoFonteBase, tipoBorda, estiloRodape, 
     alinhamentoCapitulo, autorPosicao, autorFormato,
-    boxColorHex, boxOpacity, corFundoPagina, corTextoDetalhes,
+    boxColorHex, corFundoPagina, corTextoDetalhes,
     corFundoCapitulo, corRetanguloCapitulo
-    // recuoParagrafo removido para evitar reflow desnecessário
   ]);
 
   const isTextElement = elementoSelecionado
@@ -2487,16 +2457,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         placeholder="Ex: O Poder da Mente"
                       />
                     </div>
-                    <div>
-                      <label className="input-label">Texto do Cabeçalho (Esquerda)</label>
-                      <input
-                        type="text"
-                        value={textoCabecalho}
-                        onChange={(e) => setTextoCabecalho(e.target.value)}
-                        className="input-standard"
-                        placeholder="Deixe vazio para esconder"
-                      />
-                    </div>
+                    {/* CORREÇÃO: Removido campo "Texto do Cabeçalho (Esquerda)" */}
                     <div>
                       <label className="input-label">Nome do Autor</label>
                       <input
@@ -2636,7 +2597,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                   </div>
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="input-label text-[9px] flex justify-between">Fundo do Retângulo <span className="text-slate-400">Transparência</span></label>
+                      <label className="input-label text-[9px] flex justify-between">Fundo do Retângulo <span className="text-slate-400">(85% opaco)</span></label>
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
@@ -2644,12 +2605,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                           onChange={(e) => setBoxColorHex(e.target.value)}
                           className="w-10 h-8 rounded cursor-pointer border-none flex-shrink-0"
                         />
-                        <input
-                          type="range"
-                          min="0" max="1" step="0.05" value={boxOpacity}
-                          onChange={(e) => setBoxOpacity(e.target.value)}
-                          className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
+                        <span className="text-xs text-slate-400 font-medium">opacidade fixa</span>
                       </div>
                     </div>
                   </div>
@@ -2679,8 +2635,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                     <p className="text-[9px] text-slate-400 text-center mt-1.5">Adicione dedicatória, agradecimentos, etc.</p>
                   </div>
                 </div>
-
-                {/* CORREÇÃO: Removida seção "Fundo da 2ª Página" */}
 
                 <div className="panel-section">
                   <label className="input-label text-indigo-600 mb-3">Customização da Capa do Capítulo</label>
@@ -2772,7 +2726,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         </button>
                       </div>
 
-                      {/* CORREÇÃO: Controle de ícone com botão "Trocar Ícone" */}
                       {elementoSelecionado.tagName === 'i' && (
                         <div className="pt-3 border-t border-slate-100 space-y-3">
                           <button
@@ -3042,7 +2995,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
               >
                 <i className="fas fa-redo"></i> Refazer
               </button>
-              {/* CORREÇÃO: Removido botão toggle do fundo 2ª página */}
             </div>
             <div className="flex items-center gap-3">
               <button
