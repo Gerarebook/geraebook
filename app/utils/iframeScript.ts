@@ -185,6 +185,26 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         if (!area || area.children.length === 0) page.remove();
       });
 
+      // BLINDAGEM MÁXIMA DA CAPA: Ocultar Cabeçalho, Rodapé e Linha em qualquer tipo de Capa
+      container.querySelectorAll('.page-container').forEach((page, index) => {
+         if (!page.id) page.id = 'page-gen-' + index + '-' + Math.random().toString(36).substr(2, 5);
+         
+         if (page.querySelector('.cap-img-overlay') || page.classList.contains('page-cover-img') || page.classList.contains('page-cover-pura') || page.classList.contains('page-cover-text')) {
+             const header = page.querySelector('.page-header');
+             const footer = page.querySelector('.page-footer');
+             if (header) header.style.setProperty('display', 'none', 'important');
+             if (footer) footer.style.setProperty('display', 'none', 'important');
+             
+             let localStyle = page.querySelector('.local-cover-style');
+             if (!localStyle) {
+                 localStyle = document.createElement('style');
+                 localStyle.className = 'local-cover-style';
+                 localStyle.innerHTML = \`#\${page.id}::after { display: none !important; border: none !important; content: none !important; }\`;
+                 page.appendChild(localStyle);
+             }
+         }
+      });
+
       function sincronizarIndice() {
         let tocs = container.querySelectorAll('.toc-container');
         if (tocs.length === 0) return;
@@ -193,7 +213,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         const mainPage = mainToc.closest('.page-container');
         if (!mainPage) return;
 
-        // Limpa páginas fantasmas do índice duplicado
         const allTocPages = container.querySelectorAll('.page-container .toc-container');
         allTocPages.forEach((toc, index) => {
           if (index > 0) {
@@ -305,9 +324,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         let currentPage = mainPage;
         let currentToc = mainToc;
         
-        // Trava 1: Limite de pixels reduzido para segurança
         const LIMITE_ALTURA_INDICE = 720; 
-        // Trava 2: Limite máximo de itens por página
         let itemCount = 0;
 
         for (let i = 0; i < itens.length; i++) {
@@ -318,14 +335,14 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           const contentArea = currentPage.querySelector('.content-area');
           
           if ((contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) || itemCount >= 22) {
-            currentToc.removeChild(item); // Tira o item que vazou
+            currentToc.removeChild(item); 
             
-            const nova = criarPaginaIndice(currentPage); // Cria nova folha
+            const nova = criarPaginaIndice(currentPage); 
             currentPage = nova.pagina;
             currentToc = nova.toc;
             
-            currentToc.appendChild(item); // Joga o item pra folha nova
-            itemCount = 1; // Reseta a contagem para a nova folha
+            currentToc.appendChild(item); 
+            itemCount = 1; 
           }
         }
 
@@ -344,9 +361,8 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         });
 
         // ==========================================
-        // MATEMÁTICA DE NUMERAÇÃO PERFEITA (Síncrona)
+        // MATEMÁTICA DE NUMERAÇÃO PERFEITA
         // ==========================================
-        // Conta todas as divs que representam uma página real de papel
         const allPages = Array.from(container.children).filter(el =>
           el.classList.contains('page-container') ||
           el.classList.contains('page-cover-img') ||
@@ -354,7 +370,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           el.classList.contains('page-cover-text') ||
           el.classList.contains('page-extra') ||
           el.classList.contains('author-page') ||
-          el.classList.contains('cap-img-overlay') || // <-- CONTA AS CAPAS
           el.hasAttribute('data-legal')
         );
         
@@ -364,7 +379,9 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
           if (target) {
-            const page = target.closest('.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, [data-legal], .cap-img-overlay');
+            // CORREÇÃO MESTRE AQUI: O closest procura apenas a ".page-container" exata onde o título mora. 
+            // Assim não ocorre mais do indexOf dar erro e virar 0.
+            const page = target.closest('.page-container');
             if (page) {
               const idx = allPages.indexOf(page) + 1;
               const numSpan = item.querySelector('.toc-page-num');
@@ -372,9 +389,8 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
             }
           }
         });
-      } // <--- Fim da função sincronizarIndice
+      }
 
-      // CHAMA O ÍNDICE DE FORMA SÍNCRONA
       sincronizarIndice();
 
       if (isEditMode && selectedEl) {
@@ -383,7 +399,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
       window.scrollTo(0, currentScrollY);
 
-      // RELIGA O OBSERVER APÓS TUDO TER SIDO CALCULADO (Mata o loop infinito)
       setTimeout(() => {
         if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
       }, 300);

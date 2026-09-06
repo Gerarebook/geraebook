@@ -768,16 +768,16 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">O Início da Jornada</h3>
-        <p>[Parágrafo 1 - aprox 60 palavras]</p>
-        <p>[Parágrafo 2 - aprox 60 palavras]</p>
-        <p>[Parágrafo 3 - aprox 60 palavras]</p>
-        <p>[Parágrafo 4 - aprox 50 palavras]</p>
+        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 1 DA INTRODUÇÃO. Aja como Ghostwriter. Desenvolva o tema profundamente.]</p>
+        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 2 DA INTRODUÇÃO. Seja persuasivo e prenda o leitor.]</p>
+        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 3 DA INTRODUÇÃO. Continue a narrativa com fluidez...]</p>
+        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 4 DA INTRODUÇÃO...]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
-    REGRAS CRÍTICAS:
-    1. A INTRODUÇÃO DEVE TER EXATAMENTE 4 PARÁGRAFOS.
-    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto.
+    REGRAS CRÍTICAS (PROIBIDO PREGUIÇA):
+    1. A INTRODUÇÃO DEVE TER TEXTO REAL. É estritamente proibido retornar colchetes vazios ou resumos. ESCREVA O CONTEÚDO.
+    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto dentro.
     3. PARE AQUI! NÃO gere Capítulos!
     `;
 
@@ -833,7 +833,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
-    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.`;
+    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. É ESTRITAMENTE PROIBIDO gerar "placeholders" vazios, pular parágrafos ou entregar textos genéricos. Escreva o CONTEÚDO REAL E PROFUNDO. Também é proibido gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)') ou raciocínios lógicos. RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK PREENCHIDAS COM O TEXTO FINAL INÉDITO E NADA MAIS.`;
 
     const data = await chamarMotorIA(instrucao, [
       { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
@@ -872,11 +872,13 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       2. MOLDE DE CONCLUSÃO:
       <h2 id="conclusao" class="chapter-title-inline"><i class="fas fa-flag-checkered"></i> Conclusão</h2>
       <h3 class="subtopic-title">Considerações Finais</h3>
-      <p>[Escreva aqui a conclusão detalhada do e-book em cerca de 3 parágrafos...]</p>
+      <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 1 DA CONCLUSÃO. Faça um resumo poderoso da jornada.]</p>
+      <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 2 DA CONCLUSÃO. Traga um tom motivacional.]</p>
+      <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 3 DA CONCLUSÃO. Feche o livro com uma chamada para ação.]</p>
       
-      O PROMPT ACABA AQUI. Devolva apenas essas tags HTML soltas e preenchidas. O sistema cuidará de adicionar o Autor nativamente.
+      O PROMPT ACABA AQUI. Devolva apenas essas tags HTML soltas e PREENCHIDAS COM O TEXTO REAL. O sistema cuidará de adicionar o Autor nativamente.
       
-      REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.
+      REGRA DE SEGURANÇA MÁXIMA E ANTI-PREGUIÇA: É ESTRITAMENTE PROIBIDO gerar texto vazio, copiar colchetes, gerar pensamentos internos, comentários ou contagem de palavras. ESCREVA O CONTEÚDO FINAL.
       `;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
