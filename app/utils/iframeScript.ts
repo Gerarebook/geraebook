@@ -304,19 +304,28 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
         let currentPage = mainPage;
         let currentToc = mainToc;
-        const LIMITE_ALTURA_INDICE = 880;
+        
+        // Trava 1: Limite de pixels reduzido para segurança
+        const LIMITE_ALTURA_INDICE = 720; 
+        // Trava 2: Limite máximo de itens por página
+        let itemCount = 0;
 
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
           currentToc.appendChild(item);
+          itemCount++;
 
           const contentArea = currentPage.querySelector('.content-area');
-          if (contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) {
-            currentToc.removeChild(item);
-            const nova = criarPaginaIndice(currentPage);
+          
+          if ((contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) || itemCount >= 22) {
+            currentToc.removeChild(item); // Tira o item que vazou
+            
+            const nova = criarPaginaIndice(currentPage); // Cria nova folha
             currentPage = nova.pagina;
             currentToc = nova.toc;
-            currentToc.appendChild(item);
+            
+            currentToc.appendChild(item); // Joga o item pra folha nova
+            itemCount = 1; // Reseta a contagem para a nova folha
           }
         }
 
@@ -345,6 +354,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           el.classList.contains('page-cover-text') ||
           el.classList.contains('page-extra') ||
           el.classList.contains('author-page') ||
+          el.classList.contains('cap-img-overlay') || // <-- CONTA AS CAPAS
           el.hasAttribute('data-legal')
         );
         
@@ -354,15 +364,15 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
           if (target) {
-            const page = target.closest('.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, [data-legal]');
+            const page = target.closest('.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, [data-legal], .cap-img-overlay');
             if (page) {
-              const idx = allPages.indexOf(page) + 1; // +1 porque a array começa do zero. A capa é 1.
+              const idx = allPages.indexOf(page) + 1;
               const numSpan = item.querySelector('.toc-page-num');
               if (numSpan) numSpan.innerText = String(idx);
             }
           }
         });
-      }
+      } // <--- Fim da função sincronizarIndice
 
       // CHAMA O ÍNDICE DE FORMA SÍNCRONA
       sincronizarIndice();
