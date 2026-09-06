@@ -1,589 +1,14 @@
-// @ts-nocheck
+// app/page.tsx
 'use client';
 
 import { supabase } from '@/lib/supabase';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { jsPDF } from 'jspdf';
 
-// ============================================================
-// SCRIPT INJETADO NO IFRAME (Cabeçalho Dinâmico e Blindagem de Cores)
-// ============================================================
-
-function getScriptPreview(indexShowSubtopics: boolean) {
-  return `
-<script>
-  (function() {
-    let observer;
-    let isEditMode = false;
-    let selectedEl = null;
-
-    function rgbToHex(rgb) {
-      if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return '#ffffff';
-      let m = rgb.match(/^rgb(?:a)?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
-      if (!m) return '#000000';
-      return "#" + (1 << 24 | m[1] << 16 | m[2] << 8 | m[3]).toString(16).slice(1);
-    }
-
-    function executarRefluxoCompleto() {
-      if (observer) observer.disconnect();
-      
-      const currentScrollY = window.scrollY;
-      const container = document.getElementById('ebook-container');
-      if (!container) return;
-
-      container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
-         let bg = overlay.style.backgroundImage || '';
-         if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg === '')) {
-            const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
-            const cacheBuster = Math.random().toString(36).substring(7);
-            overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},abstract,texture,sig\${cacheBuster}')\`, 'important');
-         }
-      });
-
-      const metaTitle = document.getElementById('meta-book-title');
-      let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
-
-      container.querySelectorAll('.page-header').forEach(h => {
-         const spans = h.querySelectorAll('span');
-         if (spans.length >= 1) spans[0].textContent = ''; 
-         if (spans.length >= 2) spans[1].textContent = tituloDoLivro;
-      });
-
-      let modeloFooter = '<span class="page-number"></span>';
-      const footerExistente = container.querySelector('.page-footer');
-      if (footerExistente) {
-        modeloFooter = footerExistente.innerHTML;
-      }
-
-      const todasPaginas = container.querySelectorAll('.page-container');
-      todasPaginas.forEach(p => {
-        // Removido .legal-page da condição – agora ela recebe cabeçalho/rodapé normalmente
-        if (p.classList.contains('page-cover-img') || 
-            p.classList.contains('page-cover-pura') || 
-            p.classList.contains('page-cover-text') || 
-            p.querySelector('.toc-container') || 
-            p.classList.contains('author-page')) {
-            return; 
-        }
-        
-        const area = p.querySelector('.content-area') || p;
-        p.querySelectorAll('.page-header, .page-footer').forEach(l => l.remove());
-
-        while (area.firstChild) {
-            container.insertBefore(area.firstChild, p);
-        }
-        p.remove();
-      });
-
-      container.querySelectorAll('hr').forEach(hr => hr.remove());
-      container.querySelectorAll('p').forEach(p => {
-          if (p.innerHTML) {
-            p.innerHTML = p.innerHTML.replace(/^(&nbsp;|\\s)+/g, '');
-          }
-          if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
-      });
-
-      Array.from(container.childNodes).forEach(node => {
-          if (node.nodeType === 3 && node.textContent.trim() !== '') {
-              const p = document.createElement('p');
-              p.textContent = node.textContent;
-              container.insertBefore(p, node);
-              node.remove();
-          }
-      });
-
-      const elementosIA = Array.from(container.children).filter(el =>
-        !el.classList.contains('page-container') &&
-        !el.classList.contains('page-cover-img') &&
-        !el.classList.contains('page-cover-pura') &&
-        !el.classList.contains('page-cover-text') &&
-        !el.classList.contains('author-page') &&
-        !el.classList.contains('page-extra') &&
-        el.tagName !== 'STYLE' &&
-        el.tagName !== 'SCRIPT'
-      );
-
-      const indexConclusao = elementosIA.findIndex(el => el.id === 'conclusao' || (el.tagName === 'H1' && (el.textContent || '').toLowerCase().includes('conclusão')));
-      
-      if (indexConclusao !== -1) {
-          const indexNovoCapitulo = elementosIA.findIndex((el, i) => i > indexConclusao && (el.tagName === 'H2' || el.classList.contains('cap-img-overlay')));
-          if (indexNovoCapitulo !== -1) {
-              const partesConclusao = elementosIA.splice(indexConclusao, indexNovoCapitulo - indexConclusao);
-              elementosIA.push(...partesConclusao);
-          }
-      }
-
-      const LIMITE_ALTURA_TEXTO = 940; 
-
-      function criarNovaPagina() {
-        const novaPagina = document.createElement('div');
-        novaPagina.className = 'page-container chapter-text-page';
-        novaPagina.style.overflow = 'hidden';
-        novaPagina.style.breakAfter = 'page';
-
-        const header = document.createElement('div');
-        header.className = 'page-header';
-        header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
-        novaPagina.appendChild(header);
-
-        const contentArea = document.createElement('div');
-        contentArea.className = 'content-area';
-        contentArea.style.display = 'flex';
-        contentArea.style.flexDirection = 'column';
-        contentArea.style.width = '100%'; 
-        novaPagina.appendChild(contentArea);
-
-        const footer = document.createElement('div');
-        footer.className = 'page-footer';
-        footer.innerHTML = modeloFooter; 
-        novaPagina.appendChild(footer);
-
-        const endPage = container.querySelector('.author-page');
-        if (endPage) {
-            container.insertBefore(novaPagina, endPage);
-        } else {
-            container.appendChild(novaPagina);
-        }
-        return { pagina: novaPagina, areaTexto: contentArea };
-      }
-
-      if (elementosIA.length > 0) {
-        let atual = criarNovaPagina();
-
-        for (let i = 0; i < elementosIA.length; i++) {
-          let el = elementosIA[i];
-          let deveQuebrar = false;
-
-          if (atual.areaTexto.children.length > 0) {
-            if (el.tagName === 'H1' || el.tagName === 'H2' || el.classList.contains('cap-img-overlay')) {
-              deveQuebrar = true; 
-            } 
-            else if (atual.areaTexto.querySelector('.cap-img-overlay') || atual.areaTexto.classList.contains('cap-img-overlay')) {
-              deveQuebrar = true;
-            }
-            else if (el.tagName === 'H3' && atual.areaTexto.querySelectorAll('p, blockquote, ul, .highlight-box, .concept-box, img').length > 0) {
-              deveQuebrar = true; 
-            }
-          }
-
-          if (deveQuebrar) atual = criarNovaPagina();
-
-          atual.areaTexto.appendChild(el);
-
-          if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
-            if (!el.classList.contains('cap-img-overlay')) {
-              if (atual.areaTexto.children.length > 1) {
-                  atual.areaTexto.removeChild(el); 
-                  let orfao = atual.areaTexto.lastElementChild;
-                  let moveOrfao = false;
-                  if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'BLOCKQUOTE')) {
-                      moveOrfao = true;
-                      atual.areaTexto.removeChild(orfao);
-                  }
-                  atual = criarNovaPagina();
-                  if (moveOrfao) atual.areaTexto.appendChild(orfao);
-                  atual.areaTexto.appendChild(el);
-              }
-            }
-          }
-        }
-      }
-
-      container.querySelectorAll('.chapter-text-page').forEach(page => {
-        const area = page.querySelector('.content-area');
-        if (!area || area.children.length === 0) page.remove();
-      });
-
-      // --- Sincronizar Índice com paginação por altura real ---
-      function sincronizarIndice() {
-        let tocs = container.querySelectorAll('.toc-container');
-        if (tocs.length === 0) return;
-        
-        const mainToc = tocs[0];
-        const mainPage = mainToc.closest('.page-container');
-        if (!mainPage) return;
-
-        // Remove todas as páginas de índice subsequentes (além da primeira)
-        const allTocPages = container.querySelectorAll('.page-container .toc-container');
-        allTocPages.forEach((toc, index) => {
-          if (index > 0) {
-            const page = toc.closest('.page-container');
-            if (page) page.remove();
-          }
-        });
-
-        // Limpa o conteúdo do TOC principal
-        mainToc.innerHTML = '';
-
-        const titulos = container.querySelectorAll('h1, h2, h3');
-        const titulosVistos = new Set();
-        const itens = [];
-
-        titulos.forEach((titleEl) => {
-          // Ignora títulos da capa, e também da página de avisos (data-legal)
-          if (titleEl.closest('.page-cover-img, .page-cover-text, .page-cover-pura, [data-legal]')) return;
-          
-          let texto = titleEl.textContent?.trim() || '';
-          if (!texto || /índice|sumário/i.test(texto)) return;
-
-          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
-          if (titulosVistos.has(chave)) return;
-          titulosVistos.add(chave);
-
-          if (!titleEl.id) {
-            titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
-          }
-
-          const a = document.createElement('a');
-          a.className = 'toc-item';
-          
-          const isMain = titleEl.tagName === 'H1' || titleEl.tagName === 'H2';
-          if (isMain) {
-            a.classList.add('toc-main-chapter');
-            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
-            a.style.color = 'var(--color-primary)';
-          } else if (titleEl.tagName === 'H3') {
-            if (!${indexShowSubtopics}) return;
-            a.classList.add('toc-subtopic');
-            a.style.paddingLeft = '20px';
-            a.style.fontSize = '0.75em';
-            a.style.lineHeight = '1';
-            a.style.opacity = '0.85';
-          }
-
-          a.href = '#' + titleEl.id;
-          
-          const spanTitle = document.createElement('span');
-          spanTitle.innerText = texto;
-          
-          const spanDots = document.createElement('span');
-          spanDots.className = 'toc-dots';
-          
-          const spanPage = document.createElement('span');
-          spanPage.className = 'toc-page-num';
-
-          a.appendChild(spanTitle);
-          a.appendChild(spanDots);
-          a.appendChild(spanPage);
-          
-          itens.push(a);
-        });
-
-        if (itens.length === 0) {
-          mainPage.remove();
-          return;
-        }
-
-        // Função para criar nova página de índice
-        function criarPaginaIndice(afterPage) {
-          const novaPagina = document.createElement('div');
-          novaPagina.className = 'page-container chapter-text-page';
-          novaPagina.style.overflow = 'hidden';
-          novaPagina.style.breakAfter = 'page';
-
-          const header = document.createElement('div');
-          header.className = 'page-header';
-          header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
-          novaPagina.appendChild(header);
-
-          const contentArea = document.createElement('div');
-          contentArea.className = 'content-area';
-          contentArea.style.display = 'flex';
-          contentArea.style.flexDirection = 'column';
-          contentArea.style.width = '100%';
-          novaPagina.appendChild(contentArea);
-
-          const footer = document.createElement('div');
-          footer.className = 'page-footer';
-          footer.innerHTML = modeloFooter;
-          novaPagina.appendChild(footer);
-
-          const newToc = document.createElement('div');
-          newToc.className = 'toc-container';
-          contentArea.appendChild(newToc);
-
-          if (afterPage && afterPage.parentNode) {
-            afterPage.parentNode.insertBefore(novaPagina, afterPage.nextSibling);
-          } else {
-            const authorPage = container.querySelector('.author-page');
-            if (authorPage) {
-              container.insertBefore(novaPagina, authorPage);
-            } else {
-              container.appendChild(novaPagina);
-            }
-          }
-          return { pagina: novaPagina, toc: newToc };
-        }
-
-        let currentPage = mainPage;
-        let currentToc = mainToc;
-        const LIMITE_ALTURA_INDICE = 850; // altura máxima do content-area
-
-        for (let i = 0; i < itens.length; i++) {
-          const item = itens[i];
-          currentToc.appendChild(item);
-
-          // Verifica se o content-area estourou o limite
-          const contentArea = currentPage.querySelector('.content-area');
-          if (contentArea && contentArea.scrollHeight > LIMITE_ALTURA_INDICE) {
-            // Remove o item recém adicionado
-            currentToc.removeChild(item);
-            // Cria nova página
-            const nova = criarPaginaIndice(currentPage);
-            currentPage = nova.pagina;
-            currentToc = nova.toc;
-            // Adiciona o item na nova página
-            currentToc.appendChild(item);
-          }
-        }
-
-        // Remove páginas de índice vazias (se houver)
-        container.querySelectorAll('.page-container').forEach(page => {
-          const toc = page.querySelector('.toc-container');
-          if (toc && !page.querySelector('.toc-item')) {
-            const contentArea = page.querySelector('.content-area');
-            if (contentArea) {
-              const children = Array.from(contentArea.children);
-              const onlyToc = children.length === 1 && children[0].classList.contains('toc-container');
-              if (onlyToc) {
-                page.remove();
-              }
-            }
-          }
-        });
-
-        // --- Numeração do Índice (Síncrona) - CORREÇÃO: removido setTimeout ---
-        const allPages = Array.from(container.children).filter(el =>
-          el.classList.contains('page-container') ||
-          el.classList.contains('page-cover-img') ||
-          el.classList.contains('page-cover-pura') ||
-          el.classList.contains('page-cover-text') ||
-          el.classList.contains('page-extra') ||
-          el.classList.contains('author-page')
-        );
-        const allTocItems = container.querySelectorAll('.toc-item');
-        allTocItems.forEach(item => {
-          const href = item.getAttribute('href');
-          if (!href || !href.startsWith('#')) return;
-          const target = document.getElementById(href.substring(1));
-          if (target) {
-            const page = target.closest('.page-container');
-            if (page) {
-              const idx = allPages.indexOf(page) + 1;
-              const numSpan = item.querySelector('.toc-page-num');
-              if (numSpan) numSpan.innerText = String(idx);
-            }
-          }
-        });
-      }
-
-      // Chamada síncrona do índice ANTES de reativar o observer
-      sincronizarIndice();
-
-      if (isEditMode && selectedEl) {
-         selectedEl.style.outline = '3px solid #4f46e5';
-      }
-
-      window.scrollTo(0, currentScrollY);
-
-      // Reativa o observer após um delay seguro (300ms)
-      setTimeout(() => {
-        if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
-      }, 300);
-    }
-
-    window.addEventListener('message', (e) => {
-      if (e.data.type === 'TOGGLE_EDIT_MODE') {
-         isEditMode = e.data.value;
-         if (!isEditMode && selectedEl) {
-            selectedEl.style.outline = '';
-            selectedEl = null;
-         }
-      }
-      
-      if (e.data.type === 'UNDO_HTML' || e.data.type === 'REDO_HTML') {
-         const scrollY = window.scrollY;
-         const selectedId = selectedEl ? selectedEl.id : null;
-         document.getElementById('ebook-container').innerHTML = e.data.html;
-         setTimeout(() => {
-            executarRefluxoCompleto();
-            requestAnimationFrame(() => {
-               window.scrollTo(0, scrollY);
-               if (selectedId) {
-                  const el = document.getElementById(selectedId);
-                  if (el) {
-                     selectedEl = el;
-                     el.style.outline = '3px solid #4f46e5';
-                     const computed = window.getComputedStyle(el);
-                     window.parent.postMessage({
-                        type: 'ELEMENT_SELECTED',
-                        id: el.id,
-                        tagName: el.tagName.toLowerCase(),
-                        text: el.innerHTML,
-                        src: el.src,
-                        bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
-                        isBgTarget: el.classList.contains('page-container') || el.classList.contains('cap-img-overlay'),
-                        textColor: rgbToHex(computed.color),
-                        bgColor: rgbToHex(computed.backgroundColor),
-                        fontSize: parseInt(computed.fontSize),
-                        fontWeight: computed.fontWeight,
-                        textAlign: computed.textAlign
-                     }, '*');
-                  }
-               }
-            });
-         }, 50);
-      }
-
-      if (e.data.type === 'UPDATE_ELEMENT') {
-         const target = document.getElementById(e.data.id);
-         if (target) {
-            if (e.data.iconClass !== undefined && target.tagName === 'I') {
-               target.className = e.data.iconClass;
-            } else {
-               if (e.data.text !== undefined && e.data.forceTextUpdate) target.innerHTML = e.data.text;
-               if (e.data.src !== undefined && target.tagName === 'IMG') target.src = e.data.src;
-               if (e.data.bgImage !== undefined) target.style.setProperty('background-image', \`url(\${e.data.bgImage})\`, 'important');
-               if (e.data.rawBgImage !== undefined) target.style.setProperty('background-image', e.data.rawBgImage, 'important');
-               if (e.data.textColor !== undefined) target.style.setProperty('color', e.data.textColor, 'important');
-               
-               if (e.data.bgColor !== undefined) {
-                   target.dataset.rawHex = e.data.bgColor;
-                   let op = target.dataset.bgOp || (target.classList.contains('cap-overlay-box') ? '0.92' : '1');
-                   let hex = e.data.bgColor.replace('#','');
-                   if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
-                   let r = parseInt(hex.substring(0,2), 16) || 255;
-                   let g = parseInt(hex.substring(2,4), 16) || 255;
-                   let b = parseInt(hex.substring(4,6), 16) || 255;
-                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${op})\`, 'important');
-               }
-               if (e.data.bgOpacity !== undefined) {
-                   target.dataset.bgOp = e.data.bgOpacity;
-                   let hex = target.dataset.rawHex || rgbToHex(window.getComputedStyle(target).backgroundColor) || '#f5f5f5';
-                   hex = hex.replace('#','');
-                   if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
-                   let r = parseInt(hex.substring(0,2), 16) || 245;
-                   let g = parseInt(hex.substring(2,4), 16) || 245;
-                   let b = parseInt(hex.substring(4,6), 16) || 245;
-                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${e.data.bgOpacity})\`, 'important');
-               }
-               
-               if (e.data.fontSize !== undefined) target.style.setProperty('font-size', e.data.fontSize + 'px', 'important');
-               if (e.data.fontWeight !== undefined) target.style.setProperty('font-weight', e.data.fontWeight, 'important');
-               if (e.data.textAlign !== undefined) target.className = target.className.replace(/text-(left|center|right|justify)/, '') + ' ' + e.data.textAlign;
-            }
-
-            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
-         }
-      }
-      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
-         const target = document.getElementById(e.data.id);
-         if (target) {
-            target.outerHTML = e.data.newHtml;
-            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
-            setTimeout(executarRefluxoCompleto, 100);
-         }
-      }
-      if (e.data.type === 'DELETE_ELEMENT') {
-         const target = document.getElementById(e.data.id);
-         if (target) {
-            target.remove();
-            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
-            setTimeout(executarRefluxoCompleto, 100);
-         }
-      }
-      if (e.data.type === 'APPLY_GLOBAL_BG') {
-         const color = e.data.color;
-         const pages = document.querySelectorAll('.page-container');
-         pages.forEach(page => {
-            page.style.setProperty('background-color', color, 'important');
-         });
-         window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
-      }
-    });  
-
-    document.addEventListener('mouseover', (e) => {
-      if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
-      if (el && el !== selectedEl) el.style.outline = '2px dashed rgba(99,102,241,0.5)';
-    });
-    
-    document.addEventListener('mouseout', (e) => {
-      if (!isEditMode) return;
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
-      if (el && el !== selectedEl) el.style.outline = '';
-    });
-    
-    document.addEventListener('click', (e) => {
-      const link = e.target.closest('a');
-      if (link && link.getAttribute('href') && link.getAttribute('href').startsWith('#')) {
-        e.preventDefault(); 
-        e.stopPropagation();
-        const targetId = link.getAttribute('href').substring(1);
-        const targetElement = document.getElementById(targetId);
-        if (targetElement) {
-            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        return; 
-      }
-
-      if (!isEditMode) return;
-      
-      e.preventDefault(); 
-      e.stopPropagation();
-      const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
-      
-      if (el) {
-         if (selectedEl) selectedEl.style.outline = '';
-         selectedEl = el;
-         el.style.outline = '3px solid #4f46e5';
-         
-         if (!el.id) el.id = 'el-' + Math.random().toString(36).substr(2, 9);
-         
-         const computed = window.getComputedStyle(el);
-         
-         window.parent.postMessage({
-            type: 'ELEMENT_SELECTED',
-            id: el.id,
-            tagName: el.tagName.toLowerCase(),
-            text: el.innerHTML,
-            src: el.src,
-            bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
-            isBgTarget: el.classList.contains('page-container') || el.classList.contains('cap-img-overlay'),
-            textColor: rgbToHex(computed.color),
-            bgColor: rgbToHex(computed.backgroundColor),
-            fontSize: parseInt(computed.fontSize),
-            fontWeight: computed.fontWeight,
-            textAlign: computed.textAlign
-         }, '*');
-      }
-    }, true);
-
-    if (document.readyState === 'complete') {
-      executarRefluxoCompleto();
-    } else {
-      window.addEventListener('load', () => {
-        executarRefluxoCompleto();
-        setTimeout(executarRefluxoCompleto, 500);
-      });
-    }
-
-    observer = new MutationObserver(() => {
-      clearTimeout(window._reflowTimeout);
-      window._reflowTimeout = setTimeout(executarRefluxoCompleto, 300);
-    });
-    
-    const containerParaObservar = document.getElementById('ebook-container');
-    if (containerParaObservar) observer.observe(containerParaObservar, { childList: true, subtree: true });
-
-  })();
-</script>
-  `;
-}
-
-// ============================================================
-// COMPONENTE PRINCIPAL (Home)
-// ============================================================
+// Importações dos utilitários
+import { getScriptPreview } from './utils/iframeScript';
+import { gerarPaginaAviso, obterBlocoAutorHtml, obterInstrucoesBase } from './utils/ebookTemplates';
+import { purificarHTML, ajustarParagrafos, moldarApresentacaoHtml, ThemeOptions } from './utils/ebookTheme';
 
 export default function Home() {
   // Estados principais
@@ -654,6 +79,35 @@ export default function Home() {
     'fa-fire', 'fa-water', 'fa-wind', 'fa-earth', 'fa-rocket'
   ];
   const [iconIndex, setIconIndex] = useState(0);
+
+  // Memo dos parâmetros de tema para evitar recriação desnecessária
+  const themeParams = useMemo(() => ({
+    livroTitulo,
+    corFundoPagina,
+    corTextoDetalhes,
+    fontFamily,
+    tamanhoFonteBase,
+    espacamentoLinhas,
+    recuoParagrafo,
+    corRetanguloCapitulo,
+    tipoBorda,
+    estiloRodape,
+    alinhamentoCapitulo,
+    corFundoCapitulo,
+    imagemCapaUrl,
+    indexShowSubtopics,
+    livroAutores,
+  }), [
+    livroTitulo, corFundoPagina, corTextoDetalhes, fontFamily,
+    tamanhoFonteBase, espacamentoLinhas, recuoParagrafo,
+    corRetanguloCapitulo, tipoBorda, estiloRodape,
+    alinhamentoCapitulo, corFundoCapitulo, imagemCapaUrl,
+    indexShowSubtopics, livroAutores
+  ]);
+
+  // ============================================================
+  // FUNÇÕES AUXILIARES 
+  // ============================================================
 
   async function gerarEbookPDF(textoBruto: string) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -728,320 +182,6 @@ export default function Home() {
     }
   }
 
-  // ============================================================
-  // FUNÇÕES AUXILIARES
-  // ============================================================
-
-  function getPaletaObj() {
-    return {
-      bg: corFundoPagina,
-      text: corTextoDetalhes,
-      pri: corTextoDetalhes,
-      sec: corTextoDetalhes,
-      borda: corTextoDetalhes
-    };
-  }
-
-  function purificarHTML(rawHtml: string) {
-    let clean = rawHtml;
-    const markdownMatch = clean.match(/```html([\s\S]*?)```/i);
-    if (markdownMatch) clean = markdownMatch[1];
-    clean = clean.replace(/```html/gi, '').replace(/```/gi, '').trim();
-
-    clean = clean.replace(/<script id="editor-magic-script">[\s\S]*?<\/script>/gi, '');
-    clean = clean.replace(/<style id="builder-core-styles">[\s\S]*?<\/style>/gi, '');
-    
-    clean = clean.replace(/\bbuilder-editing\b/gi, '');
-    clean = clean
-      .replace(/cursor:\s*pointer;?/gi, '')
-      .replace(/cursor:\s*text;?/gi, '')
-      .replace(/outline:\s*3px dashed rgb\(79, 70, 229\);?/gi, '')
-      .replace(/outline:\s*1px solid rgb\(203, 213, 225\);?/gi, '')
-      .replace(/outline-offset:\s*-3px;?/gi, '')
-      .replace(/data-old-outline="[^"]*"/gi, '')
-      .replace(/\s*style="\s*"/gi, '');
-    
-    clean = clean.replace(/ class="\s*"/gi, '');
-
-    clean = clean.replace(/<br\s*\/?>/gi, '');
-    clean = clean.replace(/<p>[\s\n\r&nbsp;]*<\/p>/gi, '');
-
-    clean = clean.replace(/<span class="toc-page-num">[^<]*<\/span>/gi, '<span class="toc-page-num"></span>');
-    clean = clean.replace(/<span class="page-number( circulo)?">[^<]*<\/span>/gi, '<span class="page-number$1"></span>');
-
-    clean = clean.replace(/<p>\s*<a class="toc-item"/gi, '<a class="toc-item"');
-    clean = clean.replace(/<\/a>\s*<\/p>/gi, '</a>');
-    clean = clean.replace(/<p>\s*<div class="toc-container"/gi, '<div class="toc-container"');
-    clean = clean.replace(/<\/div>\s*<\/p>/gi, '</div>');
-    clean = clean.replace(/<div class="page-container[^>]*>[\s\n\r]*(<div class="page-header"[^>]*>.*?<\/div>)?[\s\n\r]*(<div class="page-footer"[^>]*>.*?<\/div>)?[\s\n\r]*<\/div>/gi, '');
-
-    clean = clean.replace(/<p\s+[^>]*>/gi, (match) => {
-      if (/style\s*=|data-|class\s*=/i.test(match)) return match;
-      return '<p>';
-    });
-
-    return clean.trim();
-  }
-
-  function getEstilosFormato() {
-    return { width: '210mm', height: '297mm', padding: '22mm 20mm 25mm 20mm' };
-  }
-
-  function moldarApresentacaoHtml(rawHtml: string) {
-    let clean = purificarHTML(rawHtml);
-    clean = clean.replace(/<style id="ebook-dynamic-styles">[\s\S]*?<\/style>/gi, '');
-    clean = clean.replace(/<p>(\s|&nbsp;)+/gi, '<p>');
-    
-    const conf = getEstilosFormato();
-    const paleta = getPaletaObj();
-    const opacidadeSegura = 0.85;
-
-    const ebookStyles = `<style id="ebook-dynamic-styles">
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-
-:root {
-  --color-bg: ${paleta.bg};
-  --color-text: ${paleta.text};
-  --color-primary: ${paleta.pri};
-  --color-secondary: ${paleta.sec};
-  --color-border: ${paleta.borda};
-  --font-heading: ${fontFamily === 'Poppins' ? "'Poppins', sans-serif" : fontFamily === 'Arial' || fontFamily === 'Verdana' ? `'${fontFamily}', sans-serif` : "'Playfair Display', serif"};
-  --font-body: ${['Arial', 'Verdana', 'Poppins', 'Lato'].includes(fontFamily) ? `'${fontFamily}', sans-serif` : `'${fontFamily}', serif`};
-  --line-spacing: ${espacamentoLinhas};
-  --p-spacing: 0.8em;
-  --text-indent: ${recuoParagrafo === '0px' ? '0' : recuoParagrafo};
-  --cap-box-bg: color-mix(in srgb, ${corRetanguloCapitulo || '#1e3a8a'} ${Math.round(opacidadeSegura * 100)}%, transparent);
-}
-
-body {
-  background-color: #e2e8f0; margin: 0; padding: 2rem 0; display: flex; flex-direction: column; align-items: center;
-  font-family: var(--font-body); color: var(--color-text);
-  counter-reset: ebook-page;
-}
-
-#ebook-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
-${indexShowSubtopics ? '' : '.toc-subtopic { display: none !important; }'}
-
-#ebook-container * {
-  max-width: 100% !important; box-sizing: border-box !important; overflow-wrap: break-word !important; word-break: break-word !important;
-}
-
-img.chapter-banner-img { width: 100% !important; height: 300px !important; object-fit: cover !important; border-radius: 8px !important; margin: 15px 0 !important; display: block !important; }
-h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !important; font-family: var(--font-heading) !important; font-size: 1.8rem !important; }
-.page-container > h3.subtopic-title:first-of-type, .page-container > .page-header + h3.subtopic-title { margin-top: 0 !important; }
-
-.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, .author-page, .page-extra,
-.cap-img-overlay, .cap-box-rounded, .cap-img-pura {
-  background-color: var(--color-bg) !important;
-  width: ${conf.width} !important; height: ${conf.height} !important;
-  min-width: ${conf.width} !important; min-height: ${conf.height} !important; max-width: ${conf.width} !important; max-height: ${conf.height} !important;
-  flex-shrink: 0 !important; padding: ${conf.padding}; margin: 0 auto 20px auto; box-sizing: border-box;
-  position: relative; overflow: hidden !important; page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
-}
-
-.page-cover-img, .page-cover-pura, .page-cover-text {
-  background: url('${imagemCapaUrl}') center/cover no-repeat !important;
-  background-color: var(--color-bg) !important;
-  color: #ffffff !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-  align-items: center !important;
-  text-align: center !important;
-  width: 210mm !important;
-  height: 297mm !important;
-  max-width: 210mm !important;
-  max-height: 297mm !important;
-  padding: 0 !important;
-  margin: 0 auto 20px auto !important;
-  border: none !important;
-}
-.page-cover-img::after, .page-cover-pura::after, .page-cover-text::after {
-  display: none !important;
-  content: none !important;
-  border: none !important;
-}
-#ebook-container > .page-container:first-child .page-header, #ebook-container > .page-container:first-child .page-footer,
-.page-cover-img .page-header, .page-cover-img .page-footer, 
-.page-cover-pura .page-header, .page-cover-pura .page-footer,
-.page-cover-text .page-header, .page-cover-text .page-footer,
-.cap-box-rounded .page-header, .cap-box-rounded .page-footer {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-}
-
-/* CORREÇÃO 2: Título da Capa com contenção de margens */
-.page-cover-img h1, .page-cover-pura h1 {
-  width: 100% !important;
-  padding: 0 20mm !important;
-  box-sizing: border-box !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-  hyphens: auto;
-}
-.page-cover-img p, .page-cover-pura p {
-  width: 100% !important;
-  padding: 0 20mm !important;
-  box-sizing: border-box !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
-  hyphens: auto;
-}
-
-.chapter-text-page { padding-top: 25mm !important; }
-
-/* Removidas regras exclusivas de .legal-page – agora usa .chapter-text-page */
-
-.page-container::after, .cap-img-overlay::after {
-  content: ''; position: absolute; top: 6mm; left: 6mm; right: 6mm; bottom: 6mm; pointer-events: none; z-index: 50;
-  border: ${tipoBorda === 'single' ? '1px solid var(--color-border)' : tipoBorda === 'medium' ? '2px solid var(--color-border)' : tipoBorda === 'double-thin' ? '3px double var(--color-border)' : 'none'};
-}
-.page-cover-img::after, .cap-img-overlay::after { display: none !important; }
-
-.page-cover-img h1 {
-  font-size: 3.5rem;
-  font-weight: 800;
-  margin: 0 0 0.5rem 0;
-  color: #ffffff !important;
-  text-shadow: 0 0 20px rgba(0,0,0,0.9), 0 2px 10px rgba(0,0,0,0.8);
-}
-.page-cover-img p {
-  font-size: 1.2rem;
-  opacity: 0.9;
-  color: #ffffff !important;
-  text-shadow: 0 0 15px rgba(0,0,0,0.9);
-}
-
-.cap-img-overlay { 
-  position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
-  background-size: cover !important;
-  background-position: center !important;
-  background-color: ${corFundoCapitulo || '#0f172a'} !important;
-  display: flex !important; flex-direction: column !important; justify-content: ${alinhamentoCapitulo} !important; align-items: center !important; 
-  padding: 15% 10% !important; z-index: 30; page-break-inside: avoid; break-inside: avoid;
-}
-.cap-img-overlay::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)); z-index: 31; }
-.cap-img-overlay .cap-overlay-box { 
-  background: var(--cap-box-bg) !important; backdrop-filter: blur(10px); padding: 50px 40px !important; border-radius: 12px !important; 
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4); width: 100% !important; max-width: 85% !important; text-align: center !important; z-index: 32; position: relative;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-}
-.cap-img-overlay h1.chapter-title-exclusive {
-  margin: 0 !important;
-  color: #ffffff !important;
-  font-size: 2.2rem !important;
-  line-height: 1.2 !important;
-  font-weight: 700;
-  font-family: var(--font-heading);
-  text-transform: none !important;
-  text-shadow: 0 0 20px rgba(0,0,0,0.7);
-}
-.cap-overlay-box i {
-  display: block;
-  font-size: 3rem !important;
-  margin-bottom: 1rem !important;
-  color: #ffffff;
-  text-shadow: 0 0 15px rgba(0,0,0,0.5);
-}
-
-.page-header { position: absolute; top: 12mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--color-primary); opacity: 0.8; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 0.5px; }
-.page-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; font-size: 9pt; color: var(--color-primary); font-weight: 600; z-index: 20; opacity: 0.8; ${estiloRodape.includes('centralizado') ? 'display: flex; justify-content: center; align-items: center;' : 'display: flex; justify-content: space-between; align-items: center;'} ${estiloRodape === 'linha-superior' ? 'border-top: 1px solid var(--color-primary); padding-top: 8px;' : ''} }
-.page-number { margin-left: auto !important; }
-.page-number::after { content: counter(ebook-page); }
-
-h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-primary); }
-h1 { font-weight: 800; font-size: 2.2rem; margin-top: 0; margin-bottom: 1em; text-align: center; }
-h2:not(.chapter-title-inline) { font-weight: 700; font-size: 1.8rem; margin-top: 1.5rem; margin-bottom: 1.5rem; }
-
-h3 {
-  font-size: 1.4rem !important;
-  font-weight: 800 !important;
-  margin-top: 1.2rem;
-  margin-bottom: 1.5rem !important;
-  border-bottom: none !important;
-}
-
-p { font-size: ${tamanhoFonteBase} !important; line-height: var(--line-spacing) !important; margin-top: 0 !important; margin-bottom: var(--p-spacing) !important; text-align: justify !important; text-indent: var(--text-indent) !important; hyphens: auto; -webkit-hyphens: auto; max-width: 100% !important; box-sizing: border-box !important; }
-
-blockquote { font-style: italic; color: var(--color-text); border-left: 4px solid var(--color-primary); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 12px 18px; margin: 1rem 0; font-size: ${tamanhoFonteBase}; border-radius: 0 8px 8px 0; }
-.highlight-box { background: color-mix(in srgb, var(--color-text) 8%, transparent); border-left: 4px solid var(--color-primary); padding: 12px 18px; border-radius: 8px; margin: 1rem 0; font-weight: 500; font-size: ${tamanhoFonteBase}; display: flex; align-items: center; gap: 12px; }
-
-.concept-box {
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  border: 2px solid var(--color-primary);
-  border-radius: 12px;
-  padding: 1rem 1.5rem;
-  margin: 1.5rem 0 1rem 0;
-  text-align: center;
-  font-weight: 500;
-  font-size: ${tamanhoFonteBase};
-  color: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.concept-box i {
-  display: block;
-  font-size: 2rem !important;
-  margin-bottom: 0.5rem;
-  color: var(--color-primary);
-}
-
-img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; margin: 1rem auto; display: block; object-fit: cover; }
-.toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
-.toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${tamanhoFonteBase} !important; padding: 6px 0; }
-.toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
-.toc-page-num { font-weight: bold; color: var(--color-primary); }
-
-.toc-subtopic {
-  font-size: 0.75em !important;
-  line-height: 1 !important;
-  padding: 2px 0 !important;
-  margin-bottom: 2px !important;
-}
-
-.author-page { display: block; }
-.author-section { width: 100%; margin-top: 1.5rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
-.author-photo { flex-shrink: 0; object-fit: cover; border: 3px solid rgba(255,255,255,0.8); }
-
-@page { size: A4 portrait; margin: 0; }
-@media print {
-  html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; display: block !important; width: ${conf.width} !important; height: auto !important; }
-  .page-container, .cap-img-overlay { width: ${conf.width} !important; height: ${conf.height} !important; margin: 0 !important; padding: ${conf.padding} !important; page-break-after: always !important; box-shadow: none !important; border: none !important; }
-}
-</style>`;
-
-    if (clean.toLowerCase().includes('<body')) {
-      if (!clean.includes('@media print')) {
-        clean = clean.replace('</head>', ebookStyles + '\n</head>');
-      }
-      return clean;
-    }
-
-    return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta id="meta-book-title" content="${livroTitulo}">
-<script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <title>${livroTitulo || 'Meu E-book Profissional'}</title>
-${ebookStyles}
-</head>
-<body class="antialiased">
-  <div id="ebook-container">
-    ${clean}
-  </div>
-</body>
-</html>`;
-  }
-
-  // ============================================================
-  // FUNÇÕES DE ATUALIZAÇÃO DA CAPA
-  // ============================================================
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
     const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
@@ -1058,37 +198,29 @@ ${ebookStyles}
     return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
   }
 
-  // ============================================================
-  // FUNÇÕES DE VALIDAÇÃO DE PARÁGRAFOS (PÓS-PROCESSAMENTO)
-  // ============================================================
-  function ajustarParagrafos(html: string): string {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const paragrafos = tempDiv.querySelectorAll('p');
-    paragrafos.forEach(p => {
-      let texto = p.textContent || '';
-      texto = texto.replace(/\s+/g, ' ').trim();
-      if (texto.length > 600) {
-        const mid = Math.min(450, texto.length);
-        let breakPos = texto.lastIndexOf('. ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('? ', mid);
-        if (breakPos === -1) breakPos = texto.lastIndexOf('! ', mid);
-        if (breakPos !== -1) {
-          const p1 = texto.substring(0, breakPos + 1);
-          const p2 = texto.substring(breakPos + 2);
-          p.textContent = p1;
-          const novoP = document.createElement('p');
-          novoP.textContent = p2;
-          p.parentNode?.insertBefore(novoP, p.nextSibling);
-        }
+  function findClosingDiv(html: string, startIndex: number): number {
+    let open = 0;
+    let i = startIndex;
+    while (i < html.length) {
+      const openTag = html.indexOf('<div', i);
+      const closeTag = html.indexOf('</div>', i);
+      if (closeTag === -1) break;
+      if (openTag !== -1 && openTag < closeTag) {
+        open++;
+        i = openTag + 4;
+      } else {
+        if (open === 0) return closeTag + 6;
+        open--;
+        i = closeTag + 6;
       }
-    });
-    return tempDiv.innerHTML;
+    }
+    return -1;
   }
 
   // ============================================================
-  // FUNÇÕES DE INJEÇÃO / APLICAÇÃO DE HTML
+  // FUNÇÕES DE APLICAÇÃO DE HTML (usando utilitários)
   // ============================================================
+
   function injetarHtmlNoFinal(htmlBase: string, htmlNovo: string) {
     if (!htmlBase || !htmlBase.includes('id="ebook-container"')) {
       return htmlBase + '\n' + htmlNovo;
@@ -1135,7 +267,7 @@ ${ebookStyles}
     if (isInjetar) {
       htmlFinal = injetarHtmlNoFinal(htmlAtual || '', novoConteudo);
     } else {
-      htmlFinal = moldarApresentacaoHtml(novoConteudo);
+      htmlFinal = moldarApresentacaoHtml(novoConteudo, themeParams);
     }
 
     setHistorico((prev) => [...prev, htmlAtual]);
@@ -1153,66 +285,8 @@ ${ebookStyles}
   }
 
   // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE PÁGINAS (AVISO, AUTOR, EXTRA)
+  // FUNÇÕES DE GERAÇÃO DE PÁGINAS (Página Extra)
   // ============================================================
-  function gerarPaginaAviso() {
-    return `
-    <div class="page-container chapter-text-page" data-legal="true">
-      <div class="page-header"><span></span><span>${livroTitulo}</span></div>
-      <div class="content-area">
-        <h2 class="chapter-title-inline">Avisos Legais & Direitos Autorais</h2>
-        <p><strong>© Todos os direitos reservados.</strong></p>
-        <p>Nenhuma parte desta publicação pode ser reproduzida, distribuída ou transmitida sob qualquer forma ou por qualquer meio, incluindo fotocópia, gravação ou outros métodos eletrônicos ou mecânicos, sem a permissão prévia por escrito, exceto no caso de breves citações encartadas em resenhas críticas e outros usos não comerciais permitidos pela lei de direitos autorais.</p>
-        <p><strong>Isenção de Responsabilidade (Disclaimer):</strong></p>
-        <p>As informações contidas neste e-book são fornecidas estritamente para fins educacionais, informativos e de entretenimento. Não são oferecidas quaisquer garantias quanto à integridade, confiabilidade e exatidão dessas informações.</p>
-        <p>Qualquer ação que você tomar com base nas informações deste livro é de sua inteira responsabilidade. Não haverá responsabilização por quaisquer perdas, danos ou prejuízos, diretos ou indiretos, decorrentes do uso ou da aplicação do conteúdo aqui exposto. Se necessitar de aconselhamento especializado, consulte um profissional qualificado da área.</p>
-      </div>
-      <div class="page-footer"><span></span><span class="page-number"></span></div>
-    </div>`;
-  }
-
-  function obterBlocoAutorHtml() {
-    let numSpan = estiloRodape.includes('circulo') ? '<span class="page-number circulo"></span>' : '<span class="page-number"></span>';
-    let regraRodape = '';
-    if (estiloRodape === 'linha-superior') {
-      regraRodape = `<span>${livroAutores}</span>${numSpan}`;
-    } else {
-      regraRodape = `${numSpan}`;
-    }
-
-    return `
-    <div class="page-container author-page">
-      <div class="page-header"><span>${livroTitulo || 'Título do Livro'}</span><span>SOBRE O AUTOR</span></div>
-      <h2 id="sobre-o-autor" class="chapter-title-inline" style="opacity:0; position:absolute; z-index:-1;">Sobre o Autor</h2>
-      <div class="author-section layout-${autorPosicao}">
-        <img src="https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png" class="author-photo ${autorFormato}" alt="${livroAutores || 'Autor'}">
-        <div class="author-bio">
-          <h2>${livroAutores || 'Sobre o Autor'}</h2>
-          <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional. Este espaço é dedicado a apresentar quem você é para o leitor.</p>
-        </div>
-      </div>
-      <div class="page-footer">${regraRodape}</div>
-    </div>`;
-  }
-
-  function findClosingDiv(html: string, startIndex: number): number {
-    let open = 0;
-    let i = startIndex;
-    while (i < html.length) {
-      const openTag = html.indexOf('<div', i);
-      const closeTag = html.indexOf('</div>', i);
-      if (closeTag === -1) break;
-      if (openTag !== -1 && openTag < closeTag) {
-        open++;
-        i = openTag + 4;
-      } else {
-        if (open === 0) return closeTag + 6;
-        open--;
-        i = closeTag + 6;
-      }
-    }
-    return -1;
-  }
 
   function inserirPaginaExtra() {
     if (!paginaTitulo.trim() && !paginaImagem.trim()) {
@@ -1281,7 +355,7 @@ ${ebookStyles}
 
     setHistorico((prev) => [...prev, htmlAtual]);
     setFuturo([]);
-    const htmlFinal = moldarApresentacaoHtml(novoHtml);
+    const htmlFinal = moldarApresentacaoHtml(novoHtml, themeParams);
     setHtmlAtual(htmlFinal);
     localStorage.setItem('ebook_draft_html', htmlFinal);
     if (previewFrameRef.current) {
@@ -1297,18 +371,13 @@ ${ebookStyles}
   // ============================================================
   // FUNÇÕES DE EDIÇÃO E INSPETOR
   // ============================================================
+
   function toggleInspetor() {
     const newMode = !modoInspetor;
     setModoInspetor(newMode);
     setElementoSelecionado(null);
     if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
       previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_EDIT_MODE', value: newMode }, '*');
-    }
-  }
-
-  function toggleBackground() {
-    if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
-      previewFrameRef.current.contentWindow.postMessage({ type: 'TOGGLE_BG' }, '*');
     }
   }
 
@@ -1345,7 +414,7 @@ ${ebookStyles}
       setHistorico(novoHistorico);
       setHtmlAtual(estadoAnterior);
       localStorage.setItem('ebook_draft_html', estadoAnterior);
-      if (previewFrameRef.current) {
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
         previewFrameRef.current.contentWindow.postMessage({ type: 'UNDO_HTML', html: estadoAnterior }, '*');
       }
     }
@@ -1361,7 +430,7 @@ ${ebookStyles}
       setFuturo(novoFuturo);
       setHtmlAtual(estadoProximo);
       localStorage.setItem('ebook_draft_html', estadoProximo);
-      if (previewFrameRef.current) {
+      if (previewFrameRef.current && previewFrameRef.current.contentWindow) {
         previewFrameRef.current.contentWindow.postMessage({ type: 'REDO_HTML', html: estadoProximo }, '*');
       }
     }
@@ -1396,6 +465,7 @@ ${ebookStyles}
   // ============================================================
   // BUSCA DE IMAGEM UNSPLASH
   // ============================================================
+
   async function buscarImagemUnsplash() {
     if (!elementoSelecionado) {
       (window as any).showNotification('Selecione um elemento (imagem ou fundo) primeiro.', 'error');
@@ -1462,6 +532,7 @@ ${ebookStyles}
   // ============================================================
   // EDIÇÃO LOCAL COM IA
   // ============================================================
+
   async function aplicarModificacaoLocal() {
     const input = document.getElementById('ai_prompt_local') as HTMLInputElement;
     const comando = input?.value.trim();
@@ -1473,7 +544,14 @@ ${ebookStyles}
 
     setHistorico((prev) => [...prev, htmlAtual]);
     setFuturo([]);
-    const paleta = getPaletaObj();
+
+    const paleta = {
+      pri: corTextoDetalhes,
+      sec: corTextoDetalhes,
+      text: corTextoDetalhes,
+      bg: corFundoPagina,
+      borda: corTextoDetalhes
+    };
 
     const instrucao = `Você é um parser estrito de HTML. Receberá a tag HTML exata selecionada pelo usuário.
 Sua tarefa é modificar APENAS o conteúdo interno desta tag, mantendo a tag e seus atributos exatos, a menos que o pedido explicitamente solicite mudança de classe ou estilo.
@@ -1520,6 +598,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   // ============================================================
   // FUNÇÕES DE GERENCIAMENTO DE BIBLIOTECA E ARQUIVOS
   // ============================================================
+
   function salvarNaBiblioteca() {
     if (!livroTitulo || livroTitulo.trim() === '') {
       (window as any).showNotification('Dê um título ao E-book antes de salvar.', 'error');
@@ -1556,10 +635,13 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }
 
   function baixarArquivo(html: string, titulo: string) {
-    const htmlCompleto = moldarApresentacaoHtml(html);
+    const htmlCompleto = moldarApresentacaoHtml(html, themeParams);
     const scriptInjetado = getScriptPreview(indexShowSubtopics);
     
-    const htmlProntoParaImpressao = htmlCompleto.replace('</body>', `<script>${scriptInjetado.replace(/<script>|<\/script>/g, '')}</script>\n</body>`);
+    const htmlProntoParaImpressao = htmlCompleto.replace(
+      '</body>', 
+      `<script>${scriptInjetado.replace(/<script>|<\/script>/g, '')}</script>\n</body>`
+    );
 
     const blob = new Blob([htmlProntoParaImpressao], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -1642,6 +724,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   // ============================================================
   // FUNÇÃO AUXILIAR: OBTER PRÓXIMO NÚMERO DE CAPÍTULO
   // ============================================================
+
   function getNextChapterNumber(html: string): number {
     if (!html) return 1;
     const regex = /Capítulo\s*(\d+)/gi;
@@ -1655,64 +738,9 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }
 
   // ============================================================
-  // FUNÇÃO DE INSTRUÇÕES BASE (ESTRUTURA DE 4 PÁGINAS PREMIUM)
-  // ============================================================
-  function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: string }) {
-    const numero = opts?.numeroCapitulo || 1;
-    const iconeSugerido = opts?.tema ? `fa-${opts.tema.toLowerCase()}` : 'fa-book';
-
-    const regrasCompletas = `
-  DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
-  1. GERE APENAS HTML PURO. 
-  2. VOCÊ ESTÁ ESTRITAMENTE PROIBIDO de gerar qualquer tag <div class="page-container">, <div class="page-header"> ou <div class="page-footer">. O nosso sistema injeta isso automaticamente. Envie apenas o conteúdo.
-  
-  3. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 4 páginas completas):
-  
-     <!-- PÁGINA 1: A Capa do Capítulo (Imagem 100% de fundo com o Título no Box) -->
-     <div class="cap-img-overlay" data-unsplash="[PALAVRA_EM_INGLES_AQUI]">
-        <div class="cap-overlay-box">
-           <i class="fas fa-${iconeSugerido} text-4xl mb-4"></i>
-           <h1 class="chapter-title-exclusive">Capítulo ${numero}: [Nome do Capítulo]</h1>
-        </div>
-     </div>
-
-     <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) -->
-     <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     <p>[Parágrafo 1 - Aprox 50 palavras]</p>
-     <p>[Parágrafo 2 - Aprox 50 palavras]</p>
-     <p>[Parágrafo 3 - Aprox 50 palavras]</p>
-     <p>[Parágrafo 4 - Aprox 50 palavras]</p>
-     <div class="concept-box"><i class="fas fa-lightbulb"></i> [Insira aqui uma IDEIA CENTRAL ou CONCEITO-CHAVE para concluir a página]</div>
-
-     <!-- PÁGINA 3: O Aprofundamento (Meio) -->
-     <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
-     <p>[Parágrafo 5 - Aprox 60 palavras]</p>
-     <p>[Parágrafo 6 - Aprox 60 palavras]</p>
-     <p>[Parágrafo 7 - Aprox 60 palavras]</p>
-     <p>[Parágrafo 8 - Aprox 60 palavras]</p>
-     <div class="highlight-box"><i class="fas fa-highlighter"></i> [Insira aqui um TEXTO RELEVANTE ou DICA PRÁTICA para fechar a página]</div>
-
-     <!-- PÁGINA 4: A Concretização (Fim do Capítulo) -->
-     <h3 class="subtopic-title">[Subtítulo Final]</h3>
-     <p>[Parágrafo 9 - Aprox 70 palavras]</p>
-     <p>[Parágrafo 10 - Aprox 70 palavras]</p>
-     <p>[Parágrafo 11 - Aprox 70 palavras]</p>
-     <p>[Parágrafo 12 - Aprox 70 palavras]</p>
-     <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL impactante para fechar a última página]</blockquote>
-
-  4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.
-
-  5. IMAGENS DINÂMICAS: Na tag <div class="cap-img-overlay">, substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para o sistema buscar a foto depois. Exemplo: data-unsplash="business".
-  `;
-
-    return { regrasCompletas, numero };
-  }
-
-  // ============================================================
-  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS)
+  // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS) 
   // ============================================================
 
-  // ---- ETAPA 1: Capa, Aviso, Índice, Introdução ----
   async function iniciarEbookEtapas() {
     const content = productContent.trim();
     if (!content) {
@@ -1722,7 +750,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     const { regrasCompletas } = obterInstrucoesBase({ numeroCapitulo: 1, tema: livroTitulo || 'geral' });
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
-    const paginaAviso = gerarPaginaAviso();
+    const paginaAviso = gerarPaginaAviso(livroTitulo);
 
     const instrucao = `Você vai INICIAR um e-book gerando APENAS a Capa, Aviso/Direitos, Índice e Introdução.
     ${regrasCompletas}
@@ -1763,7 +791,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }
 
-  // ---- ETAPA 2: Adicionar 3 capítulos (com numeração sequencial e imagens diferentes) ----
   async function continuarEbookEtapas() {
     const content = productContent.trim();
     const currentHtml = htmlAtual;
@@ -1822,7 +849,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }
 
-  // ---- ETAPA 3: Finalizar com Conclusão e Autor ----
   async function finalizarEbookEtapas() {
     if (!htmlAtual || !htmlAtual.includes('page-container')) {
       (window as any).showNotification('Gere o livro antes de finalizar.', 'error');
@@ -1855,7 +881,14 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
     if (data && data.html) {
-      let htmlFinal = data.html + '\n' + obterBlocoAutorHtml();
+      const blocoAutor = obterBlocoAutorHtml({
+        estiloRodape,
+        livroAutores,
+        livroTitulo,
+        autorPosicao,
+        autorFormato
+      });
+      let htmlFinal = data.html + '\n' + blocoAutor;
       aplicarHtmlNovo(htmlFinal, true, true);
       setEtapaAtual(3);
       (window as any).showNotification('Passo 3 Concluído! Conclusão e Autor gerados.', 'success');
@@ -1867,6 +900,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   // ============================================================
   // CHAMADA À API
   // ============================================================
+
   async function chamarMotorIA(systemInstructionText: string, promptParts: any[], isElementRefinement = false) {
     setStatusApis({ texto: isElementRefinement ? 'A IA processando...' : 'A IA está diagramando os capítulos...', processing: true });
     try {
@@ -1919,6 +953,10 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }
 
+  // ============================================================
+  // EFFECTS 
+  // ============================================================
+
   useEffect(() => {
     (window as any).showNotification = (msg: string, type: string) => {
       const exist = document.getElementById('custom-toast');
@@ -1949,7 +987,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     const savedHtml = localStorage.getItem('ebook_draft_html');
     if (savedHtml) {
-      const htmlFinal = moldarApresentacaoHtml(savedHtml);
+      const htmlFinal = moldarApresentacaoHtml(savedHtml, themeParams);
       setHtmlAtual(htmlFinal);
       if (previewFrameRef.current) {
         previewFrameRef.current.srcdoc = htmlFinal + getScriptPreview(indexShowSubtopics);
@@ -1964,6 +1002,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }, []);
 
+  // Atualizar capa quando título ou autor mudarem
   useEffect(() => {
     if (htmlAtual && (livroTitulo || livroAutores)) {
       const htmlAtualizado = atualizarCapaNoHtml(htmlAtual, livroTitulo, livroAutores);
@@ -1978,11 +1017,12 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     }
   }, [livroTitulo, livroAutores]);
 
+  // Listener de mensagens do iframe
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data.type === 'ELEMENT_SELECTED') setElementoSelecionado(e.data);
       if (e.data.type === 'HTML_SYNC') {
-        const htmlLimpo = moldarApresentacaoHtml(e.data.html);
+        const htmlLimpo = moldarApresentacaoHtml(e.data.html, themeParams);
         if (modoInspetor) {
           setHistorico((prev) => {
             if (prev.length > 0 && prev[prev.length - 1] === htmlLimpo) return prev;
@@ -2006,17 +1046,19 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [modoInspetor, htmlAtual]);
+  }, [modoInspetor, htmlAtual, themeParams]);
 
+  // Recarregar iframe quando necessário
   useEffect(() => {
     if (recarregarIframe && htmlAtual && previewFrameRef.current) {
       previewFrameRef.current.srcdoc = htmlAtual + getScriptPreview(indexShowSubtopics);
     }
   }, [htmlAtual, recarregarIframe]);
 
+  // Reaplicar tema quando alguma configuração de estilo mudar
   useEffect(() => {
     if (htmlAtual) {
-      const htmlFinal = moldarApresentacaoHtml(htmlAtual);
+      const htmlFinal = moldarApresentacaoHtml(htmlAtual, themeParams);
       setHtmlAtual(htmlFinal);
       localStorage.setItem('ebook_draft_html', htmlFinal);
       setRecarregarIframe(true);
@@ -2025,7 +1067,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     fontFamily, tamanhoFonteBase, tipoBorda, estiloRodape, 
     alinhamentoCapitulo, autorPosicao, autorFormato,
     corFundoPagina, corTextoDetalhes,
-    corFundoCapitulo, corRetanguloCapitulo
+    corFundoCapitulo, corRetanguloCapitulo,
   ]);
 
   const isTextElement = elementoSelecionado
@@ -2037,6 +1079,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   // ============================================================
   // RENDER
   // ============================================================
+
   return (
     <>
       <div className="md:hidden fixed inset-0 z-[99999] bg-slate-900 text-white flex flex-col items-center justify-center p-8 text-center">
