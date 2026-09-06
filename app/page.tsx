@@ -768,16 +768,16 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">O Início da Jornada</h3>
-        <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 60 a 70 palavras.]</p>
-        <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 60 a 70 palavras.]</p>
-        <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 60 a 70 palavras.]</p>
-        <p>[Escreva aqui o parágrafo 4 da Introdução. Exatamente 60 a 70 palavras.]</p>
+        <p>[Parágrafo 1 - aprox 60 palavras]</p>
+        <p>[Parágrafo 2 - aprox 60 palavras]</p>
+        <p>[Parágrafo 3 - aprox 60 palavras]</p>
+        <p>[Parágrafo 4 - aprox 50 palavras]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
     REGRAS CRÍTICAS:
-    1. A INTRODUÇÃO DEVE TER EXATAMENTE 4 PARÁGRAFOS DE 60 a 70 PALAVRAS. NENHUM A MAIS PARA NÃO TRANSBORDAR A PÁGINA.
-    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto dentro.
+    1. A INTRODUÇÃO DEVE TER EXATAMENTE 4 PARÁGRAFOS.
+    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto.
     3. PARE AQUI! NÃO gere Capítulos!
     `;
 

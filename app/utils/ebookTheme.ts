@@ -140,6 +140,17 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   border: none !important;
 }
 
+/* BLINDAGEM CONTRA BORDAS E CABEÇALHOS NA CAPA DO CAPÍTULO (Mesmo após edição) */
+.page-container:has(.cap-img-overlay)::after { 
+  display: none !important; 
+}
+.page-container:has(.cap-img-overlay) .page-header, 
+.page-container:has(.cap-img-overlay) .page-footer { 
+  display: none !important; 
+  opacity: 0 !important; 
+  visibility: hidden !important; 
+}
+
 /* BLINDAGEM DE LARGURA DO TÍTULO NA CAPA */
 .page-cover-img h1, .page-cover-pura h1, .page-cover-text h1 {
   width: 100% !important;

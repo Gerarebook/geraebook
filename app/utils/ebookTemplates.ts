@@ -51,44 +51,48 @@ export function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: str
   const iconeSugerido = opts?.tema ? `fa-${opts.tema.toLowerCase()}` : 'fa-book';
 
   const regrasCompletas = `
-DIRETRIZES DE FORMATAÇÃO E LIMITES ESTRITOS (LEITURA OBRIGATÓRIA):
-1. GERE APENAS HTML PURO. Nunca escreva textos soltos fora das tags.
-2. VOCÊ ESTÁ ESTRITAMENTE PROIBIDO de gerar qualquer tag <div class="page-container">, <div class="page-header"> ou <div class="page-footer">.
-3. REGRA DE OURO (LIMITE DE TEXTO): Cada parágrafo DEVE ter rigorosamente entre 60 e 70 palavras. NUNCA faça parágrafos maiores que isso para não quebrar a página A4. É PROIBIDO criar parágrafos extras. Siga a estrutura exata abaixo.
+  DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
+  1. GERE APENAS HTML PURO. 
+  2. VOCÊ ESTÁ ESTRITAMENTE PROIBIDO de gerar qualquer tag <div class="page-container">, <div class="page-header"> ou <div class="page-footer">. O nosso sistema injeta isso automaticamente. Envie apenas o conteúdo.
+  
+  3. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 4 páginas completas):
+  
+     <!-- PÁGINA 1: A Capa do Capítulo (Imagem 100% de fundo com o Título no Box) -->
+     <div class="cap-img-overlay" data-unsplash="[PALAVRA_EM_INGLES_AQUI]">
+        <div class="cap-overlay-box">
+           <i class="fas fa-${iconeSugerido} text-4xl mb-4"></i>
+           <h1 class="chapter-title-exclusive">Capítulo ${numero}: [Nome do Capítulo]</h1>
+        </div>
+     </div>
 
-4. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem):
+     <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) -->
+     <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
+     <p>[Parágrafo 1 - Aprox 50 palavras]</p>
+     <p>[Parágrafo 2 - Aprox 50 palavras]</p>
+     <p>[Parágrafo 3 - Aprox 50 palavras]</p>
+     <p>[Parágrafo 4 - Aprox 50 palavras]</p>
+     <div class="concept-box"><i class="fas fa-lightbulb"></i> [Insira aqui uma IDEIA CENTRAL ou CONCEITO-CHAVE para concluir a página]</div>
 
-   <!-- PÁGINA 1: A Capa do Capítulo -->
-   <div class="cap-img-overlay" data-unsplash="[ESCREVA_UMA_UNICA_PALAVRA_EM_INGLES_AQUI]">
-      <div class="cap-overlay-box">
-         <i class="fas fa-${iconeSugerido} text-4xl mb-4"></i>
-         <h1 class="chapter-title-exclusive">Capítulo ${numero}: [ESCREVA O NOME DO CAPÍTULO AQUI]</h1>
-      </div>
-   </div>
+     <!-- PÁGINA 3: O Aprofundamento (Meio) -->
+     <h3 class="subtopic-title">[Subtítulo do Meio]</h3>
+     <p>[Parágrafo 5 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 6 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 7 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 8 - Aprox 60 palavras]</p>
+     <div class="highlight-box"><i class="fas fa-highlighter"></i> [Insira aqui um TEXTO RELEVANTE ou DICA PRÁTICA para fechar a página]</div>
 
-   <!-- PÁGINA 2: O Despertar (Sem box/ilustração aqui para não transbordar a página) -->
-   <h3 class="subtopic-title">[Escreva um Subtítulo Inicial Atraente]</h3>
-   <p>[Escreva aqui o parágrafo 1. Exatamente 60 a 70 palavras.]</p>
-   <p>[Escreva aqui o parágrafo 2. Exatamente 60 a 70 palavras.]</p>
-   <p>[Escreva aqui o parágrafo 3. Exatamente 60 a 70 palavras.]</p>
-   <p>[Escreva aqui o parágrafo 4. Exatamente 60 a 70 palavras.]</p>
+     <!-- PÁGINA 4: A Concretização (Fim do Capítulo) -->
+     <h3 class="subtopic-title">[Subtítulo Final]</h3>
+     <p>[Parágrafo 9 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 10 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 11 - Aprox 70 palavras]</p>
+     <p>[Parágrafo 12 - Aprox 70 palavras]</p>
+     <blockquote>[Insira aqui uma REFLEXÃO PROFUNDA ou CONSELHO FINAL impactante para fechar a última página]</blockquote>
 
-   <!-- PÁGINA 3: O Aprofundamento -->
-   <h3 class="subtopic-title">[Escreva um Subtítulo de Aprofundamento]</h3>
-   <p>[Escreva aqui o parágrafo 5. Exatamente 60 a 70 palavras.]</p>
-   <p>[Escreva aqui o parágrafo 6. Exatamente 60 a 70 palavras.]</p>
-   <p>[Escreva aqui o parágrafo 7. Exatamente 60 a 70 palavras.]</p>
-   <div class="highlight-box"><i class="fas fa-highlighter"></i> [Escreva aqui um Aviso Importante ou Curiosidade. Máximo 20 palavras.]</div>
+  4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.
 
-   <!-- PÁGINA 4: A Concretização -->
-   <h3 class="subtopic-title">[Escreva o Subtítulo Final do Capítulo]</h3>
-   <p>[Escreva aqui o parágrafo 8. Exatamente 60 a 70 palavras.]</p>
-   <p>[Escreva aqui o parágrafo 9. Exatamente 60 a 70 palavras.]</p>
-   <p>[Escreva aqui o parágrafo 10. Exatamente 60 a 70 palavras.]</p>
-   <blockquote>[Escreva aqui uma Reflexão Final impactante. Máximo 20 palavras.]</blockquote>
-
-5. MODO SILENCIOSO: Entregue APENAS as tags HTML solicitadas. Não converse comigo, não explique o que fez, não conte as palavras visivelmente. Apenas gere o código HTML final e preenchido.
-`;
+  5. IMAGENS DINÂMICAS: Na tag <div class="cap-img-overlay">, substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para o sistema buscar a foto depois. Exemplo: data-unsplash="business".
+  `;
 
   return { regrasCompletas, numero };
 }

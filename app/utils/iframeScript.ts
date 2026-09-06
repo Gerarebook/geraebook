@@ -369,9 +369,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           el.classList.contains('page-cover-pura') ||
           el.classList.contains('page-cover-text') ||
           el.classList.contains('page-extra') ||
-          el.classList.contains('author-page') ||
-          el.classList.contains('cap-img-overlay') || // <-- CONTA AS CAPAS DOS CAPÍTULOS
-          el.hasAttribute('data-legal')
+          el.classList.contains('author-page')
         );
         
         const allTocItems = container.querySelectorAll('.toc-item');
@@ -380,8 +378,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
           if (target) {
-            // CORREÇÃO: O 'closest' agora varre e encontra perfeitamente o elemento-pai, seja ele uma folha de texto ou a capa de um capítulo.
-            const page = target.closest('.page-container, .cap-img-overlay, .page-cover-img, .page-cover-pura, .page-cover-text, [data-legal]');
+            const page = target.closest('.page-container');
             if (page) {
               const idx = allPages.indexOf(page) + 1;
               const numSpan = item.querySelector('.toc-page-num');
