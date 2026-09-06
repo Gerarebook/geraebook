@@ -47,10 +47,13 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
+        // BLINDAGEM: Não destrói a página de Avisos, Capas nem a página do Autor
         if (p.classList.contains('page-cover-img') || 
             p.classList.contains('page-cover-pura') || 
             p.classList.contains('page-cover-text') || 
-            p.hasAttribute('data-legal') ||
+            p.hasAttribute('data-legal') || // Mantém a página de Avisos intacta
+            p.classList.contains('page-extra') ||
+            p.querySelector('.cap-img-overlay') || // Mantém as capas de Capítulos intactas
             p.querySelector('.toc-container') || 
             p.classList.contains('author-page')) {
             return; 
@@ -183,26 +186,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
         if (!area || area.children.length === 0) page.remove();
-      });
-
-      // BLINDAGEM MÁXIMA DA CAPA: Ocultar Cabeçalho, Rodapé e Linha em qualquer tipo de Capa
-      container.querySelectorAll('.page-container').forEach((page, index) => {
-         if (!page.id) page.id = 'page-gen-' + index + '-' + Math.random().toString(36).substr(2, 5);
-         
-         if (page.querySelector('.cap-img-overlay') || page.classList.contains('page-cover-img') || page.classList.contains('page-cover-pura') || page.classList.contains('page-cover-text')) {
-             const header = page.querySelector('.page-header');
-             const footer = page.querySelector('.page-footer');
-             if (header) header.style.setProperty('display', 'none', 'important');
-             if (footer) footer.style.setProperty('display', 'none', 'important');
-             
-             let localStyle = page.querySelector('.local-cover-style');
-             if (!localStyle) {
-                 localStyle = document.createElement('style');
-                 localStyle.className = 'local-cover-style';
-                 localStyle.innerHTML = \`#\${page.id}::after { display: none !important; border: none !important; content: none !important; }\`;
-                 page.appendChild(localStyle);
-             }
-         }
       });
 
       function sincronizarIndice() {
@@ -363,13 +346,10 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         // ==========================================
         // MATEMÁTICA DE NUMERAÇÃO PERFEITA (Síncrona)
         // ==========================================
+        // Conta as páginas considerando APENAS os contêineres e páginas legais/extras, sem dupla contagem
         const allPages = Array.from(container.children).filter(el =>
           el.classList.contains('page-container') ||
-          el.classList.contains('page-cover-img') ||
-          el.classList.contains('page-cover-pura') ||
-          el.classList.contains('page-cover-text') ||
-          el.classList.contains('page-extra') ||
-          el.classList.contains('author-page')
+          el.hasAttribute('data-legal')
         );
         
         const allTocItems = container.querySelectorAll('.toc-item');
@@ -378,7 +358,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
           if (target) {
-            const page = target.closest('.page-container');
+            const page = target.closest('.page-container, [data-legal]');
             if (page) {
               const idx = allPages.indexOf(page) + 1;
               const numSpan = item.querySelector('.toc-page-num');

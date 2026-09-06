@@ -140,6 +140,13 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   border: none !important;
 }
 
+/* BLINDAGEM ABSOLUTA DA CAPA INICIAL CONTRA LINHAS */
+#ebook-container > .page-container:first-child::after {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+}
+
 /* BLINDAGEM CONTRA BORDAS E CABEÇALHOS NA CAPA DO CAPÍTULO (Mesmo após edição) */
 .page-container:has(.cap-img-overlay)::after { 
   display: none !important; 
@@ -151,7 +158,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   visibility: hidden !important; 
 }
 
-/* BLINDAGEM DE LARGURA DO TÍTULO NA CAPA */
+/* BLINDAGEM DE LARGURA E CENTRALIZAÇÃO DO TÍTULO NA CAPA */
 .page-cover-img h1, .page-cover-pura h1, .page-cover-text h1 {
   width: 100% !important;
   padding: 0 20mm !important;
@@ -163,6 +170,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   font-weight: 800;
   margin: 0 0 0.5rem 0;
   color: #ffffff !important;
+  text-align: center !important;
   text-shadow: 0 0 20px rgba(0,0,0,0.9), 0 2px 10px rgba(0,0,0,0.8);
 }
 .page-cover-img p, .page-cover-pura p, .page-cover-text p {
@@ -175,6 +183,7 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   font-size: 1.2rem;
   opacity: 0.9;
   color: #ffffff !important;
+  text-align: center !important;
   text-shadow: 0 0 15px rgba(0,0,0,0.9);
 }
 
@@ -320,6 +329,7 @@ ${ebookStyles}
 </body>
 </html>`;
 }
+
 export function ajustarParagrafos(html: string): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
