@@ -361,7 +361,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         });
 
         // ==========================================
-        // MATEMÁTICA DE NUMERAÇÃO PERFEITA
+        // MATEMÁTICA DE NUMERAÇÃO PERFEITA (Síncrona)
         // ==========================================
         const allPages = Array.from(container.children).filter(el =>
           el.classList.contains('page-container') ||
@@ -370,6 +370,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           el.classList.contains('page-cover-text') ||
           el.classList.contains('page-extra') ||
           el.classList.contains('author-page') ||
+          el.classList.contains('cap-img-overlay') || // <-- CONTA AS CAPAS DOS CAPÍTULOS
           el.hasAttribute('data-legal')
         );
         
@@ -379,9 +380,8 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
           if (target) {
-            // CORREÇÃO MESTRE AQUI: O closest procura apenas a ".page-container" exata onde o título mora. 
-            // Assim não ocorre mais do indexOf dar erro e virar 0.
-            const page = target.closest('.page-container');
+            // CORREÇÃO: O 'closest' agora varre e encontra perfeitamente o elemento-pai, seja ele uma folha de texto ou a capa de um capítulo.
+            const page = target.closest('.page-container, .cap-img-overlay, .page-cover-img, .page-cover-pura, .page-cover-text, [data-legal]');
             if (page) {
               const idx = allPages.indexOf(page) + 1;
               const numSpan = item.querySelector('.toc-page-num');
@@ -389,7 +389,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
             }
           }
         });
-      }
+      } // <--- Fim da função sincronizarIndice
 
       sincronizarIndice();
 

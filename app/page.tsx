@@ -768,15 +768,15 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
         <h2 id="intro" class="chapter-title-inline">Introdução</h2>
         <h3 class="subtopic-title">O Início da Jornada</h3>
-        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 1 DA INTRODUÇÃO. Aja como Ghostwriter. Desenvolva o tema profundamente.]</p>
-        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 2 DA INTRODUÇÃO. Seja persuasivo e prenda o leitor.]</p>
-        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 3 DA INTRODUÇÃO. Continue a narrativa com fluidez...]</p>
-        <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 4 DA INTRODUÇÃO...]</p>
+        <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 60 a 70 palavras.]</p>
+        <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 60 a 70 palavras.]</p>
+        <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 60 a 70 palavras.]</p>
+        <p>[Escreva aqui o parágrafo 4 da Introdução. Exatamente 60 a 70 palavras.]</p>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>
 
-    REGRAS CRÍTICAS (PROIBIDO PREGUIÇA):
-    1. A INTRODUÇÃO DEVE TER TEXTO REAL. É estritamente proibido retornar colchetes vazios ou resumos. ESCREVA O CONTEÚDO.
+    REGRAS CRÍTICAS:
+    1. A INTRODUÇÃO DEVE TER EXATAMENTE 4 PARÁGRAFOS DE 60 a 70 PALAVRAS. NENHUM A MAIS PARA NÃO TRANSBORDAR A PÁGINA.
     2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto dentro.
     3. PARE AQUI! NÃO gere Capítulos!
     `;
