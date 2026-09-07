@@ -52,7 +52,7 @@ export function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: str
 
   const regrasCompletas = `
   DIRETRIZES DE FORMATAÇÃO E SEGURANÇA:
-  1. GERE APENAS HTML PURO. 
+  1. GERE APENAS HTML PURO. NENHUM texto solto de conversação fora das tags (ex: é proibido dizer "Yes", "Wait", "Here is").
   2. VOCÊ ESTÁ ESTRITAMENTE PROIBIDO de gerar qualquer tag <div class="page-container">, <div class="page-header"> ou <div class="page-footer">. O nosso sistema injeta isso automaticamente. Envie apenas o conteúdo.
   
   3. ESTRUTURA RIGOROSA DO CAPÍTULO (Siga EXATAMENTE esta ordem para formar 4 páginas completas):
@@ -91,7 +91,7 @@ export function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: str
 
   4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)'), ou raciocínios lógicos (como 'Wait', 'Let's check'). RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK E NADA MAIS. Aja como um compilador cego.
 
-  5. IMAGENS DINÂMICAS: Na tag <div class="cap-img-overlay">, substitua [PALAVRA_EM_INGLES_AQUI] por UMA palavra em inglês relacionada ao tema para o sistema buscar a foto depois. Exemplo: data-unsplash="business".
+  5. MODO COMPILADOR ABSOLUTO: Entregue APENAS as tags HTML solicitadas. Não converse comigo. É ESTRITAMENTE PROIBIDO incluir pensamentos lógicos, comentários ou marcadores de quantidade de palavras. Aja como um sistema cego.
   `;
 
   return { regrasCompletas, numero };
