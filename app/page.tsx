@@ -184,18 +184,21 @@ export default function Home() {
 
   function atualizarCapaNoHtml(html: string, novoTitulo: string, novoAutor: string): string {
     if (!html) return html;
-    const regexCapa = /(<div class="page-cover-[a-z-]+"[^>]*>)([\s\S]*?)(<\/div>)/i;
-    const match = html.match(regexCapa);
-    if (!match || match.index === undefined) return html;
-
-    let capaContent = match[2];
-    capaContent = capaContent.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1>${novoTitulo || 'Meu E-book'}</h1>`);
-    if (!capaContent.includes('<p>')) {
-      capaContent = capaContent.replace(/<\/h1>/i, `</h1><p>Por ${novoAutor || 'Autor'}</p>`);
-    } else {
-      capaContent = capaContent.replace(/<p[^>]*>.*?<\/p>/i, `<p>Por ${novoAutor || 'Autor'}</p>`);
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const cover = doc.querySelector('.page-cover-img, .page-cover-pura, .page-cover-text');
+      if (cover) {
+        const h1 = cover.querySelector('h1');
+        if (h1) h1.textContent = novoTitulo || 'Meu E-book';
+        const p = cover.querySelector('p');
+        if (p) p.textContent = 'Por ' + (novoAutor || 'Autor');
+        return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar capa:', e);
     }
-    return html.substring(0, match.index) + match[1] + capaContent + match[3] + html.substring(match.index + match[0].length);
+    return html;
   }
 
   function findClosingDiv(html: string, startIndex: number): number {

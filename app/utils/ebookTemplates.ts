@@ -39,7 +39,7 @@ export function obterBlocoAutorHtml(opts: AutorOpts) {
         <img src="https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png" class="author-photo ${opts.autorFormato}" alt="${opts.livroAutores || 'Autor'}">
         <div class="author-bio">
           <h2>${opts.livroAutores || 'Sobre o Autor'}</h2>
-          <p>Substitua este texto com a sua biografia. Descreva sua trajetória, experiências e propósito profissional. Este espaço é dedicado a apresentar quem você é para o leitor.</p>
+          <p>Escreva aqui a sua biografia. Você pode editar este texto livremente clicando nele no modo de edição inteligente.</p>
         </div>
       </div>
       <div class="page-footer">${regraRodape}</div>

@@ -113,8 +113,9 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   min-width: ${conf.width} !important; min-height: ${conf.height} !important; max-width: ${conf.width} !important; max-height: ${conf.height} !important;
   flex-shrink: 0 !important; padding: ${conf.padding}; margin: 0 auto 20px auto; box-sizing: border-box;
   position: relative; overflow: hidden !important; page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); counter-increment: ebook-page;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
 }
+.page-container { counter-increment: ebook-page; }
 
 .page-cover-img, .page-cover-pura, .page-cover-text {
   background: url('${opts.imagemCapaUrl}') center/cover no-repeat !important;
