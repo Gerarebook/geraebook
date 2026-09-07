@@ -20,6 +20,28 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
+      // ========================================================
+      // AUTO-CURA: Conserta HTML quebrado gerado pela IA
+      // Se a IA gerou o título "fora" do fundo, o sistema junta de volta!
+      // ========================================================
+      container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
+          let next = overlay.nextElementSibling;
+          while (next && (next.classList?.contains('cap-overlay-box') || next.tagName === 'H1')) {
+              overlay.appendChild(next);
+              next = overlay.nextElementSibling;
+          }
+          let box = overlay.querySelector('.cap-overlay-box');
+          if (!box) {
+              box = document.createElement('div');
+              box.className = 'cap-overlay-box';
+              while (overlay.firstChild && overlay.firstChild !== box) {
+                  box.appendChild(overlay.firstChild);
+              }
+              overlay.appendChild(box);
+          }
+      });
+      // ========================================================
+
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          let bg = overlay.style.backgroundImage || '';
          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg === '')) {
