@@ -14,7 +14,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
     }
 
     function executarRefluxoCompleto() {
-      // DESLIGA O OBSERVER PARA NÃO CAUSAR LOOP INFINITO (PISCA-PISCA)
       if (observer) observer.disconnect();
       
       const currentScrollY = window.scrollY;
@@ -47,13 +46,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
-        // BLINDAGEM: Não destrói a página de Avisos, Capas nem a página do Autor
         if (p.classList.contains('page-cover-img') || 
             p.classList.contains('page-cover-pura') || 
             p.classList.contains('page-cover-text') || 
-            p.hasAttribute('data-legal') || // Mantém a página de Avisos intacta
+            p.hasAttribute('data-legal') ||
             p.classList.contains('page-extra') ||
-            p.querySelector('.cap-img-overlay') || // Mantém as capas de Capítulos intactas
+            p.querySelector('.cap-img-overlay') || 
             p.querySelector('.toc-container') || 
             p.classList.contains('author-page')) {
             return; 
@@ -344,13 +342,18 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         });
 
         // ==========================================
-        // MATEMÁTICA DE NUMERAÇÃO PERFEITA (Síncrona)
+        // MATEMÁTICA DE NUMERAÇÃO PERFEITA
         // ==========================================
-        // Conta as páginas considerando APENAS os contêineres e páginas legais/extras, sem dupla contagem
-        const allPages = Array.from(container.children).filter(el =>
-          el.classList.contains('page-container') ||
-          el.hasAttribute('data-legal')
-        );
+        const allPages = Array.from(container.children).filter(el => {
+          return (el.classList.contains('page-container') ||
+                  el.classList.contains('page-cover-img') ||
+                  el.classList.contains('page-cover-pura') ||
+                  el.classList.contains('page-cover-text') ||
+                  el.hasAttribute('data-legal') ||
+                  el.classList.contains('author-page') ||
+                  el.classList.contains('page-extra')) && 
+                  el.style.display !== 'none';
+        });
         
         const allTocItems = container.querySelectorAll('.toc-item');
         allTocItems.forEach(item => {
@@ -358,7 +361,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           if (!href || !href.startsWith('#')) return;
           const target = document.getElementById(href.substring(1));
           if (target) {
-            const page = target.closest('.page-container, [data-legal]');
+            const page = target.closest('.page-container, .page-cover-img, .page-cover-pura, .page-cover-text, [data-legal], .author-page, .page-extra');
             if (page) {
               const idx = allPages.indexOf(page) + 1;
               const numSpan = item.querySelector('.toc-page-num');
@@ -366,7 +369,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
             }
           }
         });
-      } // <--- Fim da função sincronizarIndice
+      }
 
       sincronizarIndice();
 
@@ -390,23 +393,29 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
          }
       }
       
-      if (e.data.type === 'UNDO_HTML' || e.data.type === 'REDO_HTML') {
-         const scrollY = window.scrollY;
-         const selectedId = selectedEl ? selectedEl.id : null;
-         document.getElementById('ebook-container').innerHTML = e.data.html;
-         setTimeout(() => {
+      // EXCLUSÃO EM JS PURO E REFLUXO AUTÔNOMO
+      if (e.data.type === 'DELETE_ELEMENT') {
+         const target = document.getElementById(e.data.id);
+         if (target) {
+            target.remove();
+            // FORÇA A REORGANIZAÇÃO DO LAYOUT ANTES DE SALVAR (Textos sobem para tapar o buraco)
             executarRefluxoCompleto();
-            requestAnimationFrame(() => {
-               window.scrollTo(0, scrollY);
-               if (selectedId) {
-                  const el = document.getElementById(selectedId);
-                  if (el) {
-                     selectedEl = el;
-                     el.style.outline = '3px solid #4f46e5';
-                  }
-               }
-            });
-         }, 50);
+            setTimeout(() => {
+                window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+            }, 100);
+         }
+      }
+
+      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
+         const target = document.getElementById(e.data.id);
+         if (target) {
+            target.outerHTML = e.data.newHtml;
+            // REORGANIZA O LAYOUT EM JS PURO APÓS EDIÇÃO IA
+            executarRefluxoCompleto();
+            setTimeout(() => {
+                window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+            }, 100);
+         }
       }
 
       if (e.data.type === 'UPDATE_ELEMENT') {
@@ -431,31 +440,28 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
                    let b = parseInt(hex.substring(4,6), 16) || 255;
                    target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${op})\`, 'important');
                }
+               if (e.data.bgOpacity !== undefined) {
+                   target.dataset.bgOp = e.data.bgOpacity;
+                   let hex = target.dataset.rawHex || rgbToHex(window.getComputedStyle(target).backgroundColor) || '#f5f5f5';
+                   hex = hex.replace('#','');
+                   if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
+                   let r = parseInt(hex.substring(0,2), 16) || 245;
+                   let g = parseInt(hex.substring(2,4), 16) || 245;
+                   let b = parseInt(hex.substring(4,6), 16) || 245;
+                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${e.data.bgOpacity})\`, 'important');
+               }
                
                if (e.data.fontSize !== undefined) target.style.setProperty('font-size', e.data.fontSize + 'px', 'important');
                if (e.data.fontWeight !== undefined) target.style.setProperty('font-weight', e.data.fontWeight, 'important');
                if (e.data.textAlign !== undefined) target.className = target.className.replace(/text-(left|center|right|justify)/, '') + ' ' + e.data.textAlign;
             }
+            executarRefluxoCompleto();
+            setTimeout(() => {
+                window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+            }, 100);
+         }
+      }
 
-            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
-         }
-      }
-      if (e.data.type === 'REPLACE_ELEMENT_HTML') {
-         const target = document.getElementById(e.data.id);
-         if (target) {
-            target.outerHTML = e.data.newHtml;
-            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
-            setTimeout(executarRefluxoCompleto, 100);
-         }
-      }
-      if (e.data.type === 'DELETE_ELEMENT') {
-         const target = document.getElementById(e.data.id);
-         if (target) {
-            target.remove();
-            window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
-            setTimeout(executarRefluxoCompleto, 100);
-         }
-      }
       if (e.data.type === 'APPLY_GLOBAL_BG') {
          const color = e.data.color;
          const pages = document.querySelectorAll('.page-container');
@@ -511,6 +517,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
             id: el.id,
             tagName: el.tagName.toLowerCase(),
             text: el.innerHTML,
+            outerHTML: el.outerHTML, 
             src: el.src,
             bgImage: computed.backgroundImage !== 'none' ? computed.backgroundImage : undefined,
             isBgTarget: el.classList.contains('page-container') || el.classList.contains('cap-img-overlay'),
