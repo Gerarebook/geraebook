@@ -46,7 +46,24 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
-        // CORREÇÃO: Removida a blindagem do '.cap-img-overlay' para permitir que os elementos fluam na ordem correta
+        
+        // BLINDAGEM MÁXIMA DA CAPA DE CAPÍTULO: Força a remoção de header/footer/linha
+        // mesmo se o HTML da IA vier quebrado
+        if (p.querySelector('.cap-img-overlay')) {
+            const head = p.querySelector('.page-header');
+            const foot = p.querySelector('.page-footer');
+            if (head) head.style.setProperty('display', 'none', 'important');
+            if (foot) foot.style.setProperty('display', 'none', 'important');
+            
+            if (!p.id) p.id = 'page-' + Math.random().toString(36).substr(2, 9);
+            if (!p.querySelector('style.cover-blind')) {
+                const s = document.createElement('style');
+                s.className = 'cover-blind';
+                s.innerHTML = \`#\${p.id}::after { display: none !important; border: none !important; }\`;
+                p.appendChild(s);
+            }
+        }
+
         if (p.classList.contains('page-cover-img') || 
             p.classList.contains('page-cover-pura') || 
             p.classList.contains('page-cover-text') || 

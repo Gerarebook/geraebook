@@ -838,8 +838,14 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. É ESTRITAMENTE PROIBIDO gerar "placeholders" vazios, pular parágrafos ou entregar textos genéricos. Escreva o CONTEÚDO REAL E PROFUNDO. Também é proibido gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)') ou raciocínios lógicos. RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK PREENCHIDAS COM O TEXTO FINAL INÉDITO E NADA MAIS.`;
 
+    // CORREÇÃO: Pega apenas o final do livro para a IA não estourar a memória (evita alucinação e quebra)
+    let contextoReduzido = currentHtml;
+    if (currentHtml && currentHtml.length > 4000) {
+      contextoReduzido = currentHtml.substring(currentHtml.length - 4000);
+    }
+
     const data = await chamarMotorIA(instrucao, [
-      { text: `CÓDIGO HTML ATUAL DO LIVRO:\n"""\n${currentHtml}\n"""` },
+      { text: `ÚLTIMA PARTE DO LIVRO (Continue a partir daqui):\n"""\n${contextoReduzido}\n"""` },
       { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
     ], false);
 
