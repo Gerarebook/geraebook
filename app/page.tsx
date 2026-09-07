@@ -1399,7 +1399,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                       <select
                         value={estiloRodape}
                         onChange={(e: any) => setEstiloRodape(e.target.value)}
-                        className="input-standard text-[10px]"
+                        disabled={htmlAtual !== '' || etapaAtual > 0}
+                        className="input-standard text-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="linha-superior">Linha Superior + Autor + Num</option>
                         <option value="centralizado-circulo">Centralizado com Círculo</option>

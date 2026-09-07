@@ -46,12 +46,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
+        // CORREÇÃO: Removida a blindagem do '.cap-img-overlay' para permitir que os elementos fluam na ordem correta
         if (p.classList.contains('page-cover-img') || 
             p.classList.contains('page-cover-pura') || 
             p.classList.contains('page-cover-text') || 
             p.hasAttribute('data-legal') ||
             p.classList.contains('page-extra') ||
-            p.querySelector('.cap-img-overlay') || 
             p.querySelector('.toc-container') || 
             p.classList.contains('author-page')) {
             return; 
@@ -181,9 +181,19 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         }
       }
 
+      // CORREÇÃO: Faxina agressiva de páginas vazias para não roubarem números do índice
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
-        if (!area || area.children.length === 0) page.remove();
+        if (!area) { page.remove(); return; }
+        
+        const hasText = area.textContent.trim().length > 0;
+        const hasImg = area.querySelector('img') !== null;
+        const hasOverlay = area.querySelector('.cap-img-overlay') !== null;
+        const hasToc = area.querySelector('.toc-container') !== null;
+        
+        if (!hasText && !hasImg && !hasOverlay && !hasToc) {
+            page.remove();
+        }
       });
 
       function sincronizarIndice() {
@@ -398,7 +408,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
          const target = document.getElementById(e.data.id);
          if (target) {
             target.remove();
-            // FORÇA A REORGANIZAÇÃO DO LAYOUT ANTES DE SALVAR (Textos sobem para tapar o buraco)
             executarRefluxoCompleto();
             setTimeout(() => {
                 window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
@@ -410,7 +419,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
          const target = document.getElementById(e.data.id);
          if (target) {
             target.outerHTML = e.data.newHtml;
-            // REORGANIZA O LAYOUT EM JS PURO APÓS EDIÇÃO IA
             executarRefluxoCompleto();
             setTimeout(() => {
                 window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
@@ -535,6 +543,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
     } else {
       window.addEventListener('load', () => {
         executarRefluxoCompleto();
+        setTimeout(executarRefluxoCompleto, 500);
       });
     }
 
