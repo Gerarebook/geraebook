@@ -751,44 +751,52 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       return;
     }
 
-    const { regrasCompletas } = obterInstrucoesBase({ numeroCapitulo: 1, tema: livroTitulo || 'geral' });
+    // 1. CONSTRUÇÃO SÓLIDA EM JS PURO (Blindado contra a imprevisibilidade da IA)
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso(livroTitulo);
-
-    const instrucao = `Você vai INICIAR um e-book gerando APENAS a Capa, Aviso/Direitos, Índice e Introdução.
-    ${regrasCompletas}
-
-    ESTRUTURA OBRIGATÓRIA DA RESPOSTA (PASSO 1):
-    ${regraCapaHtml}
-    ${paginaAviso}
+    const paginaIndice = `
     <div class="page-container">
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
         <h2 class="chapter-title-inline">Índice</h2>
         <div class="toc-container"></div>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
-    </div>
-    <div class="page-container">
-        <div class="page-header"><span></span><span>${livroTitulo}</span></div>
-        <h2 id="intro" class="chapter-title-inline">Introdução</h2>
-        <h3 class="subtopic-title">O Início da Jornada</h3>
-        <p>[Parágrafo 1 - aprox 60 palavras]</p>
-        <p>[Parágrafo 2 - aprox 60 palavras]</p>
-        <p>[Parágrafo 3 - aprox 60 palavras]</p>
-        <p>[Parágrafo 4 - aprox 50 palavras]</p>
-        <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
-    </div>
+    </div>`;
 
-    REGRAS CRÍTICAS:
-    1. A INTRODUÇÃO DEVE TER EXATAMENTE 4 PARÁGRAFOS.
-    2. O ÍNDICE DEVE SER ENTREGUE VAZIO: Devolva exatamente <div class="toc-container"></div> sem NENHUM texto.
-    3. PARE AQUI! NÃO gere Capítulos!
-    `;
+    // 2. A IA AGORA GERA *APENAS* O TEXTO DA INTRODUÇÃO
+    const instrucao = `Você é um ghostwriter profissional. Escreva APENAS a Introdução do e-book.
+    
+    DIRETRIZES DE FORMATAÇÃO:
+    1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto fora das tags.
+    2. REGRA DE OURO: Cada parágrafo DEVE ter rigorosamente entre 60 e 70 palavras.
+    3. RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
 
-    const data = await chamarMotorIA(instrucao, [{ text: `TEXTO BASE PARA CRIAR O ÍNDICE E A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
+    <h2 id="intro" class="chapter-title-inline">Introdução</h2>
+    <h3 class="subtopic-title">O Início da Jornada</h3>
+    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 4 da Introdução. Exatamente 60 a 70 palavras.]</p>
+
+    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, gerar pensamentos internos ou anotações. Aja como um compilador cego.`;
+
+    const data = await chamarMotorIA(instrucao, [{ text: `TEMA/BASE PARA A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
+    
     if (data && data.html) {
-      aplicarHtmlNovo(data.html, false, true);
+      let introLimpa = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
+      
+      // 3. MONTAGEM INQUEBRÁVEL (Estrutura JS + Texto da IA)
+      const introducaoHtml = `
+      <div class="page-container">
+          <div class="page-header"><span></span><span>${livroTitulo}</span></div>
+          ${introLimpa}
+          <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
+      </div>`;
+
+      const htmlPasso1 = regraCapaHtml + '\n' + paginaAviso + '\n' + paginaIndice + '\n' + introducaoHtml;
+
+      aplicarHtmlNovo(htmlPasso1, false, true);
       setEtapaAtual(1);
-      (window as any).showNotification('Passo 1 Concluído! Capa, Aviso, Índice e Introdução gerados.', 'success');
+      (window as any).showNotification('Passo 1 Concluído! Estrutura 100% ancorada no JS.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
     }
@@ -838,7 +846,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. É ESTRITAMENTE PROIBIDO gerar "placeholders" vazios, pular parágrafos ou entregar textos genéricos. Escreva o CONTEÚDO REAL E PROFUNDO. Também é proibido gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)') ou raciocínios lógicos. RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK PREENCHIDAS COM O TEXTO FINAL INÉDITO E NADA MAIS.`;
 
-    // CORREÇÃO: Pega apenas o final do livro para a IA não estourar a memória (evita alucinação e quebra)
+    // CORREÇÃO: Pega apenas o final do livro para a IA não estourar a memória (evita alucinação e quebra em livros longos)
     let contextoReduzido = currentHtml;
     if (currentHtml && currentHtml.length > 4000) {
       contextoReduzido = currentHtml.substring(currentHtml.length - 4000);
