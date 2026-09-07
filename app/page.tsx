@@ -766,19 +766,20 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const instrucao = `Você é um ghostwriter profissional. Escreva APENAS a Introdução do e-book.
     
     DIRETRIZES DE FORMATAÇÃO:
-    1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto fora das tags.
-    2. REGRA DE OURO: Cada parágrafo DEVE ter rigorosamente entre 60 e 70 palavras.
-    3. RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
-
+    1. GERE APENAS AS TAGS HTML. NENHUM texto solto fora das tags.
+    2. REGRA DE OURO: Para não transbordar a página, gere EXATAMENTE 3 PARÁGRAFOS de 50 a 60 palavras.
+    3. OBRIGATÓRIO: Envolva a resposta dentro de um bloco \`\`\`html \`\`\`
+    
+    RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
+    \`\`\`html
     <h2 id="intro" class="chapter-title-inline">Introdução</h2>
     <h3 class="subtopic-title">O Início da Jornada</h3>
-    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 60 a 70 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 60 a 70 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 60 a 70 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 4 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 50 a 60 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 50 a 60 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 50 a 60 palavras.]</p>
+    \`\`\`
 
-    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, gerar pensamentos internos ou anotações. Aja como um compilador cego.`;
-
+    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar pensamentos internos, lógicas ou anotações. Retorne APENAS o código HTML.`;
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA/BASE PARA A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
     
     if (data && data.html) {
@@ -844,7 +845,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
-    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. É ESTRITAMENTE PROIBIDO gerar "placeholders" vazios, pular parágrafos ou entregar textos genéricos. Escreva o CONTEÚDO REAL E PROFUNDO. Também é proibido gerar qualquer pensamento interno, comentários, notas, contagem de palavras (ex: 'P7 (~60 words)') ou raciocínios lógicos. RETORNE ÚNICA E EXCLUSIVAMENTE AS TAGS HTML DO E-BOOK PREENCHIDAS COM O TEXTO FINAL INÉDITO E NADA MAIS.`;
+    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. Escreva o CONTEÚDO REAL. É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, raciocínios lógicos, conversas ou anotações de contagem de palavras ANTES ou DEPOIS do código. OBRIGATÓRIO: Você DEVE envolver toda a sua resposta final dentro de um bloco de código markdown começando com \`\`\`html e terminando com \`\`\`. O sistema vai excluir qualquer pensamento seu que estiver fora disso.`;
 
     // CORREÇÃO: Pega apenas o final do livro para a IA não estourar a memória (evita alucinação e quebra em livros longos)
     let contextoReduzido = currentHtml;
