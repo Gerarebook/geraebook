@@ -751,7 +751,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       return;
     }
 
-    // 1. CONSTRUÇÃO SÓLIDA EM JS PURO (Blindado contra a imprevisibilidade da IA)
+    // 1. CONSTRUÇÃO SÓLIDA EM JS PURO
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
     const paginaAviso = gerarPaginaAviso(livroTitulo);
     const paginaIndice = `
@@ -762,29 +762,30 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>`;
 
-    // 2. A IA AGORA GERA *APENAS* O TEXTO DA INTRODUÇÃO
-    const instrucao = `Você é um ghostwriter profissional. Escreva APENAS a Introdução do e-book.
+    // 2. IA FOCADA APENAS NO TEXTO (COM 3 PARÁGRAFOS PARA NÃO TRANSBORDAR)
+    const instrucao = `Você é um compilador de e-book. Retorne APENAS HTML.
     
     DIRETRIZES DE FORMATAÇÃO:
     1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto fora das tags.
-    2. REGRA DE OURO: Cada parágrafo DEVE ter rigorosamente entre 60 e 70 palavras.
+    2. REGRA DE OURO: Cada parágrafo DEVE ter rigorosamente entre 50 e 60 palavras.
     3. RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
 
     <h2 id="intro" class="chapter-title-inline">Introdução</h2>
     <h3 class="subtopic-title">O Início da Jornada</h3>
-    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 60 a 70 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 60 a 70 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 60 a 70 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 4 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 50 a 60 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 50 a 60 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 50 a 60 palavras.]</p>
 
-    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, gerar pensamentos internos ou anotações. Aja como um compilador cego.`;
+    4. REGRA DE SEGURANÇA MÁXIMA: É PROIBIDO gerar tags <html>, <body>, <head> ou <div class="page-container">. Aja como um sistema cego.`;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA/BASE PARA A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
     
     if (data && data.html) {
       let introLimpa = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
       
-      // 3. MONTAGEM INQUEBRÁVEL (Estrutura JS + Texto da IA)
+      // BLINDAGEM NUCLEAR: Arranca à força qualquer tag que destrua o layout
+      introLimpa = introLimpa.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, '');
+      
       const introducaoHtml = `
       <div class="page-container">
           <div class="page-header"><span></span><span>${livroTitulo}</span></div>
@@ -844,9 +845,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
-    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. Escreva o CONTEÚDO REAL. É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, raciocínios lógicos, conversas ou anotações de contagem de palavras ANTES ou DEPOIS do código. OBRIGATÓRIO: Você DEVE envolver toda a sua resposta final dentro de um bloco de código markdown começando com \`\`\`html e terminando com \`\`\`. O sistema vai excluir qualquer pensamento seu que estiver fora disso.`;
+    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. Escreva o CONTEÚDO REAL. É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, raciocínios lógicos, conversas ou anotações de contagem de palavras ANTES ou DEPOIS do código.`;
 
-    // CORREÇÃO: Pega apenas o final do livro para a IA não estourar a memória (evita alucinação e quebra em livros longos)
     let contextoReduzido = currentHtml;
     if (currentHtml && currentHtml.length > 4000) {
       contextoReduzido = currentHtml.substring(currentHtml.length - 4000);
@@ -858,7 +858,10 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     ], false);
 
     if (data && data.html) {
-      aplicarHtmlNovo(data.html, true, true);
+      let capLimpo = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
+      capLimpo = capLimpo.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, ''); // Escudo Ativo
+
+      aplicarHtmlNovo(capLimpo, true, true);
       setEtapaAtual(2);
       (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
     } else {
@@ -893,13 +896,15 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 2 DA CONCLUSÃO. Traga um tom motivacional.]</p>
       <p>[ESCREVA AQUI O TEXTO REAL DO PARÁGRAFO 3 DA CONCLUSÃO. Feche o livro com uma chamada para ação.]</p>
       
-      O PROMPT ACABA AQUI. Devolva apenas essas tags HTML soltas e PREENCHIDAS COM O TEXTO REAL. O sistema cuidará de adicionar o Autor nativamente.
+      O PROMPT ACABA AQUI. Devolva apenas essas tags HTML soltas e PREENCHIDAS COM O TEXTO REAL.
       
-      REGRA DE SEGURANÇA MÁXIMA E ANTI-PREGUIÇA: É ESTRITAMENTE PROIBIDO gerar texto vazio, copiar colchetes, gerar pensamentos internos, comentários ou contagem de palavras. ESCREVA O CONTEÚDO FINAL.
-      `;
+      REGRA DE SEGURANÇA MÁXIMA: É PROIBIDO gerar texto vazio, copiar colchetes, gerar pensamentos internos, ou gerar tags <html> e <body>. ESCREVA O CONTEÚDO FINAL.`;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
     if (data && data.html) {
+      let fimLimpo = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
+      fimLimpo = fimLimpo.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, ''); // Escudo Ativo
+
       const blocoAutor = obterBlocoAutorHtml({
         estiloRodape,
         livroAutores,
@@ -907,7 +912,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         autorPosicao,
         autorFormato
       });
-      let htmlFinal = data.html + '\n' + blocoAutor;
+      let htmlFinal = fimLimpo + '\n' + blocoAutor;
       aplicarHtmlNovo(htmlFinal, true, true);
       setEtapaAtual(3);
       (window as any).showNotification('Passo 3 Concluído! Conclusão e Autor gerados.', 'success');
