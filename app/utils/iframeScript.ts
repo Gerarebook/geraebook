@@ -40,7 +40,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
               overlay.appendChild(box);
           }
       });
-      // ========================================================
 
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
          let bg = overlay.style.backgroundImage || '';
@@ -66,26 +65,9 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         modeloFooter = footerExistente.innerHTML;
       }
 
+      // 1. DESEMPACOTAR PÁGINAS ANTIGAS
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
-        
-        // BLINDAGEM MÁXIMA DA CAPA DE CAPÍTULO: Força a remoção de header/footer/linha
-        // mesmo se o HTML da IA vier quebrado
-        if (p.querySelector('.cap-img-overlay')) {
-            const head = p.querySelector('.page-header');
-            const foot = p.querySelector('.page-footer');
-            if (head) head.style.setProperty('display', 'none', 'important');
-            if (foot) foot.style.setProperty('display', 'none', 'important');
-            
-            if (!p.id) p.id = 'page-' + Math.random().toString(36).substr(2, 9);
-            if (!p.querySelector('style.cover-blind')) {
-                const s = document.createElement('style');
-                s.className = 'cover-blind';
-                s.innerHTML = \`#\${p.id}::after { display: none !important; border: none !important; }\`;
-                p.appendChild(s);
-            }
-        }
-
         if (p.classList.contains('page-cover-img') || 
             p.classList.contains('page-cover-pura') || 
             p.classList.contains('page-cover-text') || 
@@ -97,7 +79,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         }
         
         const area = p.querySelector('.content-area') || p;
-        p.querySelectorAll('.page-header, .page-footer').forEach(l => l.remove());
+        p.querySelectorAll('.page-header, .page-footer, style.cover-blind').forEach(l => l.remove());
 
         while (area.firstChild) {
             container.insertBefore(area.firstChild, p);
@@ -105,6 +87,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         p.remove();
       });
 
+      // 2. LIMPEZA DE LIXO HTML
       container.querySelectorAll('hr').forEach(hr => hr.remove());
       container.querySelectorAll('p').forEach(p => {
           if (p.innerHTML) {
@@ -122,6 +105,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           }
       });
 
+      // 3. SEPARAR CONTEÚDO
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
@@ -178,6 +162,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         return { pagina: novaPagina, areaTexto: contentArea };
       }
 
+      // 4. MONTAR AS NOVAS PÁGINAS COM MATEMÁTICA
       if (elementosIA.length > 0) {
         let atual = criarNovaPagina();
 
@@ -220,7 +205,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         }
       }
 
-      // CORREÇÃO: Faxina agressiva de páginas vazias para não roubarem números do índice
+      // 5. FAXINA DE PÁGINAS VAZIAS
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
         if (!area) { page.remove(); return; }
@@ -235,6 +220,28 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         }
       });
 
+      // ========================================================
+      // 6. BLINDAGEM MÁXIMA DA CAPA DE CAPÍTULO (CORRIGIDO)
+      // Aplica a força invisível APÓS as páginas serem recriadas.
+      // ========================================================
+      container.querySelectorAll('.page-container').forEach(p => {
+          if (p.querySelector('.cap-img-overlay')) {
+              const head = p.querySelector('.page-header');
+              const foot = p.querySelector('.page-footer');
+              if (head) head.style.setProperty('display', 'none', 'important');
+              if (foot) foot.style.setProperty('display', 'none', 'important');
+              
+              if (!p.id) p.id = 'page-' + Math.random().toString(36).substr(2, 9);
+              if (!p.querySelector('style.cover-blind')) {
+                  const s = document.createElement('style');
+                  s.className = 'cover-blind';
+                  s.innerHTML = \`#\${p.id}::after { display: none !important; border: none !important; }\`;
+                  p.appendChild(s);
+              }
+          }
+      });
+
+      // 7. RECRIAR O ÍNDICE PERFEITO
       function sincronizarIndice() {
         let tocs = container.querySelectorAll('.toc-container');
         if (tocs.length === 0) return;
@@ -440,6 +447,20 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
             selectedEl.style.outline = '';
             selectedEl = null;
          }
+      }
+      
+      // ========================================================
+      // O COMANDO DESFAZER RETORNOU (Restauração da Memória)
+      // ========================================================
+      if (e.data.type === 'UNDO_HTML' || e.data.type === 'REDO_HTML') {
+         const scrollY = window.scrollY;
+         document.getElementById('ebook-container').innerHTML = e.data.html;
+         setTimeout(() => {
+            executarRefluxoCompleto();
+            requestAnimationFrame(() => {
+               window.scrollTo(0, scrollY);
+            });
+         }, 50);
       }
       
       // EXCLUSÃO EM JS PURO E REFLUXO AUTÔNOMO

@@ -135,28 +135,28 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   border: none !important;
 }
 
-.page-cover-img::after, .page-cover-pura::after, .page-cover-text::after {
+/* BLINDAGEM NUCLEAR DAS CAPAS CONTRA LINHAS E NUMERAÇÃO */
+.page-cover-img::after, .page-cover-pura::after, .page-cover-text::after,
+#ebook-container > .page-container:first-child::after,
+.page-container:has(.cap-img-overlay)::after, 
+.cap-img-overlay::after {
   display: none !important;
   content: none !important;
   border: none !important;
 }
 
-/* BLINDAGEM ABSOLUTA DA CAPA INICIAL CONTRA LINHAS */
-#ebook-container > .page-container:first-child::after {
-  display: none !important;
-  content: none !important;
-  border: none !important;
-}
-
-/* BLINDAGEM CONTRA BORDAS E CABEÇALHOS NA CAPA DO CAPÍTULO (Mesmo após edição) */
-.page-container:has(.cap-img-overlay)::after { 
-  display: none !important; 
-}
+.page-cover-img .page-header, .page-cover-img .page-footer,
+.page-cover-pura .page-header, .page-cover-pura .page-footer,
+.page-cover-text .page-header, .page-cover-text .page-footer,
+#ebook-container > .page-container:first-child .page-header, 
+#ebook-container > .page-container:first-child .page-footer,
 .page-container:has(.cap-img-overlay) .page-header, 
-.page-container:has(.cap-img-overlay) .page-footer { 
-  display: none !important; 
-  opacity: 0 !important; 
-  visibility: hidden !important; 
+.page-container:has(.cap-img-overlay) .page-footer,
+.cap-img-overlay .page-header, .cap-img-overlay .page-footer,
+.cap-box-rounded .page-header, .cap-box-rounded .page-footer {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 /* BLINDAGEM DE LARGURA E CENTRALIZAÇÃO DO TÍTULO NA CAPA */
@@ -188,23 +188,12 @@ h2.chapter-title-inline { margin-top: 25px !important; margin-bottom: 15px !impo
   text-shadow: 0 0 15px rgba(0,0,0,0.9);
 }
 
-#ebook-container > .page-container:first-child .page-header, #ebook-container > .page-container:first-child .page-footer,
-.page-cover-img .page-header, .page-cover-img .page-footer, 
-.page-cover-pura .page-header, .page-cover-pura .page-footer,
-.page-cover-text .page-header, .page-cover-text .page-footer,
-.cap-box-rounded .page-header, .cap-box-rounded .page-footer {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-}
-
 .chapter-text-page { padding-top: 25mm !important; }
 
-.page-container::after, .cap-img-overlay::after {
+.page-container::after {
   content: ''; position: absolute; top: 6mm; left: 6mm; right: 6mm; bottom: 6mm; pointer-events: none; z-index: 50;
   border: ${opts.tipoBorda === 'single' ? '1px solid var(--color-border)' : opts.tipoBorda === 'medium' ? '2px solid var(--color-border)' : opts.tipoBorda === 'double-thin' ? '3px double var(--color-border)' : 'none'};
 }
-.page-cover-img::after, .cap-img-overlay::after { display: none !important; }
 
 .cap-img-overlay { 
   position: absolute !important; top: 0; left: 0; right: 0; bottom: 0;
@@ -285,7 +274,14 @@ img { max-width: 100%; height: auto; max-height: 35vh; border-radius: 0.5rem; ma
 .toc-container { display: flex; flex-direction: column; width: 100%; margin: 1rem 0; z-index: 60; position: relative; }
 .toc-item { display: flex; align-items: baseline; justify-content: space-between; width: 100%; text-decoration: none; color: var(--color-text); font-family: var(--font-body) !important; font-size: ${opts.tamanhoFonteBase} !important; padding: 6px 0; }
 .toc-dots { flex-grow: 1; border-bottom: 2px dotted var(--color-primary); margin: 0 8px; opacity: 0.3; }
-.toc-page-num { font-weight: bold; color: var(--color-primary); }
+
+/* VACINA DO ÍNDICE: Impede que o número seja esmagado e caia para a linha de baixo */
+.toc-page-num { 
+  font-weight: bold; 
+  color: var(--color-primary); 
+  white-space: nowrap !important; 
+  flex-shrink: 0 !important; 
+}
 
 .toc-subtopic {
   font-size: 0.75em !important;

@@ -1835,7 +1835,20 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
               >
                 <i className="fas fa-file-upload"></i> Importar Ebook
               </button>
-              {/* Botões de Desfazer Globais foram removidos para blindar o Layout. Use o Desfazer Local no Inspetor. */}
+              <button
+                onClick={desfazer}
+                disabled={historico.length === 0}
+                className="bg-yellow-50 hover:bg-yellow-100 border border-yellow-300 text-yellow-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i className="fas fa-undo"></i> Desfazer
+              </button>
+              <button
+                onClick={refazer}
+                disabled={futuro.length === 0}
+                className="bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i className="fas fa-redo"></i> Refazer
+              </button>
             </div>
             <div className="flex items-center gap-3">
               <button
