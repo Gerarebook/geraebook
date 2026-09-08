@@ -766,20 +766,19 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const instrucao = `Você é um ghostwriter profissional. Escreva APENAS a Introdução do e-book.
     
     DIRETRIZES DE FORMATAÇÃO:
-    1. GERE APENAS AS TAGS HTML. NENHUM texto solto fora das tags.
-    2. REGRA DE OURO: Para não transbordar a página, gere EXATAMENTE 3 PARÁGRAFOS de 50 a 60 palavras.
-    3. OBRIGATÓRIO: Envolva a resposta dentro de um bloco \`\`\`html \`\`\`
-    
-    RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
-    \`\`\`html
+    1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto fora das tags.
+    2. REGRA DE OURO: Cada parágrafo DEVE ter rigorosamente entre 60 e 70 palavras.
+    3. RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
+
     <h2 id="intro" class="chapter-title-inline">Introdução</h2>
     <h3 class="subtopic-title">O Início da Jornada</h3>
-    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 50 a 60 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 50 a 60 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 50 a 60 palavras.]</p>
-    \`\`\`
+    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 60 a 70 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 4 da Introdução. Exatamente 60 a 70 palavras.]</p>
 
-    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar pensamentos internos, lógicas ou anotações. Retorne APENAS o código HTML.`;
+    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar tags <div class="page-container">, gerar pensamentos internos ou anotações. Aja como um compilador cego.`;
+
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA/BASE PARA A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
     
     if (data && data.html) {
