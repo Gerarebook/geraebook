@@ -28,21 +28,30 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (footerExistente) modeloFooter = footerExistente.innerHTML;
 
       // ========================================================
-      // 1. O GRANDE DESMONTE (Guarda tudo que é sagrado no cofre)
+      // 1. O GRANDE DESMONTE E OS COFRES
       // ========================================================
       const coverPage = container.querySelector('.page-cover-img, .page-cover-pura, .page-cover-text');
       const legalPage = container.querySelector('[data-legal]');
       const authorPage = container.querySelector('.author-page');
       const extraPages = Array.from(container.querySelectorAll('.page-extra'));
       
-      // Retira do DOM temporariamente para não serem esmagados
+      // COFRE DO ÍNDICE: Salva a imagem/cor de fundo antes de destruir a página
+      const oldTocContainer = container.querySelector('.toc-container');
+      const oldTocPage = oldTocContainer ? oldTocContainer.closest('.page-container') : null;
+      let tocSavedStyles = '';
+      let tocSavedId = '';
+      if (oldTocPage) {
+          tocSavedStyles = oldTocPage.getAttribute('style') || '';
+          tocSavedId = oldTocPage.id || '';
+      }
+      
       if (coverPage) coverPage.remove();
       if (legalPage) legalPage.remove();
       if (authorPage) authorPage.remove();
       extraPages.forEach(p => p.remove());
 
       // ========================================================
-      // 2. EXTRAÇÃO CIRÚRGICA (Enfileira todo o conteúdo real)
+      // 2. EXTRAÇÃO CIRÚRGICA (Ignorando o Índice Antigo)
       // ========================================================
       const rawElements = [];
       
@@ -59,8 +68,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
               if (child.nodeType !== 1) return;
 
               if (child.tagName === 'STYLE' || child.tagName === 'SCRIPT') return;
-              if (child.classList.contains('toc-container') || child.classList.contains('toc-page-wrapper')) return;
               if (child.classList.contains('page-header') || child.classList.contains('page-footer')) return;
+              
+              // BLINDAGEM DO ÍNDICE: Impede que o título "Índice" escape e crie páginas extras
+              if (child.classList.contains('toc-container') || child.classList.contains('toc-page-wrapper')) return;
+              if (child.querySelector && child.querySelector('.toc-container')) return;
+              if (child.tagName === 'H2' && child.textContent.trim().toLowerCase() === 'índice') return;
               
               if (child.classList.contains('cap-img-overlay')) {
                   rawElements.push(child);
@@ -79,13 +92,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       
       extractNodes(container);
       
-      // Limpa a tela completamente
       const stylesAndScripts = Array.from(container.children).filter(el => el.tagName === 'STYLE' || el.tagName === 'SCRIPT');
       container.innerHTML = '';
       stylesAndScripts.forEach(el => container.appendChild(el));
       
       // ========================================================
-      // 3. REMONTAGEM ABSOLUTA (Recria as páginas do zero na ordem exata)
+      // 3. REMONTAGEM ABSOLUTA
       // ========================================================
       if (coverPage) container.appendChild(coverPage);
       if (legalPage) container.appendChild(legalPage);
@@ -111,13 +123,11 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           novaPagina.style.cssText = "padding: 0 !important; border: none !important;";
           novaPagina.id = 'page-' + Math.random().toString(36).substr(2, 9);
           
-          // BLINDAGEM NUCLEAR NA CAPA DE CAPÍTULO
           const s = document.createElement('style');
           s.className = 'cover-blind';
           s.innerHTML = \`#\${novaPagina.id}::after { display: none !important; border: none !important; }\`;
           novaPagina.appendChild(s);
           
-          // Auto-Cura da estrutura do Capítulo
           let next = overlayEl.nextElementSibling;
           while (next && (next.classList?.contains('cap-overlay-box') || next.tagName === 'H1')) {
               overlayEl.appendChild(next);
@@ -162,7 +172,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
           if (!atual) atual = criarNovaPaginaTexto();
 
-          // INTELIGÊNCIA DO SUBTÍTULO: Quebra página SOMENTE SE necessário
           let deveQuebrar = false;
           if (atual.areaTexto.children.length > 0) {
               if (el.tagName === 'H1' || el.tagName === 'H2') {
@@ -191,7 +200,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           if (!area || (area.textContent.trim() === '' && !area.querySelector('img'))) page.remove();
       });
 
-      // BLINDAGEM NUCLEAR DA CAPA PRINCIPAL (Impedindo o erro 12)
       if (coverPage) {
           coverPage.querySelectorAll('.page-header, .page-footer').forEach(el => el.remove());
           coverPage.style.setProperty('border', 'none', 'important');
@@ -207,7 +215,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (authorPage) container.appendChild(authorPage);
 
       // ========================================================
-      // 4. RECRIAR O ÍNDICE SINCRONIZADO DO ZERO
+      // 4. RECRIAR O ÍNDICE COM OS ESTILOS SALVOS
       // ========================================================
       function sincronizarIndice() {
           const titulos = container.querySelectorAll('h1, h2, h3');
@@ -269,6 +277,11 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
               if (!currentToc || itensPorPagina >= MAX_ITENS) {
                   const p = document.createElement('div');
                   p.className = 'page-container chapter-text-page toc-page-wrapper';
+                  
+                  // DEVOLVE OS ESTILOS SALVOS PARA A PÁGINA DO ÍNDICE NOVA
+                  if (tocSavedStyles) p.setAttribute('style', tocSavedStyles);
+                  if (tocSavedId && !currentToc) p.id = tocSavedId;
+
                   p.innerHTML = \`
                       <div class="page-header"><span></span><span>\${tituloDoLivro}</span></div>
                       <div class="content-area">
