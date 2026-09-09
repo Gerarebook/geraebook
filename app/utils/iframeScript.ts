@@ -21,7 +21,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (!container) return;
 
       // ========================================================
-      // 1. AUTO-CURA DA CAPA (Restaura o título do capítulo)
+      // 1. AUTO-CURA DA CAPA
       // ========================================================
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
           let next = overlay.nextElementSibling;
@@ -55,16 +55,14 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (footerExistente) modeloFooter = footerExistente.innerHTML;
 
       // ========================================================
-      // 2. DESEMPACOTAR PÁGINAS (Com blindagem das Capas)
+      // 2. DESEMPACOTAR PÁGINAS
       // ========================================================
       const todasPaginas = container.querySelectorAll('.page-container');
       todasPaginas.forEach(p => {
-        // Ignora totalmente a Capa Principal, Avisos e Autor
         if (p.classList.contains('page-cover-img') || p.classList.contains('page-cover-pura') || p.classList.contains('page-cover-text') || p.hasAttribute('data-legal') || p.classList.contains('author-page') || p.classList.contains('page-extra')) {
             return; 
         }
         
-        // Destrói o índice antigo para recriar depois
         if (p.querySelector('.toc-container')) {
             p.remove();
             return;
@@ -73,14 +71,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         const area = p.querySelector('.content-area') || p;
         p.querySelectorAll('.page-header, .page-footer, style.cover-blind').forEach(l => l.remove());
 
-        // Joga as tags soltas de volta pro container principal
         while (area.firstChild) {
             container.insertBefore(area.firstChild, p);
         }
-        p.remove(); // Apaga a "casca" da página
+        p.remove(); 
       });
 
-      // Limpeza de sujeiras HTML
       container.querySelectorAll('hr').forEach(hr => hr.remove());
       container.querySelectorAll('p').forEach(p => {
           if (p.innerHTML) p.innerHTML = p.innerHTML.replace(/^(&nbsp;|\\s)+/g, '');
@@ -95,7 +91,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           }
       });
 
-      // Filtra apenas o conteúdo que precisa ser recriado (Textos e Capas de Capítulos)
       const elementosIA = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
@@ -106,7 +101,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       );
 
       // ========================================================
-      // 3. RECRIAR AS PÁGINAS (Com Inteligência de Refluxo)
+      // 3. RECRIAR AS PÁGINAS (Com Anti-Órfão e Quebra Forçada)
       // ========================================================
       const LIMITE_ALTURA_TEXTO = 900; 
 
@@ -140,11 +135,10 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
       function criarPaginaCapaIsolada(overlayEl) {
         const novaPagina = document.createElement('div');
-        novaPagina.className = 'page-container capa-isolada'; // Classe blindada
+        novaPagina.className = 'page-container capa-isolada'; 
         novaPagina.style.padding = '0';
         novaPagina.style.border = 'none';
         
-        // A capa do capítulo entra sozinha na página, SEM header e SEM footer
         novaPagina.appendChild(overlayEl); 
 
         const endPage = container.querySelector('.author-page');
@@ -157,35 +151,56 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       for (let i = 0; i < elementosIA.length; i++) {
           let el = elementosIA[i];
 
-          // A. SE FOR A CAPA DO CAPÍTULO -> Cria página isolada!
           if (el.classList && el.classList.contains('cap-img-overlay')) {
               criarPaginaCapaIsolada(el);
-              atual = null; // Obriga a criar uma página de texto logo em seguida
+              atual = null; 
               continue;
           }
 
-          // B. SE FOR TEXTO NORMAL -> Vai para a página de texto
           if (!atual) atual = criarNovaPaginaTexto();
 
-          // Quebra de página forçada em H1 e H2
+          // --------------------------------------------------------
+          // QUEBRA INTELIGENTE PARA H1, H2 E H3
+          // --------------------------------------------------------
           let deveQuebrar = false;
           if (atual.areaTexto.children.length > 0) {
-              if (el.tagName === 'H1' || el.tagName === 'H2') deveQuebrar = true;
+              if (el.tagName === 'H1' || el.tagName === 'H2') {
+                  deveQuebrar = true;
+              } else if (el.tagName === 'H3') {
+                  // O H3 SÓ NÃO QUEBRA A PÁGINA SE ELE ESTIVER LOGO ABAIXO DE UM H1 ou H2 (Ex: Introdução)
+                  let ultimoElemento = atual.areaTexto.lastElementChild;
+                  if (ultimoElemento && ultimoElemento.tagName !== 'H1' && ultimoElemento.tagName !== 'H2') {
+                      deveQuebrar = true;
+                  }
+              }
           }
 
           if (deveQuebrar) atual = criarNovaPaginaTexto();
 
           atual.areaTexto.appendChild(el);
 
-          // Quebra por excesso de altura
+          // --------------------------------------------------------
+          // SISTEMA ANTI-ÓRFÃO (Se estourar a altura)
+          // --------------------------------------------------------
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
               atual.areaTexto.removeChild(el); 
+              
+              // Verifica se o elemento que ficou no final da página anterior é um Título.
+              // Se for um título solto, arranca ele de lá e leva para a página nova junto com o texto!
+              let orfao = atual.areaTexto.lastElementChild;
+              let moveOrfao = false;
+              if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'H4')) {
+                  moveOrfao = true;
+                  atual.areaTexto.removeChild(orfao);
+              }
+              
               atual = criarNovaPaginaTexto();
+              
+              if (moveOrfao) atual.areaTexto.appendChild(orfao);
               atual.areaTexto.appendChild(el);
           }
       }
 
-      // Faxina em páginas de texto que ficaram vazias
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
         if (!area || (area.textContent.trim() === '' && !area.querySelector('img'))) page.remove();
@@ -195,7 +210,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       // 4. BLINDAGEM NUCLEAR CONTRA LINHAS NAS CAPAS
       // ========================================================
       container.querySelectorAll('.page-cover-img, .page-cover-pura, .page-cover-text, .capa-isolada').forEach(p => {
-          // Remove qualquer header/footer que o JS possa ter injetado sem querer
           p.querySelectorAll('.page-header, .page-footer').forEach(el => el.remove());
           p.style.setProperty('border', 'none', 'important');
           
@@ -217,8 +231,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         const itens = [];
 
         titulos.forEach((titleEl) => {
-          // Ignora títulos da capa principal e página legal. 
-          // IMPORTANTE: NÃO ignora '.capa-isolada', para o índice achar as capas de capítulos!
           if (titleEl.closest('.page-cover-img, .page-cover-pura, [data-legal], .page-extra')) return;
           
           let texto = titleEl.textContent?.trim() || '';
@@ -278,7 +290,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         let currentToc = null;
         let currentPage = null;
         let itensPorPagina = 0;
-        const MAX_ITENS = 22; // Força quebra de página do índice para não transbordar
+        const MAX_ITENS = 22;
 
         itens.forEach(item => {
            if (!currentToc || itensPorPagina >= MAX_ITENS) {
@@ -291,7 +303,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
            itensPorPagina++;
         });
 
-        // NUMERAÇÃO DE PÁGINAS CORRETA
         const allPages = Array.from(container.children).filter(el => el.classList.contains('page-container'));
         
         container.querySelectorAll('.toc-item').forEach(item => {
@@ -345,7 +356,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
          const target = document.getElementById(e.data.id);
          if (target) {
             target.remove();
-            executarRefluxoCompleto(); // Dispara o Auto-Cura
+            executarRefluxoCompleto(); 
             setTimeout(() => {
                 window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
             }, 100);
@@ -417,7 +428,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       }
     });  
 
-    // Clique e Seleção de Elementos...
     document.addEventListener('mouseover', (e) => {
       if (!isEditMode) return;
       const el = e.target.closest('p, h1, h2, h3, h4, blockquote, img, li, .page-container, .highlight-box, .concept-box, .cap-img-overlay, .cap-overlay-box, i');
