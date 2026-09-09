@@ -21,7 +21,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (!container) return;
 
       // ========================================================
-      // 1. AUTO-CURA DA CAPA
+      // 1. AUTO-CURA DAS CAPAS (Restaura e garante o fundo)
       // ========================================================
       container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
           let next = overlay.nextElementSibling;
@@ -55,14 +55,13 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (footerExistente) modeloFooter = footerExistente.innerHTML;
 
       // ========================================================
-      // 2. DESEMPACOTAR PÁGINAS
+      // 2. DESEMPACOTAMENTO CIRÚRGICO (Sem perder a ordem)
       // ========================================================
-      const todasPaginas = container.querySelectorAll('.page-container');
-      todasPaginas.forEach(p => {
-        if (p.classList.contains('page-cover-img') || p.classList.contains('page-cover-pura') || p.classList.contains('page-cover-text') || p.hasAttribute('data-legal') || p.classList.contains('author-page') || p.classList.contains('page-extra')) {
-            return; 
-        }
-        
+      // Selecionamos APENAS as páginas de texto e capas de capítulos. A Capa principal fica intocada.
+      const paginasParaDesempacotar = container.querySelectorAll('.chapter-text-page, .capa-isolada');
+      
+      paginasParaDesempacotar.forEach(p => {
+        // Destrói o índice antigo para recriar limpo
         if (p.querySelector('.toc-container')) {
             p.remove();
             return;
@@ -71,27 +70,22 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         const area = p.querySelector('.content-area') || p;
         p.querySelectorAll('.page-header, .page-footer, style.cover-blind').forEach(l => l.remove());
 
+        // Joga as tags soltas de volta pro container na ordem EXATA que estavam
         while (area.firstChild) {
             container.insertBefore(area.firstChild, p);
         }
         p.remove(); 
       });
 
+      // Limpeza de lixo HTML gerado por edições
       container.querySelectorAll('hr').forEach(hr => hr.remove());
       container.querySelectorAll('p').forEach(p => {
           if (p.innerHTML) p.innerHTML = p.innerHTML.replace(/^(&nbsp;|\\s)+/g, '');
           if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
       });
-      Array.from(container.childNodes).forEach(node => {
-          if (node.nodeType === 3 && node.textContent.trim() !== '') {
-              const p = document.createElement('p');
-              p.textContent = node.textContent;
-              container.insertBefore(p, node);
-              node.remove();
-          }
-      });
 
-      const elementosIA = Array.from(container.children).filter(el =>
+      // Filtra os elementos soltos na ordem linear absoluta
+      const elementosSoltos = Array.from(container.children).filter(el =>
         !el.classList.contains('page-container') &&
         !el.classList.contains('page-cover-img') &&
         !el.hasAttribute('data-legal') &&
@@ -101,9 +95,13 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       );
 
       // ========================================================
-      // 3. RECRIAR AS PÁGINAS (Com Anti-Órfão e Quebra Forçada)
+      // 3. REMONTAGEM LINEAR E BLINDADA
       // ========================================================
       const LIMITE_ALTURA_TEXTO = 900; 
+
+      function getPontoInsercao() {
+         return container.querySelector('.author-page');
+      }
 
       function criarNovaPaginaTexto() {
         const novaPagina = document.createElement('div');
@@ -126,7 +124,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         footer.innerHTML = modeloFooter; 
         novaPagina.appendChild(footer);
 
-        const endPage = container.querySelector('.author-page');
+        const endPage = getPontoInsercao();
         if (endPage) container.insertBefore(novaPagina, endPage);
         else container.appendChild(novaPagina);
         
@@ -141,16 +139,17 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         
         novaPagina.appendChild(overlayEl); 
 
-        const endPage = container.querySelector('.author-page');
+        const endPage = getPontoInsercao();
         if (endPage) container.insertBefore(novaPagina, endPage);
         else container.appendChild(novaPagina);
       }
 
       let atual = null;
 
-      for (let i = 0; i < elementosIA.length; i++) {
-          let el = elementosIA[i];
+      for (let i = 0; i < elementosSoltos.length; i++) {
+          let el = elementosSoltos[i];
 
+          // A. SE FOR CAPA DE CAPÍTULO -> Cria página isolada blindada!
           if (el.classList && el.classList.contains('cap-img-overlay')) {
               criarPaginaCapaIsolada(el);
               atual = null; 
@@ -159,48 +158,23 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
           if (!atual) atual = criarNovaPaginaTexto();
 
-          // --------------------------------------------------------
-          // QUEBRA INTELIGENTE PARA H1, H2 E H3
-          // --------------------------------------------------------
-          let deveQuebrar = false;
-          if (atual.areaTexto.children.length > 0) {
-              if (el.tagName === 'H1' || el.tagName === 'H2') {
-                  deveQuebrar = true;
-              } else if (el.tagName === 'H3') {
-                  // O H3 SÓ NÃO QUEBRA A PÁGINA SE ELE ESTIVER LOGO ABAIXO DE UM H1 ou H2 (Ex: Introdução)
-                  let ultimoElemento = atual.areaTexto.lastElementChild;
-                  if (ultimoElemento && ultimoElemento.tagName !== 'H1' && ultimoElemento.tagName !== 'H2') {
-                      deveQuebrar = true;
-                  }
-              }
+          // B. QUEBRA DE PÁGINA OBRIGATÓRIA PARA TÍTULOS E SUBTÍTULOS
+          // O H3 (Subtítulo) agora força o início de uma nova página obrigatoriamente!
+          if (atual.areaTexto.children.length > 0 && (el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3')) {
+              atual = criarNovaPaginaTexto();
           }
-
-          if (deveQuebrar) atual = criarNovaPaginaTexto();
 
           atual.areaTexto.appendChild(el);
 
-          // --------------------------------------------------------
-          // SISTEMA ANTI-ÓRFÃO (Se estourar a altura)
-          // --------------------------------------------------------
+          // C. QUEBRA DE PÁGINA POR EXCESSO DE TEXTO
           if (atual.areaTexto.scrollHeight > LIMITE_ALTURA_TEXTO) {
               atual.areaTexto.removeChild(el); 
-              
-              // Verifica se o elemento que ficou no final da página anterior é um Título.
-              // Se for um título solto, arranca ele de lá e leva para a página nova junto com o texto!
-              let orfao = atual.areaTexto.lastElementChild;
-              let moveOrfao = false;
-              if (orfao && (orfao.tagName === 'H2' || orfao.tagName === 'H3' || orfao.tagName === 'H4')) {
-                  moveOrfao = true;
-                  atual.areaTexto.removeChild(orfao);
-              }
-              
               atual = criarNovaPaginaTexto();
-              
-              if (moveOrfao) atual.areaTexto.appendChild(orfao);
               atual.areaTexto.appendChild(el);
           }
       }
 
+      // Faxina final de páginas vazias criadas no processo
       container.querySelectorAll('.chapter-text-page').forEach(page => {
         const area = page.querySelector('.content-area');
         if (!area || (area.textContent.trim() === '' && !area.querySelector('img'))) page.remove();
@@ -223,7 +197,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       });
 
       // ========================================================
-      // 5. RECRIAR O ÍNDICE ABSOLUTO E SINCRONIZADO
+      // 5. RECRIAR O ÍNDICE SINCRONIZADO
       // ========================================================
       function sincronizarIndice() {
         const titulos = container.querySelectorAll('h1, h2, h3');
@@ -231,6 +205,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         const itens = [];
 
         titulos.forEach((titleEl) => {
+          // Ignora a capa principal, mas lê a '.capa-isolada' dos capítulos!
           if (titleEl.closest('.page-cover-img, .page-cover-pura, [data-legal], .page-extra')) return;
           
           let texto = titleEl.textContent?.trim() || '';
@@ -290,7 +265,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         let currentToc = null;
         let currentPage = null;
         let itensPorPagina = 0;
-        const MAX_ITENS = 22;
+        const MAX_ITENS = 22; 
 
         itens.forEach(item => {
            if (!currentToc || itensPorPagina >= MAX_ITENS) {
@@ -303,6 +278,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
            itensPorPagina++;
         });
 
+        // NUMERAÇÃO DE PÁGINAS CORRETA
         const allPages = Array.from(container.children).filter(el => el.classList.contains('page-container'));
         
         container.querySelectorAll('.toc-item').forEach(item => {
@@ -356,7 +332,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
          const target = document.getElementById(e.data.id);
          if (target) {
             target.remove();
-            executarRefluxoCompleto(); 
+            executarRefluxoCompleto();
             setTimeout(() => {
                 window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
             }, 100);
