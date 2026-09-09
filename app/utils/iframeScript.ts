@@ -20,33 +20,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       const container = document.getElementById('ebook-container');
       if (!container) return;
 
-      // ========================================================
-      // 1. AUTO-CURA DAS CAPAS (Restaura e garante o fundo)
-      // ========================================================
-      container.querySelectorAll('.cap-img-overlay').forEach(overlay => {
-          let next = overlay.nextElementSibling;
-          while (next && (next.classList?.contains('cap-overlay-box') || next.tagName === 'H1')) {
-              overlay.appendChild(next);
-              next = overlay.nextElementSibling;
-          }
-          let box = overlay.querySelector('.cap-overlay-box');
-          if (!box) {
-              box = document.createElement('div');
-              box.className = 'cap-overlay-box';
-              while (overlay.firstChild && overlay.firstChild !== box) {
-                  box.appendChild(overlay.firstChild);
-              }
-              overlay.appendChild(box);
-          }
-          
-          let bg = overlay.style.backgroundImage || '';
-          if (overlay.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
-             const keyword = encodeURIComponent(overlay.dataset.unsplash.trim());
-             const cacheBuster = Math.random().toString(36).substring(7);
-             overlay.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},abstract,texture,sig\${cacheBuster}')\`, 'important');
-          }
-      });
-
       const metaTitle = document.getElementById('meta-book-title');
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
@@ -55,94 +28,131 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (footerExistente) modeloFooter = footerExistente.innerHTML;
 
       // ========================================================
-      // 2. DESEMPACOTAMENTO CIRÚRGICO (Sem perder a ordem)
+      // 1. O GRANDE DESMONTE (Guarda tudo que é sagrado no cofre)
       // ========================================================
-      const paginasParaDesempacotar = container.querySelectorAll('.chapter-text-page, .capa-isolada');
+      const coverPage = container.querySelector('.page-cover-img, .page-cover-pura, .page-cover-text');
+      const legalPage = container.querySelector('[data-legal]');
+      const authorPage = container.querySelector('.author-page');
+      const extraPages = Array.from(container.querySelectorAll('.page-extra'));
       
-      paginasParaDesempacotar.forEach(p => {
-        if (p.querySelector('.toc-container')) {
-            p.remove();
-            return;
-        }
-        
-        const area = p.querySelector('.content-area') || p;
-        p.querySelectorAll('.page-header, .page-footer, style.cover-blind').forEach(l => l.remove());
-
-        while (area.firstChild) {
-            container.insertBefore(area.firstChild, p);
-        }
-        p.remove(); 
-      });
-
-      container.querySelectorAll('hr').forEach(hr => hr.remove());
-      container.querySelectorAll('p').forEach(p => {
-          if (p.innerHTML) p.innerHTML = p.innerHTML.replace(/^(&nbsp;|\\s)+/g, '');
-          if (!p.textContent.trim() && !p.querySelector('img')) p.remove();
-      });
-
-      const elementosSoltos = Array.from(container.children).filter(el =>
-        !el.classList.contains('page-container') &&
-        !el.classList.contains('page-cover-img') &&
-        !el.hasAttribute('data-legal') &&
-        !el.classList.contains('author-page') &&
-        !el.classList.contains('page-extra') &&
-        el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT'
-      );
+      // Retira do DOM temporariamente para não serem esmagados
+      if (coverPage) coverPage.remove();
+      if (legalPage) legalPage.remove();
+      if (authorPage) authorPage.remove();
+      extraPages.forEach(p => p.remove());
 
       // ========================================================
-      // 3. REMONTAGEM LINEAR E BLINDADA
+      // 2. EXTRAÇÃO CIRÚRGICA (Enfileira todo o conteúdo real)
       // ========================================================
+      const rawElements = [];
+      
+      function extractNodes(parent) {
+          Array.from(parent.childNodes).forEach(child => {
+              if (child.nodeType === 3) {
+                  if (child.textContent.trim() !== '') {
+                      const p = document.createElement('p');
+                      p.textContent = child.textContent;
+                      rawElements.push(p);
+                  }
+                  return;
+              }
+              if (child.nodeType !== 1) return;
+
+              if (child.tagName === 'STYLE' || child.tagName === 'SCRIPT') return;
+              if (child.classList.contains('toc-container') || child.classList.contains('toc-page-wrapper')) return;
+              if (child.classList.contains('page-header') || child.classList.contains('page-footer')) return;
+              
+              if (child.classList.contains('cap-img-overlay')) {
+                  rawElements.push(child);
+                  return;
+              }
+              
+              if (child.classList.contains('page-container')) {
+                  const area = child.querySelector('.content-area') || child;
+                  extractNodes(area);
+                  return;
+              }
+              
+              rawElements.push(child);
+          });
+      }
+      
+      extractNodes(container);
+      
+      // Limpa a tela completamente
+      const stylesAndScripts = Array.from(container.children).filter(el => el.tagName === 'STYLE' || el.tagName === 'SCRIPT');
+      container.innerHTML = '';
+      stylesAndScripts.forEach(el => container.appendChild(el));
+      
+      // ========================================================
+      // 3. REMONTAGEM ABSOLUTA (Recria as páginas do zero na ordem exata)
+      // ========================================================
+      if (coverPage) container.appendChild(coverPage);
+      if (legalPage) container.appendChild(legalPage);
+      extraPages.forEach(p => container.appendChild(p));
+
       const LIMITE_ALTURA_TEXTO = 900; 
 
-      function getPontoInsercao() {
-         return container.querySelector('.author-page');
-      }
-
       function criarNovaPaginaTexto() {
-        const novaPagina = document.createElement('div');
-        novaPagina.className = 'page-container chapter-text-page';
-        
-        const header = document.createElement('div');
-        header.className = 'page-header';
-        header.innerHTML = '<span></span><span>' + tituloDoLivro + '</span>';
-        novaPagina.appendChild(header);
-
-        const contentArea = document.createElement('div');
-        contentArea.className = 'content-area';
-        contentArea.style.display = 'flex';
-        contentArea.style.flexDirection = 'column';
-        contentArea.style.width = '100%'; 
-        novaPagina.appendChild(contentArea);
-
-        const footer = document.createElement('div');
-        footer.className = 'page-footer';
-        footer.innerHTML = modeloFooter; 
-        novaPagina.appendChild(footer);
-
-        const endPage = getPontoInsercao();
-        if (endPage) container.insertBefore(novaPagina, endPage);
-        else container.appendChild(novaPagina);
-        
-        return { pagina: novaPagina, areaTexto: contentArea };
+          const novaPagina = document.createElement('div');
+          novaPagina.className = 'page-container chapter-text-page';
+          novaPagina.innerHTML = \`
+              <div class="page-header"><span></span><span>\${tituloDoLivro}</span></div>
+              <div class="content-area" style="display: flex; flex-direction: column; width: 100%;"></div>
+              <div class="page-footer">\${modeloFooter}</div>
+          \`;
+          container.appendChild(novaPagina);
+          return { pagina: novaPagina, areaTexto: novaPagina.querySelector('.content-area') };
       }
 
       function criarPaginaCapaIsolada(overlayEl) {
-        const novaPagina = document.createElement('div');
-        novaPagina.className = 'page-container capa-isolada'; 
-        novaPagina.style.padding = '0';
-        novaPagina.style.border = 'none';
-        
-        novaPagina.appendChild(overlayEl); 
+          const novaPagina = document.createElement('div');
+          novaPagina.className = 'page-container capa-isolada'; 
+          novaPagina.style.cssText = "padding: 0 !important; border: none !important;";
+          novaPagina.id = 'page-' + Math.random().toString(36).substr(2, 9);
+          
+          // BLINDAGEM NUCLEAR NA CAPA DE CAPÍTULO
+          const s = document.createElement('style');
+          s.className = 'cover-blind';
+          s.innerHTML = \`#\${novaPagina.id}::after { display: none !important; border: none !important; }\`;
+          novaPagina.appendChild(s);
+          
+          // Auto-Cura da estrutura do Capítulo
+          let next = overlayEl.nextElementSibling;
+          while (next && (next.classList?.contains('cap-overlay-box') || next.tagName === 'H1')) {
+              overlayEl.appendChild(next);
+              next = overlayEl.nextElementSibling;
+          }
+          let box = overlayEl.querySelector('.cap-overlay-box');
+          if (!box) {
+              box = document.createElement('div');
+              box.className = 'cap-overlay-box';
+              while (overlayEl.firstChild && overlayEl.firstChild !== box) {
+                  box.appendChild(overlayEl.firstChild);
+              }
+              overlayEl.appendChild(box);
+          }
+          let bg = overlayEl.style.backgroundImage || '';
+          if (overlayEl.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
+             const keyword = encodeURIComponent(overlayEl.dataset.unsplash.trim());
+             const cacheBuster = Math.random().toString(36).substring(7);
+             overlayEl.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},abstract,texture,sig\${cacheBuster}')\`, 'important');
+          }
 
-        const endPage = getPontoInsercao();
-        if (endPage) container.insertBefore(novaPagina, endPage);
-        else container.appendChild(novaPagina);
+          novaPagina.appendChild(overlayEl); 
+          container.appendChild(novaPagina);
       }
 
       let atual = null;
 
-      for (let i = 0; i < elementosSoltos.length; i++) {
-          let el = elementosSoltos[i];
+      for (let i = 0; i < rawElements.length; i++) {
+          let el = rawElements[i];
+
+          if (el.tagName === 'HR') continue;
+          if (el.tagName === 'P') {
+              el.innerHTML = el.innerHTML.replace(/^(&nbsp;|\\s)+/g, '');
+              if (!el.textContent.trim() && !el.querySelector('img')) continue;
+          }
 
           if (el.classList && el.classList.contains('cap-img-overlay')) {
               criarPaginaCapaIsolada(el);
@@ -152,16 +162,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
           if (!atual) atual = criarNovaPaginaTexto();
 
-          // ========================================================
-          // LÓGICA DE QUEBRA INTELIGENTE (Corrigido para o H3)
-          // ========================================================
+          // INTELIGÊNCIA DO SUBTÍTULO: Quebra página SOMENTE SE necessário
           let deveQuebrar = false;
           if (atual.areaTexto.children.length > 0) {
               if (el.tagName === 'H1' || el.tagName === 'H2') {
-                  deveQuebrar = true; // H1 e H2 sempre quebram página
+                  deveQuebrar = true; 
               } else if (el.tagName === 'H3') {
-                  // O H3 SÓ quebra página se o que veio antes NÃO foi um título.
-                  // Assim ele não abandona a "Introdução" sozinha na página.
                   const ultimoElemento = atual.areaTexto.lastElementChild;
                   if (ultimoElemento && ultimoElemento.tagName !== 'H1' && ultimoElemento.tagName !== 'H2') {
                       deveQuebrar = true;
@@ -181,123 +187,124 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       }
 
       container.querySelectorAll('.chapter-text-page').forEach(page => {
-        const area = page.querySelector('.content-area');
-        if (!area || (area.textContent.trim() === '' && !area.querySelector('img'))) page.remove();
+          const area = page.querySelector('.content-area');
+          if (!area || (area.textContent.trim() === '' && !area.querySelector('img'))) page.remove();
       });
 
-      // ========================================================
-      // 4. BLINDAGEM NUCLEAR CONTRA LINHAS NAS CAPAS
-      // ========================================================
-      container.querySelectorAll('.page-cover-img, .page-cover-pura, .page-cover-text, .capa-isolada').forEach(p => {
-          p.querySelectorAll('.page-header, .page-footer').forEach(el => el.remove());
-          p.style.setProperty('border', 'none', 'important');
-          
-          if (!p.id) p.id = 'page-' + Math.random().toString(36).substr(2, 9);
-          if (!p.querySelector('style.cover-blind')) {
+      // BLINDAGEM NUCLEAR DA CAPA PRINCIPAL (Impedindo o erro 12)
+      if (coverPage) {
+          coverPage.querySelectorAll('.page-header, .page-footer').forEach(el => el.remove());
+          coverPage.style.setProperty('border', 'none', 'important');
+          if (!coverPage.id) coverPage.id = 'page-' + Math.random().toString(36).substr(2, 9);
+          if (!coverPage.querySelector('style.cover-blind')) {
               const s = document.createElement('style');
               s.className = 'cover-blind';
-              s.innerHTML = \`#\${p.id}::after { display: none !important; border: none !important; }\`;
-              p.appendChild(s);
+              s.innerHTML = \`#\${coverPage.id}::after { display: none !important; border: none !important; }\`;
+              coverPage.appendChild(s);
           }
-      });
+      }
+
+      if (authorPage) container.appendChild(authorPage);
 
       // ========================================================
-      // 5. RECRIAR O ÍNDICE SINCRONIZADO
+      // 4. RECRIAR O ÍNDICE SINCRONIZADO DO ZERO
       // ========================================================
       function sincronizarIndice() {
-        const titulos = container.querySelectorAll('h1, h2, h3');
-        const titulosVistos = new Set();
-        const itens = [];
+          const titulos = container.querySelectorAll('h1, h2, h3');
+          const titulosVistos = new Set();
+          const itens = [];
 
-        titulos.forEach((titleEl) => {
-          if (titleEl.closest('.page-cover-img, .page-cover-pura, [data-legal], .page-extra')) return;
-          
-          let texto = titleEl.textContent?.trim() || '';
-          if (!texto || /índice|sumário/i.test(texto)) return;
+          titulos.forEach((titleEl) => {
+              if (titleEl.closest('.page-cover-img, .page-cover-pura, .page-cover-text, [data-legal], .page-extra')) return;
+              
+              let texto = titleEl.textContent?.trim() || '';
+              if (!texto || /índice|sumário/i.test(texto)) return;
 
-          let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
-          if (titulosVistos.has(chave)) return;
-          titulosVistos.add(chave);
+              let chave = texto.toLowerCase().replace(/capítulo\\s*\\d+:/, '').trim();
+              if (titulosVistos.has(chave)) return;
+              titulosVistos.add(chave);
 
-          if (!titleEl.id) titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
+              if (!titleEl.id) titleEl.id = 'sec-' + Math.random().toString(36).substr(2, 9);
 
-          const a = document.createElement('a');
-          a.className = 'toc-item';
-          
-          if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
-            a.classList.add('toc-main-chapter');
-            a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
-            a.style.color = 'var(--color-primary)';
-          } else if (titleEl.tagName === 'H3') {
-            if (!${indexShowSubtopics}) return;
-            a.classList.add('toc-subtopic');
-            a.style.paddingLeft = '20px';
-            a.style.fontSize = '0.75em';
-            a.style.lineHeight = '1';
-            a.style.opacity = '0.85';
-          }
-
-          a.href = '#' + titleEl.id;
-          a.innerHTML = \`<span>\${texto}</span><span class="toc-dots"></span><span class="toc-page-num"></span>\`;
-          itens.push(a);
-        });
-
-        if (itens.length === 0) return;
-
-        function criarPaginaIndice(afterPage) {
-          const p = document.createElement('div');
-          p.className = 'page-container chapter-text-page toc-page-wrapper';
-          p.innerHTML = \`
-            <div class="page-header"><span></span><span>\${tituloDoLivro}</span></div>
-            <div class="content-area">
-                <h2 class="chapter-title-inline">Índice</h2>
-                <div class="toc-container"></div>
-            </div>
-            <div class="page-footer">\${modeloFooter}</div>
-          \`;
-          
-          if (afterPage && afterPage.parentNode) {
-            afterPage.parentNode.insertBefore(p, afterPage.nextSibling);
-          } else {
-            const pontoInsercao = container.querySelector('.chapter-text-page, .capa-isolada');
-            if (pontoInsercao) container.insertBefore(p, pontoInsercao);
-            else container.appendChild(p);
-          }
-          return { page: p, toc: p.querySelector('.toc-container') };
-        }
-
-        let currentToc = null;
-        let currentPage = null;
-        let itensPorPagina = 0;
-        const MAX_ITENS = 22; 
-
-        itens.forEach(item => {
-           if (!currentToc || itensPorPagina >= MAX_ITENS) {
-               const nova = criarPaginaIndice(currentPage);
-               currentPage = nova.page;
-               currentToc = nova.toc;
-               itensPorPagina = 0;
-           }
-           currentToc.appendChild(item);
-           itensPorPagina++;
-        });
-
-        const allPages = Array.from(container.children).filter(el => el.classList.contains('page-container'));
-        
-        container.querySelectorAll('.toc-item').forEach(item => {
-          const href = item.getAttribute('href');
-          if (href) {
-            const target = document.getElementById(href.substring(1));
-            if (target) {
-              const p = target.closest('.page-container');
-              if (p) {
-                const idx = allPages.indexOf(p) + 1;
-                const span = item.querySelector('.toc-page-num');
-                if (span) span.innerText = String(idx);
+              const a = document.createElement('a');
+              a.className = 'toc-item';
+              
+              if (titleEl.tagName === 'H1' || titleEl.tagName === 'H2') {
+                  a.classList.add('toc-main-chapter');
+                  a.style.fontWeight = ${indexShowSubtopics} ? '700' : '400';
+                  a.style.color = 'var(--color-primary)';
+              } else if (titleEl.tagName === 'H3') {
+                  if (!${indexShowSubtopics}) return;
+                  a.classList.add('toc-subtopic');
+                  a.style.paddingLeft = '20px';
+                  a.style.fontSize = '0.75em';
+                  a.style.lineHeight = '1';
+                  a.style.opacity = '0.85';
               }
-            }
+
+              a.href = '#' + titleEl.id;
+              a.innerHTML = \`<span>\${texto}</span><span class="toc-dots"></span><span class="toc-page-num"></span>\`;
+              itens.push(a);
+          });
+
+          if (itens.length === 0) return;
+
+          let insertPoint = container.firstChild;
+          const coversAndLegals = Array.from(container.children).filter(el => 
+              el.classList.contains('page-cover-img') || 
+              el.classList.contains('page-cover-pura') ||
+              el.classList.contains('page-cover-text') ||
+              el.hasAttribute('data-legal') ||
+              el.classList.contains('page-extra')
+          );
+          if (coversAndLegals.length > 0) {
+              insertPoint = coversAndLegals[coversAndLegals.length - 1].nextSibling;
           }
-        });
+
+          let currentToc = null;
+          let itensPorPagina = 0;
+          const MAX_ITENS = 22; 
+
+          itens.forEach(item => {
+              if (!currentToc || itensPorPagina >= MAX_ITENS) {
+                  const p = document.createElement('div');
+                  p.className = 'page-container chapter-text-page toc-page-wrapper';
+                  p.innerHTML = \`
+                      <div class="page-header"><span></span><span>\${tituloDoLivro}</span></div>
+                      <div class="content-area">
+                          <h2 class="chapter-title-inline">Índice</h2>
+                          <div class="toc-container"></div>
+                      </div>
+                      <div class="page-footer">\${modeloFooter}</div>
+                  \`;
+                  
+                  if (insertPoint) container.insertBefore(p, insertPoint);
+                  else container.appendChild(p);
+                  
+                  insertPoint = p.nextSibling;
+                  currentToc = p.querySelector('.toc-container');
+                  itensPorPagina = 0;
+              }
+              currentToc.appendChild(item);
+              itensPorPagina++;
+          });
+
+          const allPages = Array.from(container.children).filter(el => el.classList.contains('page-container'));
+          
+          container.querySelectorAll('.toc-item').forEach(item => {
+              const href = item.getAttribute('href');
+              if (href) {
+                  const target = document.getElementById(href.substring(1));
+                  if (target) {
+                      const p = target.closest('.page-container');
+                      if (p) {
+                          const idx = allPages.indexOf(p) + 1;
+                          const span = item.querySelector('.toc-page-num');
+                          if (span) span.innerText = String(idx);
+                      }
+                  }
+              }
+          });
       }
 
       sincronizarIndice();
@@ -306,12 +313,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       window.scrollTo(0, currentScrollY);
 
       setTimeout(() => {
-        if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
+          if (observer) observer.observe(document.getElementById('ebook-container'), { childList: true, subtree: true });
       }, 300);
     }
 
     // ========================================================
-    // RECEPTORES DE EVENTOS DO REACT
+    // EVENTOS REACT 
     // ========================================================
     window.addEventListener('message', (e) => {
       if (e.data.type === 'TOGGLE_EDIT_MODE') {
@@ -399,8 +406,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
 
       if (e.data.type === 'APPLY_GLOBAL_BG') {
          const color = e.data.color;
-         const pages = document.querySelectorAll('.page-container');
-         pages.forEach(page => {
+         container.querySelectorAll('.page-container').forEach(page => {
             page.style.setProperty('background-color', color, 'important');
          });
          window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
@@ -426,9 +432,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
         e.stopPropagation();
         const targetId = link.getAttribute('href').substring(1);
         const targetElement = document.getElementById(targetId);
-        if (targetElement) {
-            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (targetElement) targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return; 
       }
 
