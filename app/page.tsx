@@ -751,45 +751,66 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       return;
     }
 
-    // 1. CONSTRUÇÃO SÓLIDA EM JS PURO
+    // 1. CONSTRUÇÃO SÓLIDA EM JS PURO (Blindagem contra IA)
     const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
+    
     const paginaAviso = gerarPaginaAviso(livroTitulo);
+    
+    // CORREÇÃO: Índice agora nasce blindado dentro de um content-area
     const paginaIndice = `
-    <div class="page-container">
+    <div class="page-container chapter-text-page">
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
-        <h2 class="chapter-title-inline">Índice</h2>
-        <div class="toc-container"></div>
+        <div class="content-area">
+            <h2 class="chapter-title-inline">Índice</h2>
+            <div class="toc-container"></div>
+        </div>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>`;
 
-    // 2. IA FOCADA APENAS NO TEXTO (COM 3 PARÁGRAFOS PARA NÃO TRANSBORDAR)
-    const instrucao = `Você é um compilador de e-book. Retorne APENAS HTML.
+    // 2. IA FOCADA APENAS NO TEXTO DA INTRODUÇÃO
+    const instrucao = `Você é um ghostwriter profissional. Escreva a Introdução do e-book.
     
     DIRETRIZES DE FORMATAÇÃO:
     1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto fora das tags.
-    2. REGRA DE OURO: Cada parágrafo DEVE ter rigorosamente entre 50 e 60 palavras.
+    2. REGRA DE OURO: Gere EXATAMENTE 3 PARÁGRAFOS de 50 a 60 palavras cada.
     3. RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
 
     <h2 id="intro" class="chapter-title-inline">Introdução</h2>
     <h3 class="subtopic-title">O Início da Jornada</h3>
-    <p>[Escreva aqui o parágrafo 1 da Introdução. Exatamente 50 a 60 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 2 da Introdução. Exatamente 50 a 60 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 3 da Introdução. Exatamente 50 a 60 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 1. Exatamente 50 a 60 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 2. Exatamente 50 a 60 palavras.]</p>
+    <p>[Escreva aqui o parágrafo 3. Exatamente 50 a 60 palavras.]</p>
 
-    4. REGRA DE SEGURANÇA MÁXIMA: É PROIBIDO gerar tags <html>, <body>, <head> ou <div class="page-container">. Aja como um sistema cego.`;
+    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar tags html, body ou div. Aja como um compilador cego.`;
 
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA/BASE PARA A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
     
     if (data && data.html) {
-      let introLimpa = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
+      let rawContent = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
       
-      // BLINDAGEM NUCLEAR: Arranca à força qualquer tag que destrua o layout
-      introLimpa = introLimpa.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, '');
+      // EXTRATOR CIRÚRGICO (Ignora lixo gerado pela IA)
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawContent, 'text/html');
       
+      let extract = '';
+      doc.body.querySelectorAll('h1, h2, h3, h4, p, blockquote, ul, li').forEach(el => {
+          extract += el.outerHTML + '\n';
+      });
+      
+      let introLimpa = extract.trim() ? extract : rawContent.replace(/<\/?(html|head|body|doctype|main|div)[^>]*>/gi, '');
+
+      // Trava de segurança: Força a tag H2 se a IA falhar
+      if (!introLimpa.toLowerCase().includes('<h2')) {
+          introLimpa = '<h2 id="intro" class="chapter-title-inline">Introdução</h2>\n' + introLimpa;
+      }
+      
+      // CORREÇÃO: Introdução agora nasce blindada dentro de um content-area
       const introducaoHtml = `
-      <div class="page-container">
+      <div class="page-container chapter-text-page">
           <div class="page-header"><span></span><span>${livroTitulo}</span></div>
-          ${introLimpa}
+          <div class="content-area">
+              ${introLimpa}
+          </div>
           <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
       </div>`;
 
@@ -797,7 +818,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
       aplicarHtmlNovo(htmlPasso1, false, true);
       setEtapaAtual(1);
-      (window as any).showNotification('Passo 1 Concluído! Estrutura 100% ancorada no JS.', 'success');
+      (window as any).showNotification('Passo 1 Concluído com Sucesso!', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
     }
