@@ -751,44 +751,44 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       return;
     }
 
-    // 1. CONSTRUÇÃO SÓLIDA EM JS PURO (Blindagem contra IA)
-    const regraCapaHtml = `<div class="page-container page-cover-img"><h1>${livroTitulo || 'Meu E-book'}</h1><p>Por ${livroAutores || 'Autor'}</p></div>`;
+    // 1. BLINDAGEM MÁXIMA DA CAPA (CSS Inline garante que ela NUNCA murchará ou sumirá)
+    const regraCapaHtml = `
+    <div class="page-container page-cover-img" style="background: url('${imagemCapaUrl}') center/cover no-repeat !important; background-color: #0f172a !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important; height: 297mm !important; width: 100% !important; border: none !important;">
+        <h1 style="color: #ffffff !important; font-size: 3.5rem !important; font-weight: 800 !important; text-align: center !important; margin: 0 0 1rem 0 !important; text-shadow: 0 0 20px rgba(0,0,0,0.9); z-index: 100;">${livroTitulo || 'Meu E-book'}</h1>
+        <p style="color: #ffffff !important; font-size: 1.2rem !important; text-align: center !important; opacity: 0.9 !important; text-shadow: 0 0 15px rgba(0,0,0,0.9); z-index: 100;">Por ${livroAutores || 'Autor'}</p>
+    </div>`;
     
     const paginaAviso = gerarPaginaAviso(livroTitulo);
     
-    // CORREÇÃO: Índice agora nasce blindado dentro de um content-area
+    // 2. BLINDAGEM DO ÍNDICE (Garante altura mínima para não colapsar)
     const paginaIndice = `
     <div class="page-container chapter-text-page">
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
-        <div class="content-area">
+        <div class="content-area" style="min-height: 500px !important;">
             <h2 class="chapter-title-inline">Índice</h2>
             <div class="toc-container"></div>
         </div>
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>`;
 
-    // 2. IA FOCADA APENAS NO TEXTO DA INTRODUÇÃO
+    // 3. IA FOCADA APENAS NO TEXTO
     const instrucao = `Você é um ghostwriter profissional. Escreva a Introdução do e-book.
-    
-    DIRETRIZES DE FORMATAÇÃO:
-    1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto fora das tags.
-    2. REGRA DE OURO: Gere EXATAMENTE 3 PARÁGRAFOS de 50 a 60 palavras cada.
-    3. RETORNE EXATAMENTE ESTE MOLDE PREENCHIDO E NADA MAIS:
-
+    DIRETRIZES:
+    1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto.
+    2. Gere EXATAMENTE 3 PARÁGRAFOS de 50 a 60 palavras cada.
+    3. RETORNE EXATAMENTE ESTE MOLDE:
     <h2 id="intro" class="chapter-title-inline">Introdução</h2>
     <h3 class="subtopic-title">O Início da Jornada</h3>
-    <p>[Escreva aqui o parágrafo 1. Exatamente 50 a 60 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 2. Exatamente 50 a 60 palavras.]</p>
-    <p>[Escreva aqui o parágrafo 3. Exatamente 50 a 60 palavras.]</p>
+    <p>[Parágrafo 1]</p>
+    <p>[Parágrafo 2]</p>
+    <p>[Parágrafo 3]</p>
+    4. PROIBIDO gerar tags html, body, main ou div. Aja como um compilador cego.`;
 
-    4. REGRA DE SEGURANÇA MÁXIMA: É ESTRITAMENTE PROIBIDO gerar tags html, body ou div. Aja como um compilador cego.`;
-
-    const data = await chamarMotorIA(instrucao, [{ text: `TEMA/BASE PARA A INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
+    const data = await chamarMotorIA(instrucao, [{ text: `TEMA PARA INTRODUÇÃO:\n"""\n${content}\n"""` }], false);
     
     if (data && data.html) {
       let rawContent = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
       
-      // EXTRATOR CIRÚRGICO (Ignora lixo gerado pela IA)
       const parser = new DOMParser();
       const doc = parser.parseFromString(rawContent, 'text/html');
       
@@ -799,12 +799,10 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       
       let introLimpa = extract.trim() ? extract : rawContent.replace(/<\/?(html|head|body|doctype|main|div)[^>]*>/gi, '');
 
-      // Trava de segurança: Força a tag H2 se a IA falhar
       if (!introLimpa.toLowerCase().includes('<h2')) {
           introLimpa = '<h2 id="intro" class="chapter-title-inline">Introdução</h2>\n' + introLimpa;
       }
       
-      // CORREÇÃO: Introdução agora nasce blindada dentro de um content-area
       const introducaoHtml = `
       <div class="page-container chapter-text-page">
           <div class="page-header"><span></span><span>${livroTitulo}</span></div>
@@ -818,7 +816,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
       aplicarHtmlNovo(htmlPasso1, false, true);
       setEtapaAtual(1);
-      (window as any).showNotification('Passo 1 Concluído com Sucesso!', 'success');
+      (window as any).showNotification('Passo 1 Concluído! Capa e Índice ancorados.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
     }
