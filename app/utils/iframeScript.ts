@@ -23,9 +23,15 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       const metaTitle = document.getElementById('meta-book-title');
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
-      let modeloFooter = '<span class="page-number"></span>';
+      // CAPTURA DO AUTOR PARA O RODAPÉ
+      const autorCapa = container.querySelector('.page-cover-img p, .page-cover-pura p, .page-cover-text p');
+      let nomeAutor = autorCapa ? autorCapa.textContent.replace(/^Por\\s+/i, '').trim() : '';
+
+      let modeloFooter = \`<span>\${nomeAutor}</span><span class="page-number"></span>\`;
       const footerExistente = container.querySelector('.page-footer');
-      if (footerExistente) modeloFooter = footerExistente.innerHTML;
+      if (footerExistente && footerExistente.innerHTML.includes('page-number')) {
+          modeloFooter = footerExistente.innerHTML;
+      }
 
       // ========================================================
       // 1. O GRANDE DESMONTE E OS COFRES
@@ -35,7 +41,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       const authorPage = container.querySelector('.author-page');
       const extraPages = Array.from(container.querySelectorAll('.page-extra'));
       
-      // COFRE DO ÍNDICE: Salva a imagem/cor de fundo antes de destruir a página
       const oldTocContainer = container.querySelector('.toc-container');
       const oldTocPage = oldTocContainer ? oldTocContainer.closest('.page-container') : null;
       let tocSavedStyles = '';
@@ -51,7 +56,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       extraPages.forEach(p => p.remove());
 
       // ========================================================
-      // 2. EXTRAÇÃO CIRÚRGICA (Ignorando o Índice Antigo)
+      // 2. EXTRAÇÃO CIRÚRGICA 
       // ========================================================
       const rawElements = [];
       
@@ -70,7 +75,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
               if (child.tagName === 'STYLE' || child.tagName === 'SCRIPT') return;
               if (child.classList.contains('page-header') || child.classList.contains('page-footer')) return;
               
-              // BLINDAGEM DO ÍNDICE: Impede que o título "Índice" escape e crie páginas extras
               if (child.classList.contains('toc-container') || child.classList.contains('toc-page-wrapper')) return;
               if (child.querySelector && child.querySelector('.toc-container')) return;
               if (child.tagName === 'H2' && child.textContent.trim().toLowerCase() === 'índice') return;
@@ -91,6 +95,22 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       }
       
       extractNodes(container);
+
+      // COSTUREIRO DE PARÁGRAFOS (Resolve a quebra de frases da IA)
+      for (let i = 0; i < rawElements.length - 1; i++) {
+          let el1 = rawElements[i];
+          let el2 = rawElements[i+1];
+          if (el1.tagName === 'P' && el2.tagName === 'P') {
+              let text = el1.textContent.trim();
+              // Se o parágrafo NÃO terminar com pontuação, ele une com o próximo
+              if (text.length > 0 && !/[.!?:"']$/.test(text)) {
+                  el1.innerHTML += ' ' + el2.innerHTML;
+                  if(el2.parentNode) el2.parentNode.removeChild(el2);
+                  rawElements.splice(i + 1, 1);
+                  i--; // Volta um passo para garantir costura contínua
+              }
+          }
+      }
       
       const stylesAndScripts = Array.from(container.children).filter(el => el.tagName === 'STYLE' || el.tagName === 'SCRIPT');
       container.innerHTML = '';
@@ -143,10 +163,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
               overlayEl.appendChild(box);
           }
           let bg = overlayEl.style.backgroundImage || '';
+          
+          // NOVO PROVEDOR DE IMAGENS (Substitui o Unsplash desativado)
           if (overlayEl.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
              const keyword = encodeURIComponent(overlayEl.dataset.unsplash.trim());
              const cacheBuster = Math.random().toString(36).substring(7);
-             overlayEl.style.setProperty('background-image', \`url('https://images.unsplash.com/featured/1200x800/?\${keyword},abstract,texture,sig\${cacheBuster}')\`, 'important');
+             overlayEl.style.setProperty('background-image', \`url('https://loremflickr.com/1200/800/\${keyword},abstract?random=\${cacheBuster}')\`, 'important');
           }
 
           novaPagina.appendChild(overlayEl); 
@@ -215,7 +237,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (authorPage) container.appendChild(authorPage);
 
       // ========================================================
-      // 4. RECRIAR O ÍNDICE COM OS ESTILOS SALVOS
+      // 4. RECRIAR O ÍNDICE 
       // ========================================================
       function sincronizarIndice() {
           const titulos = container.querySelectorAll('h1, h2, h3');
@@ -278,7 +300,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
                   const p = document.createElement('div');
                   p.className = 'page-container chapter-text-page toc-page-wrapper';
                   
-                  // DEVOLVE OS ESTILOS SALVOS PARA A PÁGINA DO ÍNDICE NOVA
                   if (tocSavedStyles) p.setAttribute('style', tocSavedStyles);
                   if (tocSavedId && !currentToc) p.id = tocSavedId;
 
