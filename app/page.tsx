@@ -1850,13 +1850,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                           <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
                           <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
                           <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
-            )}         
+            </div>
 
           <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between text-xs">
             <span className="text-slate-400 font-medium">Motor IA: Google Gemini</span>
