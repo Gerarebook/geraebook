@@ -1448,19 +1448,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         <option value="linha-superior">Linha Superior + Autor + Num</option>
                         <option value="centralizado-circulo">Centralizado com Círculo</option>
                         <option value="centralizado">Apenas Número Centralizado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="input-label text-[9px]">Recuo do Parágrafo</label>
-                      <select
-                        value={recuoParagrafo}
-                        onChange={(e) => setRecuoParagrafo(e.target.value)}
-                        className="input-standard text-[10px]"
-                      >
-                        <option value="0px">Sem recuo (0px)</option>
-                        <option value="40px">Recuo Premium (40px)</option>
-                      </select>
-                    </div>
+                      </select>                    
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-3">
