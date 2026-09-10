@@ -1536,8 +1536,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              </div>           
 
             {modoInspetor && (
               <div className="animate-[fadeIn_0.2s_ease] mt-4 border-t border-slate-200 pt-4">
