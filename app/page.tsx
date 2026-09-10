@@ -1322,19 +1322,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                 <div className="panel-section">
                   <div className="flex justify-between items-center mb-3">
                     <label className="input-label mb-0 text-indigo-600">Conteúdo & Capítulos</label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setModalBiblioteca(true)}
-                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 transition shadow-sm"
-                      >
-                        <i className="fas fa-book mr-1"></i> Biblioteca ({livrosSalvos.length})
-                      </button>
-                      <button
-                        onClick={salvarNaBiblioteca}
-                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 transition shadow-sm"
-                      >
-                        <i className="fas fa-save mr-1"></i> Salvar Local
-                      </button>
+                    <div className="flex gap-2">                      
                     </div>
                   </div>
                   <div className="space-y-3">
