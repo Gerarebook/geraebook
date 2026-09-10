@@ -602,22 +602,36 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   // FUNÇÕES DE GERENCIAMENTO DE BIBLIOTECA E ARQUIVOS
   // ============================================================
 
-  function salvarNaBiblioteca() {
-    if (!livroTitulo || livroTitulo.trim() === '') {
-      (window as any).showNotification('Dê um título ao E-book antes de salvar.', 'error');
-      return;
-    }
+  function baixarEbookHTML() {
     if (!htmlAtual || htmlAtual.trim() === '') {
-      (window as any).showNotification('Não há conteúdo para salvar.', 'error');
+      (window as any).showNotification('Gere o e-book antes de baixar.', 'error');
       return;
     }
-
-    const id = Date.now().toString();
-    const novoLivro = { id, titulo: livroTitulo, data: new Date().toLocaleDateString('pt-BR'), html: htmlAtual, prompt: productContent };
-    const novaBiblioteca = [...livrosSalvos, novoLivro];
-    setLivrosSalvos(novaBiblioteca);
-    localStorage.setItem('ebook_saved_books', JSON.stringify(novaBiblioteca));
-    (window as any).showNotification('E-book salvo na sua Biblioteca Local!', 'success');
+    
+    // Captura o documento exato, com todo o CSS e Javascript blindado que criamos
+    const iframe = document.querySelector('iframe');
+    if (!iframe || !iframe.contentDocument) {
+      (window as any).showNotification('Erro ao acessar o visualizador.', 'error');
+      return;
+    }
+    
+    const htmlCompleto = "<!DOCTYPE html>\n" + iframe.contentDocument.documentElement.outerHTML;
+    
+    // Cria um arquivo virtual e força o download
+    const blob = new Blob([htmlCompleto], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    const nomeArquivo = livroTitulo ? livroTitulo.replace(/\s+/g, '_') + '.html' : 'meu_ebook.html';
+    link.download = nomeArquivo;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    (window as any).showNotification('E-book HTML baixado com sucesso!', 'success');
   }
 
   function carregarDaBiblioteca(livro: any) {
