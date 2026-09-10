@@ -23,18 +23,15 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       const metaTitle = document.getElementById('meta-book-title');
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
-     // ========================================================
-      // CAPTURA DO AUTOR E ATUALIZAÇÃO FORÇADA DO RODAPÉ
+      // ========================================================
+      // 1. CAPTURA O AUTOR DA CAPA E CRIA O RODAPÉ ABSOLUTO
       // ========================================================
       const autorCapa = container.querySelector('.page-cover-img p, .page-cover-pura p, .page-cover-text p');
-      let nomeAutor = autorCapa ? autorCapa.textContent.replace(/^Por\s+/i, '').trim() : '';
+      let nomeAutor = autorCapa ? autorCapa.textContent.replace(/^Por\\s+/i, '').trim() : '';
 
-      // A blindagem real: Nunca copia rodapé velho. Sempre injeta o nome do autor atualizado!
-      let modeloFooter = `<span>${nomeAutor}</span><span class="page-number"></span>`;
+      // Essa estrutura será injetada e o ebookTheme.ts (CSS) vai esconder/mostrar conforme suas opções!
+      let modeloFooter = \`<span class="footer-author">\${nomeAutor}</span><span class="page-number"></span>\`;
 
-      // ========================================================
-      // 1. O GRANDE DESMONTE E OS COFRES
-      // ========================================================
       const coverPage = container.querySelector('.page-cover-img, .page-cover-pura, .page-cover-text');
       const legalPage = container.querySelector('[data-legal]');
       const authorPage = container.querySelector('.author-page');
@@ -95,18 +92,16 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       
       extractNodes(container);
 
-      // COSTUREIRO DE PARÁGRAFOS (Resolve a quebra de frases da IA)
       for (let i = 0; i < rawElements.length - 1; i++) {
           let el1 = rawElements[i];
           let el2 = rawElements[i+1];
           if (el1.tagName === 'P' && el2.tagName === 'P') {
               let text = el1.textContent.trim();
-              // Se o parágrafo NÃO terminar com pontuação, ele une com o próximo
               if (text.length > 0 && !/[.!?:"']$/.test(text)) {
                   el1.innerHTML += ' ' + el2.innerHTML;
                   if(el2.parentNode) el2.parentNode.removeChild(el2);
                   rawElements.splice(i + 1, 1);
-                  i--; // Volta um passo para garantir costura contínua
+                  i--; 
               }
           }
       }
@@ -163,7 +158,6 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           }
           let bg = overlayEl.style.backgroundImage || '';
           
-          // NOVO PROVEDOR DE IMAGENS (Substitui o Unsplash desativado)
           if (overlayEl.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
              const keyword = encodeURIComponent(overlayEl.dataset.unsplash.trim());
              const cacheBuster = Math.random().toString(36).substring(7);
