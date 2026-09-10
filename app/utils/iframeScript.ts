@@ -23,15 +23,14 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       const metaTitle = document.getElementById('meta-book-title');
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
-      // CAPTURA DO AUTOR PARA O RODAPÉ
+     // ========================================================
+      // CAPTURA DO AUTOR E ATUALIZAÇÃO FORÇADA DO RODAPÉ
+      // ========================================================
       const autorCapa = container.querySelector('.page-cover-img p, .page-cover-pura p, .page-cover-text p');
-      let nomeAutor = autorCapa ? autorCapa.textContent.replace(/^Por\\s+/i, '').trim() : '';
+      let nomeAutor = autorCapa ? autorCapa.textContent.replace(/^Por\s+/i, '').trim() : '';
 
-      let modeloFooter = \`<span>\${nomeAutor}</span><span class="page-number"></span>\`;
-      const footerExistente = container.querySelector('.page-footer');
-      if (footerExistente && footerExistente.innerHTML.includes('page-number')) {
-          modeloFooter = footerExistente.innerHTML;
-      }
+      // A blindagem real: Nunca copia rodapé velho. Sempre injeta o nome do autor atualizado!
+      let modeloFooter = `<span>${nomeAutor}</span><span class="page-number"></span>`;
 
       // ========================================================
       // 1. O GRANDE DESMONTE E OS COFRES
