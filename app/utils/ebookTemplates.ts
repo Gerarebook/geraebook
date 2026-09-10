@@ -67,10 +67,10 @@ export function obterInstrucoesBase(opts?: { numeroCapitulo?: number, tema?: str
 
      <!-- PÁGINA 2: O Despertar (Conteúdo Inicial) -->
      <h3 class="subtopic-title">[Subtítulo Inicial]</h3>
-     <p>[Parágrafo 1 - Aprox 50 palavras]</p>
-     <p>[Parágrafo 2 - Aprox 50 palavras]</p>
-     <p>[Parágrafo 3 - Aprox 50 palavras]</p>
-     <p>[Parágrafo 4 - Aprox 50 palavras]</p>
+     <p>[Parágrafo 1 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 2 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 3 - Aprox 60 palavras]</p>
+     <p>[Parágrafo 4 - Aprox 60 palavras]</p>
      <div class="concept-box"><i class="fas [ICONE_DINAMICO]"></i> [Substitua ICONE_DINAMICO por um icone fontawesome contextual (ex: fa-leaf, fa-brain, fa-rocket). Escreva uma IDEIA CENTRAL. Máximo 20 palavras.]</div>
 
      <!-- PÁGINA 3: O Aprofundamento (Meio) -->
