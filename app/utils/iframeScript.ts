@@ -167,21 +167,18 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           }
           let bg = overlayEl.style.backgroundImage || '';
           
-          // API DE IMAGENS POR IA (POLLINATIONS) - Tchau, gatos pretos!
           if (overlayEl.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg.includes('loremflickr') || bg.includes('pollinations'))) {
              const keyword = encodeURIComponent(overlayEl.dataset.unsplash.trim());
              
-             // Chama a sua rota de API configurada no Next.js
-             fetch(`/api/unsplash?query=${keyword}`)
+             // Chama a sua rota de API configurada no Next.js (Adeus gatos!)
+             fetch(\`/api/unsplash?query=\${keyword}\`)
                .then(res => res.json())
                .then(data => {
-                   // Tenta capturar a URL (cobre os formatos mais comuns de retorno JSON)
                    const imageUrl = data.url || data.imageUrl || data.image || (data.urls && data.urls.regular);
                    
                    if (imageUrl) {
-                       overlayEl.style.setProperty('background-image', `url('${imageUrl}')`, 'important');
+                       overlayEl.style.setProperty('background-image', \`url('\${imageUrl}')\`, 'important');
                        
-                       // Sincroniza o HTML com o painel principal assim que a imagem chega!
                        setTimeout(() => {
                            window.parent.postMessage({ 
                                type: 'HTML_SYNC', 
