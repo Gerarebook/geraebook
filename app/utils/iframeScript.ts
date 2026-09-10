@@ -168,9 +168,29 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           let bg = overlayEl.style.backgroundImage || '';
           
           // API DE IMAGENS POR IA (POLLINATIONS) - Tchau, gatos pretos!
-          if (overlayEl.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
+          if (overlayEl.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial') || bg.includes('loremflickr') || bg.includes('pollinations'))) {
              const keyword = encodeURIComponent(overlayEl.dataset.unsplash.trim());
-             overlayEl.style.setProperty('background-image', \`url('https://image.pollinations.ai/prompt/\${keyword}%20book%20chapter%20abstract%20background?width=1200&height=800&nologo=true')\`, 'important');
+             
+             // Chama a sua rota de API configurada no Next.js
+             fetch(`/api/unsplash?query=${keyword}`)
+               .then(res => res.json())
+               .then(data => {
+                   // Tenta capturar a URL (cobre os formatos mais comuns de retorno JSON)
+                   const imageUrl = data.url || data.imageUrl || data.image || (data.urls && data.urls.regular);
+                   
+                   if (imageUrl) {
+                       overlayEl.style.setProperty('background-image', `url('${imageUrl}')`, 'important');
+                       
+                       // Sincroniza o HTML com o painel principal assim que a imagem chega!
+                       setTimeout(() => {
+                           window.parent.postMessage({ 
+                               type: 'HTML_SYNC', 
+                               html: document.getElementById('ebook-container').innerHTML 
+                           }, '*');
+                       }, 200);
+                   }
+               })
+               .catch(err => console.error('Erro na API do Unsplash:', err));
           }
 
           novaPagina.appendChild(overlayEl); 
