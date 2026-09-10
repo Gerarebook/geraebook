@@ -775,7 +775,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const instrucao = `Você é um ghostwriter profissional. Escreva a Introdução do e-book.
     DIRETRIZES:
     1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto.
-    2. Gere EXATAMENTE 3 PARÁGRAFOS de 50 a 60 palavras cada.
+    2. Gere EXATAMENTE 3 PARÁGRAFOS de 60 a 70 palavras cada.
     3. RETORNE EXATAMENTE ESTE MOLDE:
     <h2 id="intro" class="chapter-title-inline">Introdução</h2>
     <h3 class="subtopic-title">O Início da Jornada</h3>
