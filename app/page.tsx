@@ -29,7 +29,6 @@ export default function Home() {
   const [tamanhoFonteBase, setTamanhoFonteBase] = useState('14pt');
   const [espacamentoLinhas, setEspacamentoLinhas] = useState('1.5');
   const [espacamentoParagrafo, setEspacamentoParagrafo] = useState('0.8em');
-  const [recuoParagrafo, setRecuoParagrafo] = useState('0px');
   const [tipoBorda, setTipoBorda] = useState<'none' | 'single' | 'medium' | 'double-thin'>('none');
   
   const [corFundoPagina, setCorFundoPagina] = useState('#ffffff');
@@ -88,7 +87,6 @@ export default function Home() {
     fontFamily,
     tamanhoFonteBase,
     espacamentoLinhas,
-    recuoParagrafo,
     corRetanguloCapitulo,
     tipoBorda,
     estiloRodape,
@@ -891,12 +889,23 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     ], false);
 
     if (data && data.html) {
-      let capLimpo = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
-      capLimpo = capLimpo.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, ''); // Escudo Ativo
-
-      aplicarHtmlNovo(capLimpo, true, true);
+      let raw = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
+      let ext = '';
+      
+      new DOMParser().parseFromString(raw, 'text/html').body.querySelectorAll('div.cap-img-overlay, h1, h2, h3, h4, p, blockquote, ul, li, div.concept-box, div.highlight-box').forEach(el => {
+          let txt = el.textContent.trim();
+          
+          // O FILTRO DA MORDAÇA: Se a frase começar com asterisco, ou palavras de raciocínio da IA, é sumariamente deletada!
+          if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:)/i.test(txt)) {
+              return; // Ignora o pensamento e pula pro próximo
+          }
+          
+          ext += el.outerHTML + '\n';
+      });
+      
+      aplicarHtmlNovo(ext.trim() ? ext : raw.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, ''), true, true);
       setEtapaAtual(2);
-      (window as any).showNotification('Passo 2 Concluído! 3 capítulos adicionados.', 'success');
+      (window as any).showNotification('Passo 2 Concluído! 3 capítulos blindados.', 'success');
     } else {
       console.error('Dados retornados pela IA são inválidos:', data);
     }
