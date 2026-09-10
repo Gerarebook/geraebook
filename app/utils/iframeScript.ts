@@ -24,13 +24,13 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       let tituloDoLivro = metaTitle && metaTitle.getAttribute('content') ? metaTitle.getAttribute('content').toUpperCase().trim() : "";
 
       // ========================================================
-      // 1. CAPTURA O AUTOR DA CAPA E CRIA O RODAPÉ ABSOLUTO
+      // 1. INJEÇÃO FORÇADA DO AUTOR NO RODAPÉ
       // ========================================================
       const autorCapa = container.querySelector('.page-cover-img p, .page-cover-pura p, .page-cover-text p');
       let nomeAutor = autorCapa ? autorCapa.textContent.replace(/^Por\\s+/i, '').trim() : '';
 
-      // Essa estrutura será injetada e o ebookTheme.ts (CSS) vai esconder/mostrar conforme suas opções!
-      let modeloFooter = \`<span class="footer-author">\${nomeAutor}</span><span class="page-number"></span>\`;
+      // O Javascript agora FORÇA o autor a aparecer no lado esquerdo do rodapé
+      let modeloFooter = \`<span style="font-weight: 600; opacity: 0.9;">\${nomeAutor}</span><span class="page-number" style="margin-left: auto;"></span>\`;
 
       const coverPage = container.querySelector('.page-cover-img, .page-cover-pura, .page-cover-text');
       const legalPage = container.querySelector('[data-legal]');
@@ -52,7 +52,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       extraPages.forEach(p => p.remove());
 
       // ========================================================
-      // 2. EXTRAÇÃO CIRÚRGICA 
+      // 2. EXTRAÇÃO E EXTERMINADOR DE ALUCINAÇÕES
       // ========================================================
       const rawElements = [];
       
@@ -67,10 +67,8 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
                   return;
               }
               if (child.nodeType !== 1) return;
-
               if (child.tagName === 'STYLE' || child.tagName === 'SCRIPT') return;
               if (child.classList.contains('page-header') || child.classList.contains('page-footer')) return;
-              
               if (child.classList.contains('toc-container') || child.classList.contains('toc-page-wrapper')) return;
               if (child.querySelector && child.querySelector('.toc-container')) return;
               if (child.tagName === 'H2' && child.textContent.trim().toLowerCase() === 'índice') return;
@@ -79,29 +77,40 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
                   rawElements.push(child);
                   return;
               }
-              
               if (child.classList.contains('page-container')) {
                   const area = child.querySelector('.content-area') || child;
                   extractNodes(area);
                   return;
               }
-              
               rawElements.push(child);
           });
       }
-      
       extractNodes(container);
 
-      for (let i = 0; i < rawElements.length - 1; i++) {
-          let el1 = rawElements[i];
-          let el2 = rawElements[i+1];
-          if (el1.tagName === 'P' && el2.tagName === 'P') {
-              let text = el1.textContent.trim();
-              if (text.length > 0 && !/[.!?:"']$/.test(text)) {
-                  el1.innerHTML += ' ' + el2.innerHTML;
-                  if(el2.parentNode) el2.parentNode.removeChild(el2);
-                  rawElements.splice(i + 1, 1);
-                  i--; 
+      // COSTUREIRO DE FRASES E EXTERMINADOR DE MARKDOWN DA IA
+      for (let i = 0; i < rawElements.length; i++) {
+          let el = rawElements[i];
+
+          // Se for texto da IA dizendo "Página 4" ou "Subtítulo", ele VAPORIZA o elemento.
+          if (el.tagName === 'P') {
+              let txt = el.textContent.trim();
+              if (/^(\*\*Página|\* Subtítulo|Subtítulo:|\*\*Capítulo|\*Página)/i.test(txt)) {
+                  rawElements.splice(i, 1);
+                  i--;
+                  continue;
+              }
+          }
+
+          // Costura frases que a IA quebrou pela metade
+          if (i < rawElements.length - 1) {
+              let el2 = rawElements[i+1];
+              if (el.tagName === 'P' && el2.tagName === 'P') {
+                  let text = el.textContent.trim();
+                  if (text.length > 0 && !/[.!?:"']$/.test(text)) {
+                      el.innerHTML += ' ' + el2.innerHTML;
+                      rawElements.splice(i + 1, 1);
+                      i--; 
+                  }
               }
           }
       }
@@ -111,7 +120,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       stylesAndScripts.forEach(el => container.appendChild(el));
       
       // ========================================================
-      // 3. REMONTAGEM ABSOLUTA
+      // 3. REMONTAGEM ABSOLUTA (Sem Gatos Pretos)
       // ========================================================
       if (coverPage) container.appendChild(coverPage);
       if (legalPage) container.appendChild(legalPage);
@@ -125,7 +134,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           novaPagina.innerHTML = \`
               <div class="page-header"><span></span><span>\${tituloDoLivro}</span></div>
               <div class="content-area" style="display: flex; flex-direction: column; width: 100%;"></div>
-              <div class="page-footer">\${modeloFooter}</div>
+              <div class="page-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">\${modeloFooter}</div>
           \`;
           container.appendChild(novaPagina);
           return { pagina: novaPagina, areaTexto: novaPagina.querySelector('.content-area') };
@@ -158,10 +167,10 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
           }
           let bg = overlayEl.style.backgroundImage || '';
           
+          // API DE IMAGENS POR IA (POLLINATIONS) - Tchau, gatos pretos!
           if (overlayEl.dataset.unsplash && (bg === '' || bg === 'none' || bg.includes('initial'))) {
              const keyword = encodeURIComponent(overlayEl.dataset.unsplash.trim());
-             const cacheBuster = Math.random().toString(36).substring(7);
-             overlayEl.style.setProperty('background-image', \`url('https://loremflickr.com/1200/800/\${keyword},abstract?random=\${cacheBuster}')\`, 'important');
+             overlayEl.style.setProperty('background-image', \`url('https://image.pollinations.ai/prompt/\${keyword}%20book%20chapter%20abstract%20background?width=1200&height=800&nologo=true')\`, 'important');
           }
 
           novaPagina.appendChild(overlayEl); 
@@ -302,7 +311,7 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
                           <h2 class="chapter-title-inline">Índice</h2>
                           <div class="toc-container"></div>
                       </div>
-                      <div class="page-footer">\${modeloFooter}</div>
+                      <div class="page-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">\${modeloFooter}</div>
                   \`;
                   
                   if (insertPoint) container.insertBefore(p, insertPoint);
@@ -368,6 +377,20 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
       if (e.data.type === 'DELETE_ELEMENT') {
          const target = document.getElementById(e.data.id);
          if (target) {
+            // BLINDAGEM DE EXCLUSÃO: Impede a destruição da página! 
+            // Agora, se você tentar "apagar a página", o sistema só limpa a imagem de fundo.
+            if (target.classList.contains('page-container') || target.classList.contains('capa-isolada') || target.classList.contains('content-area')) {
+                target.style.setProperty('background-image', 'none', 'important');
+                target.style.setProperty('background-color', 'var(--color-bg)', 'important');
+                window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+                return;
+            }
+            if (target.classList.contains('cap-img-overlay')) {
+                target.style.setProperty('background-image', 'none', 'important');
+                window.parent.postMessage({ type: 'HTML_SYNC', html: document.getElementById('ebook-container').innerHTML }, '*');
+                return;
+            }
+            
             target.remove();
             executarRefluxoCompleto();
             setTimeout(() => {
@@ -400,24 +423,12 @@ export function getScriptPreview(indexShowSubtopics: boolean) {
                if (e.data.textColor !== undefined) target.style.setProperty('color', e.data.textColor, 'important');
                
                if (e.data.bgColor !== undefined) {
-                   target.dataset.rawHex = e.data.bgColor;
-                   let op = target.dataset.bgOp || (target.classList.contains('cap-overlay-box') ? '0.92' : '1');
                    let hex = e.data.bgColor.replace('#','');
                    if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
                    let r = parseInt(hex.substring(0,2), 16) || 255;
                    let g = parseInt(hex.substring(2,4), 16) || 255;
                    let b = parseInt(hex.substring(4,6), 16) || 255;
-                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${op})\`, 'important');
-               }
-               if (e.data.bgOpacity !== undefined) {
-                   target.dataset.bgOp = e.data.bgOpacity;
-                   let hex = target.dataset.rawHex || rgbToHex(window.getComputedStyle(target).backgroundColor) || '#f5f5f5';
-                   hex = hex.replace('#','');
-                   if(hex.length === 3) hex = hex.split('').map(x => x+x).join('');
-                   let r = parseInt(hex.substring(0,2), 16) || 245;
-                   let g = parseInt(hex.substring(2,4), 16) || 245;
-                   let b = parseInt(hex.substring(4,6), 16) || 245;
-                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b},\${e.data.bgOpacity})\`, 'important');
+                   target.style.setProperty('background-color', \`rgba(\${r},\${g},\${b}, 1)\`, 'important');
                }
                
                if (e.data.fontSize !== undefined) target.style.setProperty('font-size', e.data.fontSize + 'px', 'important');
