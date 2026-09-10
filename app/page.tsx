@@ -1883,6 +1883,12 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
               >
                 <i className="fas fa-print"></i> Imprimir / PDF
               </button>
+              <button
+  onClick={baixarEbookHTML}
+  className="text-[10px] font-bold text-orange-600 hover:text-orange-800 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200 transition shadow-sm mr-2"
+>
+  <i className="fas fa-code mr-1"></i> Baixar HTML
+</button>
             </div>
           </header>
 
