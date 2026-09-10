@@ -870,13 +870,20 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     ${cap2.regrasCompletas}
     ${cap3.regrasCompletas}
 
-    A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos acima preenchidos, sem repetir cabeçalhos ou rodapés. Não escreva "Conclusão".`;
+    A sua resposta deve conter APENAS os blocos HTML dos 3 capítulos acima preenchidos. Não escreva "Conclusão".`;
 
     if (modoConteudo === 'rigoroso') {
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
-    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA): Você DEVE agir como um Ghostwriter. Escreva o CONTEÚDO REAL. É ESTRITAMENTE PROIBIDO gerar qualquer pensamento interno, raciocínios lógicos, conversas ou anotações de contagem de palavras ANTES ou DEPOIS do código.`;
+    // =========================================================
+    // BLINDAGEM NUCLEAR DE PROMPT CONTRA ALUCINAÇÕES DE CONTAGEM
+    // =========================================================
+    instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA E ALUCINAÇÃO): Você DEVE agir como um compilador cego HTML.
+    1. É ESTRITAMENTE PROIBIDO gerar textos Markdown soltos (como "**Página 4**").
+    2. É ESTRITAMENTE PROIBIDO mostrar sua linha de raciocínio, contagem de palavras ou revisões (ex: "(53 words) - Perfect", "Let's check", "P3:").
+    3. NÃO use aspas (") para envolver os parágrafos.
+    Retorne APENAS as tags HTML limpas solicitadas, prontas para renderizar, sem absolutamente nenhum comentário extra.`;
 
     let contextoReduzido = currentHtml;
     if (currentHtml && currentHtml.length > 4000) {
@@ -895,10 +902,20 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       new DOMParser().parseFromString(raw, 'text/html').body.querySelectorAll('div.cap-img-overlay, h1, h2, h3, h4, p, blockquote, ul, li, div.concept-box, div.highlight-box').forEach(el => {
           let txt = el.textContent.trim();
           
-          // O FILTRO DA MORDAÇA: Se a frase começar com asterisco, ou palavras de raciocínio da IA, é sumariamente deletada!
-          if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:)/i.test(txt)) {
-              return; // Ignora o pensamento e pula pro próximo
+          // O FILTRO DA MORDAÇA EXPANDIDO (Pega os pensamentos da IA e bloqueia)
+          if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:|Let's|The prompt|I will output)/i.test(txt)) {
+              return; 
           }
+          if (/(Perfect\.|Let's check|The prompt says)/i.test(txt) && txt.length < 150) {
+              return;
+          }
+          
+          // LIMPEZA INTERNA (Se ela colar o "(53 words)" no meio do parágrafo, o script arranca fora e salva o texto)
+          let innerHTML = el.innerHTML;
+          innerHTML = innerHTML.replace(/\s*\(\d+\s*words?\)\s*(-\s*Perfect\.?)?/gi, '');
+          innerHTML = innerHTML.replace(/^P\d+:\s*["']?/gi, '');
+          innerHTML = innerHTML.replace(/["']$/g, '');
+          el.innerHTML = innerHTML;
           
           ext += el.outerHTML + '\n';
       });
