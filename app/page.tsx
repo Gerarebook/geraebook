@@ -10,6 +10,41 @@ import { getScriptPreview } from './utils/iframeScript';
 import { gerarPaginaAviso, obterBlocoAutorHtml, obterInstrucoesBase } from './utils/ebookTemplates';
 import { purificarHTML, ajustarParagrafos, moldarApresentacaoHtml, ThemeOptions } from './utils/ebookTheme';
 
+// FILTRO EXTRATOR BLINDADO: Puxa apenas os tijolos válidos e destrói alucinações da IA
+function extrairConteudoSeguro(rawHtml: string): string {
+  const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+  let ext = '';
+  
+  doc.body.querySelectorAll('div.cap-img-overlay, h1, h2, h3, h4, p, blockquote, ul, li, div.concept-box, div.highlight-box').forEach(el => {
+      // Impede clonagem: se o elemento estiver dentro de um bloco já capturado, ignora
+      if (el.parentElement && el.parentElement.closest('.cap-img-overlay, .concept-box, .highlight-box')) return;
+      
+      let txt = el.textContent?.trim() || '';
+      
+      // Mordaça na IA: bloqueia conversas, contagens de palavras e comentários
+      if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:|Let's|The prompt|I will output)/i.test(txt)) return; 
+      if (/(Perfect\.|Let's check|The prompt says)/i.test(txt) && txt.length < 150) return;
+      
+      // Exorcismo: Bloqueia a IA de tentar desenhar "Meu E-book" no meio do texto
+      if (el.tagName === 'H1' && (txt.includes('Meu E-book') || txt.includes('Título do Livro'))) return; 
+      
+      // Limpeza interna de parágrafos
+      let innerHTML = el.innerHTML;
+      innerHTML = innerHTML.replace(/\s*\(\d+\s*words?\)\s*(-\s*Perfect\.?)?/gi, '');
+      innerHTML = innerHTML.replace(/\*?\*?Chapter\s*\d+.*?:?\*?\*?/gi, '');
+      innerHTML = innerHTML.replace(/Let's expand to.*?:/gi, '');
+      innerHTML = innerHTML.replace(/^P\d+:\s*["']?/gi, '');
+      innerHTML = innerHTML.replace(/["']$/g, '');
+      
+      el.innerHTML = innerHTML.trim();
+      
+      if (el.textContent?.trim() || el.classList.contains('cap-img-overlay')) {
+          ext += el.outerHTML + '\n';
+      }
+  });
+  return ext;
+}
+
 export default function Home() {
   // Estados principais
   const [historico, setHistorico] = useState<string[]>([]);
@@ -753,51 +788,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }
 
   // ============================================================
-  // FUNÇÃO DE DESEMPACOTAMENTO (O Escudo Anti-Clone Definitivo)
-  // ============================================================
-  function extrairEstruturaPlana(parent: any): string {
-    let htmlStr = '';
-    if (!parent || !parent.children) return htmlStr;
-    
-    Array.from(parent.children).forEach((child: any) => {
-        const tag = child.tagName.toLowerCase();
-        
-        // Se for um bloco válido, limpa, absorve e PARA de cavar (isso mata o clone)
-        if (child.classList.contains('cap-img-overlay') || 
-            child.classList.contains('concept-box') || 
-            child.classList.contains('highlight-box') ||
-            ['h1', 'h2', 'h3', 'h4', 'p', 'blockquote', 'ul', 'ol'].includes(tag)) {
-            
-            // Corrige o bug do texto vazado na capa (aquela palavra "finanças" em cima do título)
-            if (child.classList.contains('cap-img-overlay')) {
-                Array.from(child.childNodes).forEach((n: any) => {
-                    if (n.nodeType === 3) n.remove();
-                });
-            }
-            
-            let txt = child.textContent?.trim() || '';
-            if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:|Let's|The prompt|I will output)/i.test(txt)) return; 
-            if (/(Perfect\.|Let's check|The prompt says)/i.test(txt) && txt.length < 150) return;
-            
-            let innerHTML = child.innerHTML;
-            innerHTML = innerHTML.replace(/\s*\(\d+\s*words?\)\s*(-\s*Perfect\.?)?/gi, '');
-            innerHTML = innerHTML.replace(/\*?\*?Chapter\s*\d+.*?:?\*?\*?/gi, '');
-            innerHTML = innerHTML.replace(/Let's expand to.*?:/gi, '');
-            innerHTML = innerHTML.replace(/^P\d+:\s*["']?/gi, '');
-            innerHTML = innerHTML.replace(/["']$/g, '');
-            child.innerHTML = innerHTML.trim();
-            
-            htmlStr += child.outerHTML + '\n';
-            
-        // Se for uma div ou pacote genérico que a IA inventou, ele desempacota! (Isso mata as páginas esticadas)
-        } else if (tag === 'div' || tag === 'main' || tag === 'article' || tag === 'section') {
-            htmlStr += extrairEstruturaPlana(child); 
-        }
-    });
-    return htmlStr;
-  }
-
-  // ============================================================
   // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS) 
   // ============================================================
 
@@ -843,10 +833,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     if (data && data.html) {
       let rawContent = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
       
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(rawContent, 'text/html');
-      
-      let introLimpa = extrairEstruturaPlana(doc.body);
+      let introLimpa = extrairConteudoSeguro(rawContent);
       if (!introLimpa.trim()) {
           introLimpa = rawContent.replace(/<\/?(html|head|body|doctype|main|div)[^>]*>/gi, '');
       }
@@ -889,20 +876,18 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const cap2 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 1, tema: temaBase });
     const cap3 = obterInstrucoesBase({ numeroCapitulo: proximoNumero + 2, tema: temaBase });
 
-    let ultimoParagrafo = '';
-    if (currentHtml) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = currentHtml;
-      const paragrafos = tempDiv.querySelectorAll('p');
-      if (paragrafos.length > 0) {
-        ultimoParagrafo = paragrafos[paragrafos.length - 1].textContent?.trim() || '';
-      }
+    // OBTENDO O CONTEXTO SEGURO (Esconde a Capa da IA para ela não copiar)
+    let tempDiv = document.createElement('div');
+    tempDiv.innerHTML = currentHtml;
+    tempDiv.querySelectorAll('.page-cover-img, .page-cover-pura, [data-legal], .toc-page-wrapper, .author-page').forEach(el => el.remove());
+    let textoPuroContexto = tempDiv.textContent?.trim() || '';
+    if (textoPuroContexto.length > 3000) {
+        textoPuroContexto = "..." + textoPuroContexto.substring(textoPuroContexto.length - 3000);
     }
 
     let instrucao = `Você vai CONTINUAR a escrita de um e-book, gerando EXATAMENTE 3 CAPÍTULOS completos.
     Cada capítulo deve seguir o molde de 3 páginas fornecido abaixo.
     Use os números de capítulo: ${proximoNumero}, ${proximoNumero + 1}, ${proximoNumero + 2}.
-    INSTRUÇÃO CRÍTICA: Você foi interrompido na geração anterior. O último trecho gerado foi: "${ultimoParagrafo}". Continue o raciocínio EXATAMENTE a partir da próxima palavra que completaria esta frase, e então siga gerando os capítulos ${proximoNumero}, ${proximoNumero + 1} e ${proximoNumero + 2}.
     Respeite rigorosamente a ordem (imagem primeiro, depois título).
 
     MOLDE PARA CADA CAPÍTULO:
@@ -920,24 +905,18 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     1. É ESTRITAMENTE PROIBIDO gerar textos Markdown soltos (como "**Página 4**").
     2. É ESTRITAMENTE PROIBIDO mostrar sua linha de raciocínio, contagem de palavras ou revisões (ex: "(53 words) - Perfect", "Let's check", "P3:").
     3. NÃO use aspas (") para envolver os parágrafos.
+    4. PROIBIDO MENCIONAR "Meu E-book" ou "Autor" nas respostas.
     Retorne APENAS as tags HTML limpas solicitadas, prontas para renderizar, sem absolutamente nenhum comentário extra.`;
 
-    let contextoReduzido = currentHtml;
-    if (currentHtml && currentHtml.length > 4000) {
-      contextoReduzido = currentHtml.substring(currentHtml.length - 4000);
-    }
-
     const data = await chamarMotorIA(instrucao, [
-      { text: `ÚLTIMA PARTE DO LIVRO (Continue a partir daqui):\n"""\n${contextoReduzido}\n"""` },
+      { text: `ÚLTIMA PARTE DO LIVRO (Continue a partir daqui):\n"""\n${textoPuroContexto}\n"""` },
       { text: `INSTRUÇÕES/TEXTO DOS PRÓXIMOS CAPÍTULOS:\n"""\n${content || 'Gere os próximos conteúdos seguindo o molde.'}\n"""` },
     ], false);
 
     if (data && data.html) {
       let raw = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
       
-      const docParsed = new DOMParser().parseFromString(raw, 'text/html');
-      let ext = extrairEstruturaPlana(docParsed.body);
-      
+      let ext = extrairConteudoSeguro(raw);
       if (!ext.trim()) {
           ext = raw.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, '');
       }
