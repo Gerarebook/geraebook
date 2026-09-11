@@ -763,7 +763,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       return;
     }
 
-    // 1. BLINDAGEM MÁXIMA DA CAPA (CSS Inline garante que ela NUNCA murchará ou sumirá)
     const regraCapaHtml = `
     <div class="page-container page-cover-img" style="background: url('${imagemCapaUrl}') center/cover no-repeat !important; background-color: #0f172a !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important; height: 297mm !important; width: 100% !important; border: none !important;">
         <h1 style="color: #ffffff !important; font-size: 3.5rem !important; font-weight: 800 !important; text-align: center !important; margin: 0 0 1rem 0 !important; text-shadow: 0 0 20px rgba(0,0,0,0.9); z-index: 100;">${livroTitulo || 'Meu E-book'}</h1>
@@ -772,7 +771,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     
     const paginaAviso = gerarPaginaAviso(livroTitulo);
     
-    // 2. BLINDAGEM DO ÍNDICE (Garante altura mínima para não colapsar)
     const paginaIndice = `
     <div class="page-container chapter-text-page">
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
@@ -783,7 +781,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>`;
 
-    // 3. IA FOCADA APENAS NO TEXTO
     const instrucao = `Você é um ghostwriter profissional. Escreva a Introdução do e-book.
     DIRETRIZES:
     1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto.
@@ -805,7 +802,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       const doc = parser.parseFromString(rawContent, 'text/html');
       
       let extract = '';
-      doc.body.querySelectorAll('h1, h2, h3, h4, p, blockquote, ul, li').forEach(el => {
+      // CORREÇÃO: Lê apenas os elementos puros, sem duplicar o que está dentro deles!
+      Array.from(doc.body.children).forEach(el => {
           extract += el.outerHTML + '\n';
       });
       
@@ -876,9 +874,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       instrucao += `\n\nO usuário escolheu o modo RIGOROSO. Você deve manter 95% do texto original fornecido intacto. Faça apenas correções ortográficas, ajuste pontuações, concorde verbos e gere os Subtítulos exigidos pelo modelo para que a estrutura encaixe, mas NUNCA invente parágrafos novos ou fuja do texto base.`;
     }
 
-    // =========================================================
-    // BLINDAGEM NUCLEAR DE PROMPT CONTRA ALUCINAÇÕES DE CONTAGEM
-    // =========================================================
     instrucao += `\n\nREGRA DE SEGURANÇA MÁXIMA (PROIBIDO PREGUIÇA E ALUCINAÇÃO): Você DEVE agir como um compilador cego HTML.
     1. É ESTRITAMENTE PROIBIDO gerar textos Markdown soltos (como "**Página 4**").
     2. É ESTRITAMENTE PROIBIDO mostrar sua linha de raciocínio, contagem de palavras ou revisões (ex: "(53 words) - Perfect", "Let's check", "P3:").
@@ -899,10 +894,12 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       let raw = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
       let ext = '';
       
-      new DOMParser().parseFromString(raw, 'text/html').body.querySelectorAll('div.cap-img-overlay, h1, h2, h3, h4, p, blockquote, ul, li, div.concept-box, div.highlight-box').forEach(el => {
-          let txt = el.textContent.trim();
+      const docParsed = new DOMParser().parseFromString(raw, 'text/html');
+      
+      // CORREÇÃO: Limpeza limpa sem clonagem de tags.
+      Array.from(docParsed.body.children).forEach(el => {
+          let txt = el.textContent?.trim() || '';
           
-          // O FILTRO DA MORDAÇA EXPANDIDO (Pega os pensamentos da IA e bloqueia)
           if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:|Let's|The prompt|I will output)/i.test(txt)) {
               return; 
           }
@@ -910,13 +907,14 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
               return;
           }
           
-          // LIMPEZA INTERNA (Se ela colar o "(53 words)" no meio do parágrafo, o script arranca fora e salva o texto)
           let innerHTML = el.innerHTML;
           innerHTML = innerHTML.replace(/\s*\(\d+\s*words?\)\s*(-\s*Perfect\.?)?/gi, '');
+          innerHTML = innerHTML.replace(/\*?\*?Chapter\s*\d+.*?:?\*?\*?/gi, '');
+          innerHTML = innerHTML.replace(/Let's expand to.*?:/gi, '');
           innerHTML = innerHTML.replace(/^P\d+:\s*["']?/gi, '');
           innerHTML = innerHTML.replace(/["']$/g, '');
-          el.innerHTML = innerHTML;
           
+          el.innerHTML = innerHTML.trim();
           ext += el.outerHTML + '\n';
       });
       
@@ -962,7 +960,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     const data = await chamarMotorIA(instrucao, [{ text: `TEMA DO E-BOOK (Para basear a conclusão):\n"""\n${livroTitulo}\n"""` }], false);
     if (data && data.html) {
       let fimLimpo = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
-      fimLimpo = fimLimpo.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, ''); // Escudo Ativo
+      fimLimpo = fimLimpo.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, '');
 
       const blocoAutor = obterBlocoAutorHtml({
         estiloRodape,
