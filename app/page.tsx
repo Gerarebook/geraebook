@@ -97,7 +97,7 @@ export default function Home() {
     livroAutores,
   }), [
     livroTitulo, corFundoPagina, corTextoDetalhes, fontFamily,
-    tamanhoFonteBase, espacamentoLinhas, recuoParagrafo,
+    tamanhoFonteBase, espacamentoLinhas, espacamentoParagrafo,
     corRetanguloCapitulo, tipoBorda, estiloRodape,
     alinhamentoCapitulo, corFundoCapitulo, imagemCapaUrl,
     indexShowSubtopics, livroAutores
@@ -1475,6 +1475,7 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                         <option value="centralizado-circulo">Centralizado com Círculo</option>
                         <option value="centralizado">Apenas Número Centralizado</option>
                       </select>                    
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-3">
@@ -1553,7 +1554,8 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                     </div>
                   </div>
                 </div>
-              </div>           
+              </div>
+            )}
 
             {modoInspetor && (
               <div className="animate-[fadeIn_0.2s_ease] mt-4 border-t border-slate-200 pt-4">
@@ -1843,25 +1845,30 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                     )}
 
                     {elementoSelecionado.tagName !== 'img' && (
-          <div className="panel-section border-t border-slate-100">
-            <label className="input-label mb-2 text-[9px]">Alinhamento</label>
-            <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
-              <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
-              <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
-              <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
-              <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
-            </div>
+                      <div className="panel-section border-t border-slate-100">
+                        <label className="input-label mb-2 text-[9px]">Alinhamento</label>
+                        <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
+                          <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
+                          <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
+                          <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
+                          <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
 
-        <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between text-xs flex-shrink-0">
-          <span className="text-slate-400 font-medium">Motor IA: Google Gemini</span>
-          <span className="text-slate-300">v2.0</span>
-        </div>
-      </aside>
+          <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between text-xs flex-shrink-0">
+            <span className="text-slate-400 font-medium">Motor IA: Google Gemini</span>
+            <span className="text-slate-300">v2.0</span>
+          </div>
+        </aside>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200 relative">
+          <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm flex-shrink-0">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => uploadInputRef.current?.click()}
@@ -1892,11 +1899,11 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                 <i className="fas fa-print"></i> Imprimir / PDF
               </button>
               <button
-  onClick={baixarEbookHTML}
-  className="text-[10px] font-bold text-orange-600 hover:text-orange-800 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200 transition shadow-sm mr-2"
->
-  <i className="fas fa-code mr-1"></i> Baixar HTML
-</button>
+                onClick={baixarEbookHTML}
+                className="text-[10px] font-bold text-orange-600 hover:text-orange-800 bg-orange-50 px-2.5 py-1 rounded-md border border-orange-200 transition shadow-sm mr-2"
+              >
+                <i className="fas fa-code mr-1"></i> Baixar HTML
+              </button>
             </div>
           </header>
 
