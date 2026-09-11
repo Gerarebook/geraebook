@@ -1843,12 +1843,13 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
                     )}
 
                     {elementoSelecionado.tagName !== 'img' && (
-                      <div className="panel-section border-t border-slate-100">
-                        <label className="input-label mb-2 text-[9px]">Alinhamento</label>
-                        <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
-                          <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
-                          <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
-                         <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
+          <div className="panel-section border-t border-slate-100">
+            <label className="input-label mb-2 text-[9px]">Alinhamento</label>
+            <div className="flex bg-slate-100 rounded-lg border border-slate-200 p-1 gap-1">
+              <button onClick={() => atualizarElemento('textAlign', 'text-left')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-left"></i></button>
+              <button onClick={() => atualizarElemento('textAlign', 'text-center')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-center"></i></button>
+              <button onClick={() => atualizarElemento('textAlign', 'text-right')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-right"></i></button>
+              <button onClick={() => atualizarElemento('textAlign', 'text-justify')} className="flex-1 py-1 rounded text-slate-600 hover:bg-white text-[10px] font-bold"><i className="fas fa-align-justify"></i></button>
             </div>
           </div>
         )}
