@@ -753,6 +753,51 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
   }
 
   // ============================================================
+  // FUNÇÃO DE DESEMPACOTAMENTO (O Escudo Anti-Clone Definitivo)
+  // ============================================================
+  function extrairEstruturaPlana(parent: any): string {
+    let htmlStr = '';
+    if (!parent || !parent.children) return htmlStr;
+    
+    Array.from(parent.children).forEach((child: any) => {
+        const tag = child.tagName.toLowerCase();
+        
+        // Se for um bloco válido, limpa, absorve e PARA de cavar (isso mata o clone)
+        if (child.classList.contains('cap-img-overlay') || 
+            child.classList.contains('concept-box') || 
+            child.classList.contains('highlight-box') ||
+            ['h1', 'h2', 'h3', 'h4', 'p', 'blockquote', 'ul', 'ol'].includes(tag)) {
+            
+            // Corrige o bug do texto vazado na capa (aquela palavra "finanças" em cima do título)
+            if (child.classList.contains('cap-img-overlay')) {
+                Array.from(child.childNodes).forEach((n: any) => {
+                    if (n.nodeType === 3) n.remove();
+                });
+            }
+            
+            let txt = child.textContent?.trim() || '';
+            if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:|Let's|The prompt|I will output)/i.test(txt)) return; 
+            if (/(Perfect\.|Let's check|The prompt says)/i.test(txt) && txt.length < 150) return;
+            
+            let innerHTML = child.innerHTML;
+            innerHTML = innerHTML.replace(/\s*\(\d+\s*words?\)\s*(-\s*Perfect\.?)?/gi, '');
+            innerHTML = innerHTML.replace(/\*?\*?Chapter\s*\d+.*?:?\*?\*?/gi, '');
+            innerHTML = innerHTML.replace(/Let's expand to.*?:/gi, '');
+            innerHTML = innerHTML.replace(/^P\d+:\s*["']?/gi, '');
+            innerHTML = innerHTML.replace(/["']$/g, '');
+            child.innerHTML = innerHTML.trim();
+            
+            htmlStr += child.outerHTML + '\n';
+            
+        // Se for uma div ou pacote genérico que a IA inventou, ele desempacota! (Isso mata as páginas esticadas)
+        } else if (tag === 'div' || tag === 'main' || tag === 'article' || tag === 'section') {
+            htmlStr += extrairEstruturaPlana(child); 
+        }
+    });
+    return htmlStr;
+  }
+
+  // ============================================================
   // FUNÇÕES DE GERAÇÃO DE CONTEÚDO (ETAPAS) 
   // ============================================================
 
@@ -763,7 +808,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       return;
     }
 
-    // 1. BLINDAGEM MÁXIMA DA CAPA
     const regraCapaHtml = `
     <div class="page-container page-cover-img" style="background: url('${imagemCapaUrl}') center/cover no-repeat !important; background-color: #0f172a !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important; height: 297mm !important; width: 100% !important; border: none !important;">
         <h1 style="color: #ffffff !important; font-size: 3.5rem !important; font-weight: 800 !important; text-align: center !important; margin: 0 0 1rem 0 !important; text-shadow: 0 0 20px rgba(0,0,0,0.9); z-index: 100;">${livroTitulo || 'Meu E-book'}</h1>
@@ -772,7 +816,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
     
     const paginaAviso = gerarPaginaAviso(livroTitulo);
     
-    // 2. BLINDAGEM DO ÍNDICE
     const paginaIndice = `
     <div class="page-container chapter-text-page">
         <div class="page-header"><span></span><span>${livroTitulo}</span></div>
@@ -783,7 +826,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
         <div class="page-footer"><span>${livroAutores}</span><span class="page-number"></span></div>
     </div>`;
 
-    // 3. IA FOCADA APENAS NO TEXTO
     const instrucao = `Você é um ghostwriter profissional. Escreva a Introdução do e-book.
     DIRETRIZES:
     1. GERE APENAS AS TAGS SOLICITADAS. NENHUM texto solto.
@@ -804,17 +846,10 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
       const parser = new DOMParser();
       const doc = parser.parseFromString(rawContent, 'text/html');
       
-      let extract = '';
-      
-      // O ESCUDO ANTI-CLONE FUNCIONANDO AQUI: Extrai os elementos soltos, ignorando blocos aninhados que causavam erro
-      doc.body.querySelectorAll('h1, h2, h3, h4, p, blockquote, ul, li').forEach(el => {
-          if (el.parentElement && el.parentElement.closest('.cap-img-overlay, .concept-box, .highlight-box')) {
-              return; // Ignora o clone e mantém a estrutura principal intacta
-          }
-          extract += el.outerHTML + '\n';
-      });
-      
-      let introLimpa = extract.trim() ? extract : rawContent.replace(/<\/?(html|head|body|doctype|main|div)[^>]*>/gi, '');
+      let introLimpa = extrairEstruturaPlana(doc.body);
+      if (!introLimpa.trim()) {
+          introLimpa = rawContent.replace(/<\/?(html|head|body|doctype|main|div)[^>]*>/gi, '');
+      }
 
       if (!introLimpa.toLowerCase().includes('<h2')) {
           introLimpa = '<h2 id="intro" class="chapter-title-inline">Introdução</h2>\n' + introLimpa;
@@ -899,37 +934,15 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
 
     if (data && data.html) {
       let raw = data.html.replace(/```html/gi, '').replace(/```/gi, '').trim();
-      let ext = '';
       
       const docParsed = new DOMParser().parseFromString(raw, 'text/html');
+      let ext = extrairEstruturaPlana(docParsed.body);
       
-      // O ESCUDO ANTI-CLONE FUNCIONANDO AQUI NO CAPÍTULO (Protege títulos e parágrafos)
-      docParsed.body.querySelectorAll('div.cap-img-overlay, h1, h2, h3, h4, p, blockquote, ul, li, div.concept-box, div.highlight-box').forEach(el => {
-          if (el.parentElement && el.parentElement.closest('.cap-img-overlay, .concept-box, .highlight-box')) {
-              return; // Ignora o clone e mantém a estrutura perfeitamente intacta
-          }
-          
-          let txt = el.textContent?.trim() || '';
-          
-          if (/^(\*|Wait,|Yes,|Instruction:|Here is|Sure|Claro|Aqui está|\*\*Página|Página \d|Subtítulo:|Let's|The prompt|I will output)/i.test(txt)) {
-              return; 
-          }
-          if (/(Perfect\.|Let's check|The prompt says)/i.test(txt) && txt.length < 150) {
-              return;
-          }
-          
-          let innerHTML = el.innerHTML;
-          innerHTML = innerHTML.replace(/\s*\(\d+\s*words?\)\s*(-\s*Perfect\.?)?/gi, '');
-          innerHTML = innerHTML.replace(/\*?\*?Chapter\s*\d+.*?:?\*?\*?/gi, '');
-          innerHTML = innerHTML.replace(/Let's expand to.*?:/gi, '');
-          innerHTML = innerHTML.replace(/^P\d+:\s*["']?/gi, '');
-          innerHTML = innerHTML.replace(/["']$/g, '');
-          
-          el.innerHTML = innerHTML.trim();
-          ext += el.outerHTML + '\n';
-      });
+      if (!ext.trim()) {
+          ext = raw.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, '');
+      }
       
-      aplicarHtmlNovo(ext.trim() ? ext : raw.replace(/<\/?(html|head|body|doctype|main)[^>]*>/gi, ''), true, true);
+      aplicarHtmlNovo(ext, true, true);
       setEtapaAtual(2);
       (window as any).showNotification('Passo 2 Concluído! 3 capítulos blindados.', 'success');
     } else {
