@@ -1853,7 +1853,6 @@ Retorne APENAS o HTML puro do elemento modificado, sem texto adicional.`;
             </div>
           </div>
         )}
-        </div>
 
         <div className="p-4 border-t border-slate-200 bg-white flex items-center justify-between text-xs flex-shrink-0">
           <span className="text-slate-400 font-medium">Motor IA: Google Gemini</span>
